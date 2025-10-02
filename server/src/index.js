@@ -7,6 +7,10 @@ import connectDB from './config/db.js';
 import authRoutes from './routes/auth.routes.js';
 
 dotenv.config();
+// console.log('Environment loaded:', {
+//   EMAIL_USER: process.env.EMAIL_USER,
+//   EMAIL_PASS: process.env.EMAIL_PASS
+// });
 
 const app = express();
 const PORT = process.env.PORT || 5030;

@@ -1,15 +1,17 @@
 import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
+dotenv.config();
+
+const createTransporter = () => {
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  });
+};
 
 export const sendOtpEmail = async (email, otp, name = 'User') => {
   const mailOptions = {
@@ -79,6 +81,8 @@ export const sendOtpEmail = async (email, otp, name = 'User') => {
     `
   };
 
+  console.log(`\n🔐 Sending OTP to ${email}`);
+  const transporter = createTransporter();
   return transporter.sendMail(mailOptions);
 };
 
@@ -149,5 +153,6 @@ export const sendWelcomeEmail = async (email, name) => {
     `
   };
 
+  const transporter = createTransporter();
   return transporter.sendMail(mailOptions);
 };
