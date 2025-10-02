@@ -44,6 +44,18 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Root route
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'EtherXWord API Server', 
+    version: '1.0.0',
+    endpoints: {
+      auth: '/api/auth',
+      health: '/health'
+    }
+  });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);

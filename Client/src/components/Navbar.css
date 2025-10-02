@@ -198,6 +198,7 @@
 .profile-avatar {
   width: 50px;
   height: 50px;
+  min-width: 50px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -205,18 +206,31 @@
   font-size: 24px;
   background: linear-gradient(135deg, #ffd700, #ffed4e);
   color: #000;
+  flex-shrink: 0;
+}
+
+.profile-info {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .profile-info h4 {
   margin: 0 0 4px 0;
   font-size: 16px;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .profile-info p {
   margin: 0;
   font-size: 14px;
   opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sidebar-menu {
@@ -378,6 +392,21 @@
   .profile-section {
     padding: 16px;
     margin-bottom: 20px;
+  }
+  
+  .profile-avatar {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    font-size: 18px;
+  }
+  
+  .profile-info h4 {
+    font-size: 14px;
+  }
+  
+  .profile-info p {
+    font-size: 12px;
   }
   
   .sidebar-item {

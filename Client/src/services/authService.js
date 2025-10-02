@@ -11,6 +11,8 @@ export const authService = {
     if (response.data.accessToken) {
       localStorage.setItem('accessToken', response.data.accessToken);
       localStorage.setItem('refreshToken', response.data.refreshToken);
+      localStorage.setItem('userProfile', JSON.stringify(response.data.user));
+      window.dispatchEvent(new Event('storage'));
     }
     return response.data;
   },
