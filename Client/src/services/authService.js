@@ -1,5 +1,7 @@
 import api from './api';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5030';
+
 export const authService = {
   signup: async (userData) => {
     const response = await api.post('/auth/signup', userData);

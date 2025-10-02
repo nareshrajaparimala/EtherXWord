@@ -64,7 +64,7 @@ const Navbar = () => {
       }
       
       console.log('Fetching profile from:', 'http://localhost:5030/api/auth/profile');
-      const response = await fetch('http://localhost:5030/api/auth/profile', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/profile`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
