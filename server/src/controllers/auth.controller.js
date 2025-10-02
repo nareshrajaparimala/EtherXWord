@@ -107,25 +107,36 @@ export const refreshToken = async (req, res) => {
 
 export const forgotPassword = async (req, res) => {
   try {
+    console.log('Forgot password request:', req.body);
     const { email } = req.body;
 
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    console.log('Looking for user with email:', email);
     const user = await User.findOne({ email });
     if (!user) {
+      console.log('User not found for email:', email);
       return res.json({ message: 'If email exists, OTP sent' });
     }
 
+    console.log('User found, deleting old OTPs');
     await OTP.deleteMany({ email });
 
+    console.log('Generating new OTP');
     const otp = generateOtp();
     const otpHash = await hashOtp(otp);
     const expiresAt = getOtpExpiry();
 
+    console.log('Creating OTP record');
     await OTP.create({
       email,
       otpHash,
       expiresAt
     });
 
+    console.log('Attempting to send OTP email');
     try {
       await sendOtpEmail(email, otp, user.fullName);
       console.log('OTP email sent successfully');
@@ -133,7 +144,8 @@ export const forgotPassword = async (req, res) => {
       console.error('Failed to send OTP email:', {
         error: emailError.message,
         code: emailError.code,
-        response: emailError.response
+        response: emailError.response,
+        stack: emailError.stack
       });
       return res.status(500).json({ 
         message: 'Failed to send OTP',
@@ -143,7 +155,15 @@ export const forgotPassword = async (req, res) => {
 
     res.json({ message: 'If email exists, OTP sent' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Forgot password error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    res.status(500).json({ 
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
 };
 
