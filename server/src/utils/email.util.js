@@ -5,19 +5,31 @@ dotenv.config();
 
 const createTransporter = () => {
   return nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
+    },
+    tls: {
+      rejectUnauthorized: false
     }
   });
 };
 
 export const sendOtpEmail = async (email, otp, name = 'User') => {
-  const mailOptions = {
-    from: `"EtherXWord" <${process.env.EMAIL_USER}>`,
-    to: email,
-    subject: '🔐 Your OTP for EtherXWord Password Reset',
+  try {
+    console.log('Email config:', {
+      EMAIL_USER: process.env.EMAIL_USER ? 'Set' : 'Missing',
+      EMAIL_PASS: process.env.EMAIL_PASS ? 'Set' : 'Missing',
+      to: email
+    });
+    
+    const mailOptions = {
+      from: `"EtherXWord" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: '🔐 Your OTP for EtherXWord Password Reset',
     html: `
       <!DOCTYPE html>
       <html>
@@ -81,9 +93,19 @@ export const sendOtpEmail = async (email, otp, name = 'User') => {
     `
   };
 
-  console.log(`\n🔐 Sending OTP to ${email}`);
-  const transporter = createTransporter();
-  return transporter.sendMail(mailOptions);
+    console.log(`\n🔐 Sending OTP to ${email}`);
+    const transporter = createTransporter();
+    const result = await transporter.sendMail(mailOptions);
+    console.log('Email sent successfully:', result.messageId);
+    return result;
+  } catch (error) {
+    console.error('Email sending failed:', {
+      message: error.message,
+      code: error.code,
+      response: error.response
+    });
+    throw error;
+  }
 };
 
 export const sendWelcomeEmail = async (email, name) => {

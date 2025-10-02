@@ -16,7 +16,10 @@ const app = express();
 const PORT = process.env.PORT || 5030;
 
 // Connect to MongoDB
-connectDB();
+connectDB().catch(err => {
+  console.error('MongoDB connection failed:', err);
+  process.exit(1);
+});
 
 // Security middleware
 app.use(helmet());
@@ -63,8 +66,16 @@ app.get('/', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!' });
+  console.error('Server Error:', {
+    message: err.message,
+    stack: err.stack,
+    url: req.url,
+    method: req.method
+  });
+  res.status(500).json({ 
+    message: 'Server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+  });
 });
 
 // 404 handler
@@ -74,4 +85,10 @@ app.use('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log('Environment:', {
+    NODE_ENV: process.env.NODE_ENV,
+    MONGODB_URI: process.env.MONGODB_URI ? 'Set' : 'Missing',
+    JWT_SECRET: process.env.JWT_SECRET ? 'Set' : 'Missing',
+    EMAIL_USER: process.env.EMAIL_USER ? 'Set' : 'Missing'
+  });
 });

@@ -128,9 +128,17 @@ export const forgotPassword = async (req, res) => {
 
     try {
       await sendOtpEmail(email, otp, user.fullName);
+      console.log('OTP email sent successfully');
     } catch (emailError) {
-      console.error('Failed to send OTP email:', emailError);
-      return res.status(500).json({ message: 'Failed to send OTP' });
+      console.error('Failed to send OTP email:', {
+        error: emailError.message,
+        code: emailError.code,
+        response: emailError.response
+      });
+      return res.status(500).json({ 
+        message: 'Failed to send OTP',
+        error: process.env.NODE_ENV === 'development' ? emailError.message : 'Email service unavailable'
+      });
     }
 
     res.json({ message: 'If email exists, OTP sent' });
