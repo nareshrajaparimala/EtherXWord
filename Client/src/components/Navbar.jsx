@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -12,6 +13,7 @@ const Navbar = () => {
   });
   const [loading, setLoading] = useState(false);
   const sidebarRef = useRef(null);
+  const navigate = useNavigate();
   
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
@@ -201,19 +203,19 @@ const Navbar = () => {
           </div>
           
           <div className="sidebar-menu">
-            <button className="sidebar-item">
+            <button className="sidebar-item" onClick={() => { navigate('/profile'); setShowSidebar(false); }}>
               <span className="item-icon">👤</span>
               <span>Profile</span>
             </button>
-            <button className="sidebar-item">
+            <button className="sidebar-item" onClick={() => { navigate('/settings'); setShowSidebar(false); }}>
               <span className="item-icon">⚙️</span>
               <span>Settings</span>
             </button>
-            <button className="sidebar-item">
+            <button className="sidebar-item" onClick={() => { navigate('/'); setShowSidebar(false); }}>
               <span className="item-icon">📊</span>
               <span>Dashboard</span>
             </button>
-            <button className="sidebar-item">
+            <button className="sidebar-item" onClick={() => { navigate('/'); setShowSidebar(false); }}>
               <span className="item-icon">📄</span>
               <span>Documents</span>
             </button>
