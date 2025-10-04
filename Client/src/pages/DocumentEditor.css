@@ -599,12 +599,6 @@
   .editor-wrapper {
     margin-right: 0;
   }
-}r(--border-color);
-  border-radius: 4px;
-  background: var(--surface);
-  color: var(--text-primary);
-  font-size: 11px;
-  margin-top: 4px;
 }
 
 /* Modal Styles */
