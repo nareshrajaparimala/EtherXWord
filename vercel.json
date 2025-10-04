@@ -1,0 +1,20 @@
+{
+  "builds": [
+    {
+      "src": "server/src/index.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "Client/package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
+    }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "server/src/index.js" },
+    { "src": "/(.*)", "dest": "Client/dist/$1" }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
