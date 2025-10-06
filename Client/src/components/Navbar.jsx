@@ -134,7 +134,7 @@ const Navbar = () => {
       <nav className={`navbar ${theme}`}>
         <div className="navbar-left">
           <div className="navbar-logo">
-            <span className="logo-text">EtherXWord</span>
+            <span className="logo-text-main">EtherXWord</span>
           </div>
         </div>
         
