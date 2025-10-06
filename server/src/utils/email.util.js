@@ -4,10 +4,14 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const createTransporter = () => {
-  return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
+  console.log('Creating transporter with:', {
+    service: 'gmail',
+    user: process.env.EMAIL_USER,
+    passLength: process.env.EMAIL_PASS?.length || 0
+  });
+  
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
@@ -16,6 +20,17 @@ const createTransporter = () => {
       rejectUnauthorized: false
     }
   });
+  
+  // Verify transporter
+  transporter.verify((error, success) => {
+    if (error) {
+      console.error('Transporter verification failed:', error);
+    } else {
+      console.log('Email transporter verified successfully');
+    }
+  });
+  
+  return transporter;
 };
 
 export const sendOtpEmail = async (email, otp, name = 'User') => {

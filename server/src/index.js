@@ -26,11 +26,14 @@ app.use(helmet());
 app.use(cors({
   origin: [
     'https://etherxword.netlify.app',
+    'https://ether-x-word-ba14avyrv-nareshrajaparimalas-projects.vercel.app',
+    'https://ether-x-word.vercel.app',
     'http://localhost:3000'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200
 }));
 
 // Rate limiting
