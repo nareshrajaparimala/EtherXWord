@@ -636,8 +636,8 @@ const DocumentEditor = () => {
         </div>
 
         <div className="toolbar-group">
-          <button onClick={() => formatText('insertUnorderedList')} className="toolbar-btn"><i class="ri-list-ordered-2"></i> </button>
-          <button onClick={() => formatText('insertOrderedList')} className="toolbar-btn"><i class="ri-list-unordered"></i> </button>
+          <button onClick={() => formatText('insertUnorderedList')} className="toolbar-btn"> <i class="ri-list-unordered"></i></button>
+          <button onClick={() => formatText('insertOrderedList')} className="toolbar-btn"> <i class="ri-list-ordered-2"></i></button>
           <button onClick={togglePageBorder} className="toolbar-btn"><i class="ri-checkbox-blank-line"></i> </button>
           <button onClick={() => formatText('createLink', prompt('Enter URL:'))} className="toolbar-btn">🔗</button>
         </div>
