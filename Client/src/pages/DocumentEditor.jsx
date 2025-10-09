@@ -561,9 +561,9 @@ const DocumentEditor = () => {
           )}
         </div>
         <div className="navbar-right">
-          <button className="nav-btn" onClick={() => saveDocument()}>💾 Save</button>
-          <button className="nav-btn" onClick={generateShareLink}>👥 Share</button>
-          <button className="nav-btn" onClick={deleteDocument}>🗑️ Delete</button>
+          <button className="nav-btn" onClick={() => saveDocument()}><i class="ri-save-line"></i> Save</button>
+          <button className="nav-btn" onClick={generateShareLink}><i class="ri-share-fill"></i> Share</button>
+          <button className="nav-btn" onClick={deleteDocument}><i class="ri-delete-bin-6-line"></i>  Delete</button>
           <button className="nav-icon">🔔</button>
           <div className="profile-dropdown">
             <button 
@@ -629,22 +629,22 @@ const DocumentEditor = () => {
         </div>
 
         <div className="toolbar-group">
-          <button onClick={() => formatText('justifyLeft')} className="toolbar-btn">⬅️</button>
-          <button onClick={() => formatText('justifyCenter')} className="toolbar-btn">↔️</button>
-          <button onClick={() => formatText('justifyRight')} className="toolbar-btn">➡️</button>
-          <button onClick={() => formatText('justifyFull')} className="toolbar-btn">↕️</button>
+          <button onClick={() => formatText('justifyLeft')} className="toolbar-btn"><i class="ri-align-left"></i> </button>
+          <button onClick={() => formatText('justifyCenter')} className="toolbar-btn"><i class="ri-align-center"></i></button>
+          <button onClick={() => formatText('justifyRight')} className="toolbar-btn"><i class="ri-align-right"></i></button>
+          <button onClick={() => formatText('justifyFull')} className="toolbar-btn"><i class="ri-expand-up-down-fill"></i> </button>
         </div>
 
         <div className="toolbar-group">
-          <button onClick={() => formatText('insertUnorderedList')} className="toolbar-btn">• List</button>
-          <button onClick={() => formatText('insertOrderedList')} className="toolbar-btn">1. List</button>
-          <button onClick={togglePageBorder} className="toolbar-btn">🔲 Page Border</button>
-          <button onClick={() => formatText('createLink', prompt('Enter URL:'))} className="toolbar-btn">🔗 Link</button>
+          <button onClick={() => formatText('insertUnorderedList')} className="toolbar-btn"><i class="ri-list-ordered-2"></i> </button>
+          <button onClick={() => formatText('insertOrderedList')} className="toolbar-btn"><i class="ri-list-unordered"></i> </button>
+          <button onClick={togglePageBorder} className="toolbar-btn"><i class="ri-checkbox-blank-line"></i> </button>
+          <button onClick={() => formatText('createLink', prompt('Enter URL:'))} className="toolbar-btn">🔗</button>
         </div>
 
         <div className="toolbar-group mobile-hidden">
-          <button onClick={() => exportDocument('pdf')} className="toolbar-btn">📄 PDF</button>
-          <button onClick={() => exportDocument('docx')} className="toolbar-btn">📝 DOCX</button>
+          <button onClick={() => exportDocument('pdf')} className="toolbar-btn"><i class="ri-file-pdf-2-line"></i> PDF</button>
+          <button onClick={() => exportDocument('docx')} className="toolbar-btn"><i class="ri-file-edit-fill"></i> DOCX</button>
         </div>
       </div>
 
@@ -652,9 +652,9 @@ const DocumentEditor = () => {
         {/* Left Sidebar */}
         <aside className={`left-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
           <div className="sidebar-section">
-            <h3>📄 Document</h3>
+            <h3><i class="ri-file-3-fill"></i> Document</h3>
             <button className="sidebar-btn">📊 Word Count</button>
-            <button className="sidebar-btn">🔍 Find & Replace</button>
+            <button className="sidebar-btn"><i class="ri-find-replace-line"></i> Find & Replace</button>
             <button className="sidebar-btn">📋 Outline</button>
           </div>
           <div className="sidebar-section">
@@ -662,9 +662,9 @@ const DocumentEditor = () => {
             <button className="sidebar-btn" onClick={() => formatText('formatBlock', 'h1')}>🎨 Heading 1</button>
             <button className="sidebar-btn" onClick={() => formatText('formatBlock', 'h2')}>🎨 Heading 2</button>
             <button className="sidebar-btn" onClick={() => formatText('formatBlock', 'p')}>🎨 Paragraph</button>
-            <button className="sidebar-btn" onClick={() => formatText('indent')}>➡️ Indent</button>
-            <button className="sidebar-btn" onClick={() => formatText('outdent')}>⬅️ Outdent</button>
-            <button className="sidebar-btn" onClick={() => formatText('insertHTML', '<br><br>')}>📏 Line Spacing</button>
+            <button className="sidebar-btn" onClick={() => formatText('indent')}><i class="ri-indent-increase"></i> Indent</button>
+            <button className="sidebar-btn" onClick={() => formatText('outdent')}><i class="ri-indent-decrease"></i> Outdent</button>
+            <button className="sidebar-btn" onClick={() => formatText('insertHTML', '<br><br>')}><i class="ri-letter-spacing-2"></i> Line Spacing</button>
           </div>
         </aside>
 
