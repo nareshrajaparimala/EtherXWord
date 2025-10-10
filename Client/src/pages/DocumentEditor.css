@@ -370,20 +370,88 @@
   padding: 32px 16px;
   background: #f5f5f5;
   overflow-y: auto;
+  min-width: 250mm;
+}
+
+@media (max-width: 1024px) {
+  .editor-wrapper {
+    min-width: auto;
+    padding: 20px 10px;
+  }
 }
 
 [data-theme="dark"] .editor-wrapper {
   background: #0a0a0a;
 }
 
+.pages-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+  width: 210mm;
+  min-width: 210mm;
+}
+
+@media (max-width: 1024px) {
+  .pages-container {
+    width: 100%;
+    min-width: auto;
+  }
+}
+
 .editor-page {
-  width: 100%;
-  max-width: 800px;
-  min-height: 1000px;
+  width: 210mm;
+  height: 297mm;
+  min-width: 210mm;
+  min-height: 297mm;
+  max-width: 210mm;
+  max-height: 297mm;
   background: white;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
+  position: relative;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+  flex-grow: 0;
+}
+
+@media (max-width: 1024px) {
+  .editor-page {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-height: 100vh;
+    max-height: none;
+  }
+}
+
+.a4-page {
+  width: 210mm;
+  height: 297mm;
+  min-width: 210mm;
+  min-height: 297mm;
+  max-width: 210mm;
+  max-height: 297mm;
+  flex-shrink: 0;
+  flex-grow: 0;
+}
+
+.active-page {
+  box-shadow: 0 0 0 2px var(--primary-yellow), 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.page-number {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  font-size: 10px;
+  color: #999;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 2px 6px;
+  border-radius: 3px;
+  z-index: 10;
 }
 
 [data-theme="dark"] .editor-page {
@@ -391,14 +459,57 @@
   color: #ffffff;
 }
 
+[data-theme="dark"] .page-number {
+  background: rgba(26, 26, 26, 0.8);
+  color: #ccc;
+}
+
 .editor-content {
-  padding: 60px 80px;
-  min-height: 1000px;
+  padding: 20mm;
+  height: 100%;
+  width: 100%;
   font-family: 'Georgia', serif;
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 12pt;
+  line-height: 1.5;
   color: #333;
   outline: none;
+  box-sizing: border-box;
+  cursor: text;
+}
+
+@media (max-width: 1024px) {
+  .editor-content {
+    padding: 40px 20px;
+    height: 100%;
+    width: 100%;
+    font-size: 14px;
+  }
+  
+  .a4-content {
+    padding: 40px 20px;
+    height: 100%;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .editor-content {
+    padding: 20px 16px;
+    font-size: 13px;
+  }
+}
+
+.editor-content:empty:before {
+  content: 'Start writing...';
+  color: #999;
+  font-style: italic;
+}
+
+.a4-content {
+  padding: 20mm;
+  height: 100%;
+  width: 100%;
+  cursor: text;
 }
 
 [data-theme="dark"] .editor-content {

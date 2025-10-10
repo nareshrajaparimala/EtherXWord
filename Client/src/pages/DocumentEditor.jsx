@@ -31,6 +31,8 @@ const DocumentEditor = () => {
     style: 'solid',
     margin: '20px'
   });
+  const [pages, setPages] = useState([{ id: 1, content: '<p>Start writing your document here...</p>' }]);
+  const [currentPage, setCurrentPage] = useState(1);
   const editorRef = useRef(null);
   const navigate = useNavigate();
   const { id: documentId } = useParams();
@@ -38,7 +40,27 @@ const DocumentEditor = () => {
 
   const formatText = (command, value = null) => {
     document.execCommand(command, false, value);
-    editorRef.current.focus();
+    if (editorRef.current) {
+      editorRef.current.focus();
+    }
+  };
+
+  const addNewPage = () => {
+    const newPage = {
+      id: pages.length + 1,
+      content: '<p><br></p>'
+    };
+    setPages([...pages, newPage]);
+    setCurrentPage(newPage.id);
+  };
+
+  const handleContentChange = (e, pageId) => {
+    const content = e.target.innerHTML;
+    setPages(prevPages => 
+      prevPages.map(page => 
+        page.id === pageId ? { ...page, content } : page
+      )
+    );
   };
 
   const saveDocument = async (isAutoSave = false) => {
@@ -208,6 +230,18 @@ const DocumentEditor = () => {
       if (autoSaveInterval.current) clearInterval(autoSaveInterval.current);
     };
   }, [documentId, documentTitle]);
+  
+  // Set content for each page
+  React.useEffect(() => {
+    pages.forEach((page, index) => {
+      const pageElement = document.querySelector(`[data-page-id="${page.id}"]`);
+      if (pageElement && !pageElement.contains(document.activeElement)) {
+        if (page.content && page.content !== '<p>Start writing your document here...</p>') {
+          pageElement.innerHTML = page.content;
+        }
+      }
+    });
+  }, [pages]);
   
   const fetchDocumentData = async () => {
     try {
@@ -812,6 +846,7 @@ const DocumentEditor = () => {
         <div className="toolbar-group mobile-hidden">
           <button onClick={() => exportDocument('pdf')} className="toolbar-btn"><i class="ri-file-pdf-2-line"></i> PDF</button>
           <button onClick={() => exportDocument('docx')} className="toolbar-btn"><i class="ri-file-edit-fill"></i> DOCX</button>
+          <button onClick={addNewPage} className="toolbar-btn"><i class="ri-file-add-line"></i> New Page</button>
         </div>
       </div>
 
@@ -837,29 +872,37 @@ const DocumentEditor = () => {
 
         {/* Editor */}
         <div className="editor-wrapper">
-          <div 
-            className="editor-page"
-            style={pageBorder.enabled ? {
-              border: `${pageBorder.width} ${pageBorder.style} ${pageBorder.color}`,
-              margin: pageBorder.margin
-            } : {}}
-          >
-            <div
-              ref={editorRef}
-              contentEditable
-              className="editor-content"
-              suppressContentEditableWarning={true}
-              onDrop={handleImageDrop}
-              onDragOver={(e) => e.preventDefault()}
-              onClick={handleEditorClick}
-              onInput={() => {/* Auto-save logic */}}
-              style={pageBorder.enabled ? {
-                padding: '60px 80px'
-              } : {}}
-            >
-              <p>Start writing your document here...</p>
-              <p style={{color: '#999', fontSize: '14px'}}>💡 Drag and drop images here to insert them</p>
-            </div>
+          <div className="pages-container">
+            {pages.map((page, index) => (
+              <div 
+                key={page.id}
+                className={`editor-page a4-page ${currentPage === page.id ? 'active-page' : ''}`}
+                style={pageBorder.enabled ? {
+                  border: `${pageBorder.width} ${pageBorder.style} ${pageBorder.color}`,
+                  margin: pageBorder.margin
+                } : {}}
+              >
+                <div className="page-number">Page {index + 1}</div>
+                <div
+                  ref={index === 0 ? editorRef : null}
+                  contentEditable
+                  className="editor-content a4-content"
+                  suppressContentEditableWarning={true}
+                  onDrop={handleImageDrop}
+                  onDragOver={(e) => e.preventDefault()}
+                  onClick={(e) => {
+                    handleEditorClick(e);
+                    setCurrentPage(page.id);
+                  }}
+                  onInput={(e) => handleContentChange(e, page.id)}
+                  data-page-id={page.id}
+                >
+                  {page.id === 1 && page.content === '<p>Start writing your document here...</p>' ? (
+                    'Start writing your document here...'
+                  ) : null}
+                </div>
+              </div>
+            ))}
           </div>
           
           {selectedImage && (
@@ -997,6 +1040,7 @@ const DocumentEditor = () => {
             <h3>📤 Export</h3>
             <button className="sidebar-btn" onClick={() => exportDocument('pdf')}>📄 PDF</button>
             <button className="sidebar-btn" onClick={() => exportDocument('docx')}>📝 DOCX</button>
+            <button className="sidebar-btn" onClick={addNewPage}><i class="ri-file-add-line"></i> New Page</button>
             <button className="sidebar-btn" onClick={() => exportDocument('md')}>📋 Markdown</button>
             <button className="sidebar-btn" onClick={() => exportDocument('html')}>🌐 HTML</button>
           </div>
