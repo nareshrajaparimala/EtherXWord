@@ -43,7 +43,7 @@
   position: fixed;
   left: 0;
   top: 88px; /* Global navbar + home header */
-  width: 220px;
+  width: 0;
   height: calc(100vh - 88px);
   background: var(--surface);
   border-right: 1px solid var(--border-color);
@@ -53,7 +53,11 @@
 }
 
 .home-sidebar.collapsed {
-  width: 60px;
+  width: 0;
+}
+
+.home-sidebar:not(.collapsed) {
+  width: 220px;
 }
 
 .home-sidebar .sidebar-content {
@@ -100,17 +104,21 @@
   opacity: 0;
 }
 
+.home-sidebar.collapsed .sidebar-content {
+  display: none;
+}
+
 /* Workspace */
 .workspace {
-  margin-left: 220px;
+  margin-left: 0;
   margin-top: 88px; /* Global navbar + home header */
   padding: 24px;
   min-height: calc(100vh - 88px);
   transition: margin-left 0.3s ease;
 }
 
-.home-sidebar.collapsed ~ .workspace {
-  margin-left: 60px;
+.home-sidebar:not(.collapsed) ~ .workspace {
+  margin-left: 220px;
 }
 
 .workspace-section {

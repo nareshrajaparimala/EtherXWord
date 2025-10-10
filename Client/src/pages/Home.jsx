@@ -11,11 +11,11 @@ const Home = () => {
   const menuItems = [
     { icon: '📄', label: 'Quick Access', mobileVisible: false },
     { icon: '➕', label: 'New Document', mobileVisible: true },
-    { icon: '📑', label: 'Templates', mobileVisible: false },
+    { icon: '📑', label: 'Templates', mobileVisible: true },
     { icon: '📂', label: 'All Documents', mobileVisible: true },
-    { icon: '⭐', label: 'Favorites', mobileVisible: false },
-    { icon: '🗑️', label: 'Trash', mobileVisible: false },
-    { icon: '⚙️', label: 'Settings', mobileVisible: false }
+    { icon: '⭐', label: 'Favorites', mobileVisible: true },
+    { icon: '🗑️', label: 'Trash', mobileVisible: true },
+    { icon: '⚙️', label: 'Settings', mobileVisible: true }
   ];
 
   const recentDocs = [

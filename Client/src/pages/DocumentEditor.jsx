@@ -9,7 +9,8 @@ import './DocumentEditor.css';
 const DocumentEditor = () => {
   const [documentTitle, setDocumentTitle] = useState('Untitled Document');
   const [isEditing, setIsEditing] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [showRightSidebar, setShowRightSidebar] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [documentHistory, setDocumentHistory] = useState([]);
@@ -565,6 +566,12 @@ const DocumentEditor = () => {
           <button className="nav-btn" onClick={generateShareLink}><i class="ri-share-fill"></i> Share</button>
           <button className="nav-btn" onClick={deleteDocument}><i class="ri-delete-bin-6-line"></i>  Delete</button>
           <button className="nav-icon">🔔</button>
+          <button 
+            className="nav-icon mobile-sidebar-toggle"
+            onClick={() => setShowRightSidebar(!showRightSidebar)}
+          >
+            ⚙️
+          </button>
           <div className="profile-dropdown">
             <button 
               className="nav-icon" 
@@ -777,7 +784,7 @@ const DocumentEditor = () => {
         </div>
 
         {/* Right Sidebar */}
-        <aside className="right-sidebar">
+        <aside className={`right-sidebar ${showRightSidebar ? 'mobile-open' : ''}`}>
           <div className="sidebar-section">
             <h3>🛠️ Tools</h3>
             <button className="sidebar-btn">✏️ Comments</button>
