@@ -3,8 +3,14 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
+import { createServer } from 'http';
 import connectDB from './config/db.js';
+// import { initializeSocket } from './services/realtime.service.js';
 import authRoutes from './routes/auth.routes.js';
+import collaborationRoutes from './routes/collaboration.routes.js';
+import notificationRoutes from './routes/notification.routes.js';
+import documentRoutes from './routes/document.routes.js';
+import activityRoutes from './routes/activity.routes.js';
 
 dotenv.config();
 // console.log('Environment loaded:', {
@@ -13,7 +19,11 @@ dotenv.config();
 // });
 
 const app = express();
+const server = createServer(app);
 const PORT = process.env.PORT || 5030;
+
+// Initialize Socket.IO (temporarily disabled)
+// initializeSocket(server);
 
 // Connect to MongoDB
 connectDB().catch(err => {
@@ -49,6 +59,10 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/documents', documentRoutes);
+app.use('/api/collaboration', collaborationRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/activities', activityRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -86,7 +100,7 @@ app.use('*', (req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log('Environment:', {
     NODE_ENV: process.env.NODE_ENV,

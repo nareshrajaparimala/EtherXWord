@@ -1,0 +1,170 @@
+.collaboration-requests {
+  padding: 20px;
+}
+
+.collaboration-requests h3 {
+  margin: 0 0 20px 0;
+  color: var(--text-primary);
+  font-size: 18px;
+}
+
+.loading,
+.no-requests {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+}
+
+.no-requests i {
+  font-size: 48px;
+  margin-bottom: 16px;
+  display: block;
+  color: var(--text-secondary);
+}
+
+.requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.request-item {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.2s ease;
+}
+
+.request-item:hover {
+  border-color: var(--primary-yellow);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.request-info {
+  margin-bottom: 16px;
+}
+
+.request-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.request-header strong {
+  color: var(--text-primary);
+  font-size: 16px;
+}
+
+.request-time {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.request-document {
+  margin: 8px 0;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.request-document strong {
+  color: var(--primary-yellow);
+}
+
+.request-permission {
+  margin: 8px 0;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.permission {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.permission.edit {
+  background: rgba(255, 215, 0, 0.2);
+  color: var(--primary-yellow);
+}
+
+.permission.view {
+  background: rgba(108, 117, 125, 0.2);
+  color: var(--text-secondary);
+}
+
+.request-message {
+  margin: 12px 0 0 0;
+  padding: 12px;
+  background: var(--background);
+  border-radius: 8px;
+  font-style: italic;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.request-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-accept {
+  background: #28a745;
+  color: white;
+}
+
+.btn-accept:hover {
+  background: #218838;
+  transform: translateY(-2px);
+}
+
+.btn-reject {
+  background: #dc3545;
+  color: white;
+}
+
+.btn-reject:hover {
+  background: #c82333;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .collaboration-requests {
+    padding: 16px;
+  }
+  
+  .request-item {
+    padding: 16px;
+  }
+  
+  .request-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .request-actions {
+    justify-content: stretch;
+  }
+  
+  .btn {
+    flex: 1;
+    justify-content: center;
+  }
+}

@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { saveAs } from 'file-saver';
 import './DocumentEditor.css';
+import ShareModal from '../components/ShareModal';
 
 const DocumentEditor = () => {
   const [documentTitle, setDocumentTitle] = useState('Untitled Document');
@@ -12,12 +13,17 @@ const DocumentEditor = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [showRightSidebar, setShowRightSidebar] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [documentHistory, setDocumentHistory] = useState([]);
   const [collaborators, setCollaborators] = useState([]);
   const [shareLink, setShareLink] = useState('');
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showPageBorderControls, setShowPageBorderControls] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [documentData, setDocumentData] = useState(null);
+  const [userPermission, setUserPermission] = useState('edit');
+  const [isCollaborative, setIsCollaborative] = useState(false);
   const [pageBorder, setPageBorder] = useState({
     enabled: false,
     color: '#FFD700',
@@ -27,6 +33,7 @@ const DocumentEditor = () => {
   });
   const editorRef = useRef(null);
   const navigate = useNavigate();
+  const { id: documentId } = useParams();
   const autoSaveInterval = useRef(null);
 
   const formatText = (command, value = null) => {
@@ -35,6 +42,48 @@ const DocumentEditor = () => {
   };
 
   const saveDocument = async (isAutoSave = false) => {
+    // Check if user has edit permission
+    if (isCollaborative && userPermission !== 'edit') {
+      if (!isAutoSave) {
+        alert('You do not have permission to edit this document');
+      }
+      return;
+    }
+    
+    if (isCollaborative && documentData) {
+      // Save to server
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${documentId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+          },
+          body: JSON.stringify({
+            title: documentTitle,
+            content: editorRef.current.innerHTML
+          })
+        });
+        
+        if (response.ok) {
+          const updatedDoc = await response.json();
+          setDocumentData(updatedDoc);
+          if (!isAutoSave) {
+            alert('Document saved successfully!');
+          }
+        } else {
+          if (!isAutoSave) {
+            alert('Failed to save document');
+          }
+        }
+      } catch (error) {
+        console.error('Error saving document:', error);
+        if (!isAutoSave) {
+          alert('Failed to save document');
+        }
+      }
+      return;
+    }
     const content = editorRef.current.innerHTML;
     const timestamp = new Date().toISOString();
     const docData = {
@@ -144,16 +193,85 @@ const DocumentEditor = () => {
     }, 30000); // Auto-save every 30 seconds
   };
   
-  // Load document history on mount
+  // Load document data if collaborative
   React.useEffect(() => {
-    const history = JSON.parse(localStorage.getItem(`history_${documentTitle}`) || '[]');
-    setDocumentHistory(history);
-    startAutoSave();
+    if (documentId) {
+      fetchDocumentData();
+    } else {
+      // Load local document history
+      const history = JSON.parse(localStorage.getItem(`history_${documentTitle}`) || '[]');
+      setDocumentHistory(history);
+      startAutoSave();
+    }
     
     return () => {
       if (autoSaveInterval.current) clearInterval(autoSaveInterval.current);
     };
-  }, [documentTitle]);
+  }, [documentId, documentTitle]);
+  
+  const fetchDocumentData = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${documentId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setDocumentData(data);
+        setDocumentTitle(data.title);
+        setIsCollaborative(true);
+        
+        // Set content
+        if (editorRef.current) {
+          editorRef.current.innerHTML = data.content || '<p>Start writing...</p>';
+        }
+        
+        // Check user permission
+        const userId = JSON.parse(localStorage.getItem('userProfile') || '{}')._id;
+        const isOwner = data.owner._id === userId;
+        const collaborator = data.collaborators.find(c => c.user._id === userId);
+        
+        if (isOwner) {
+          setUserPermission('edit');
+        } else if (collaborator) {
+          setUserPermission(collaborator.permission);
+        } else {
+          // Redirect to viewer if no access
+          navigate(`/viewer/${documentId}`);
+          return;
+        }
+        
+        // If view-only, redirect to viewer
+        if (!isOwner && collaborator?.permission === 'view') {
+          navigate(`/viewer/${documentId}`);
+          return;
+        }
+      } else {
+        console.error('Failed to fetch document');
+        navigate('/');
+      }
+    } catch (error) {
+      console.error('Error fetching document:', error);
+      navigate('/');
+    }
+  };
+
+  // Close dropdowns when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.notification-dropdown')) {
+        setShowNotifications(false);
+      }
+      if (!event.target.closest('.profile-dropdown')) {
+        setShowProfileDropdown(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   const handleImageDrop = (e) => {
     e.preventDefault();
@@ -563,9 +681,50 @@ const DocumentEditor = () => {
         </div>
         <div className="navbar-right">
           <button className="nav-btn" onClick={() => saveDocument()}><i class="ri-save-line"></i> Save</button>
-          <button className="nav-btn" onClick={generateShareLink}><i class="ri-share-fill"></i> Share</button>
-          <button className="nav-btn" onClick={deleteDocument}><i class="ri-delete-bin-6-line"></i>  Delete</button>
-          <button className="nav-icon">🔔</button>
+          <button 
+            className="nav-btn" 
+            onClick={() => setShowShareModal(true)}
+            disabled={isCollaborative && userPermission !== 'edit'}
+          >
+            <i class="ri-share-fill"></i> Share
+          </button>
+          <button 
+            className="nav-btn" 
+            onClick={deleteDocument}
+            disabled={isCollaborative && userPermission !== 'edit'}
+          >
+            <i class="ri-delete-bin-6-line"></i> Delete
+          </button>
+          <div className="notification-dropdown">
+            <button 
+              className="nav-icon" 
+              onClick={() => setShowNotifications(!showNotifications)}
+            >
+              <i className="ri-notification-3-line"></i>
+            </button>
+            {showNotifications && (
+              <div className="dropdown-menu">
+                <div className="notification-header">
+                  <h4>Notifications</h4>
+                </div>
+                <div className="notification-item">
+                  <span className="notification-text">Document auto-saved</span>
+                  <span className="notification-time">2 min ago</span>
+                </div>
+                <div className="notification-item">
+                  <span className="notification-text">New collaborator added</span>
+                  <span className="notification-time">1 hour ago</span>
+                </div>
+                <div className="notification-item">
+                  <span className="notification-text">Document shared successfully</span>
+                  <span className="notification-time">3 hours ago</span>
+                </div>
+                <div className="notification-footer">
+                  <button className="clear-all-btn">Clear All</button>
+                </div>
+              </div>
+            )}
+          </div>
           <button 
             className="nav-icon mobile-sidebar-toggle"
             onClick={() => setShowRightSidebar(!showRightSidebar)}
@@ -581,6 +740,7 @@ const DocumentEditor = () => {
             </button>
             {showProfileDropdown && (
               <div className="dropdown-menu">
+                <button onClick={() => navigate('/')}>← Home</button>
                 <button onClick={() => navigate('/profile')}>Profile</button>
                 <button onClick={() => navigate('/settings')}>Settings</button>
                 <button onClick={() => navigate('/signin')}>Logout</button>
@@ -876,6 +1036,14 @@ const DocumentEditor = () => {
           </div>
         </div>
       )}
+      
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        documentId={documentId || 'temp-doc-id'}
+        documentTitle={documentTitle}
+      />
     </div>
   );
 };

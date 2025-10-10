@@ -193,3 +193,22 @@ export const sendWelcomeEmail = async (email, name) => {
   const transporter = createTransporter();
   return transporter.sendMail(mailOptions);
 };
+
+export const sendEmail = async (to, subject, htmlContent) => {
+  try {
+    const mailOptions = {
+      from: `"EtherXWord" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      html: htmlContent
+    };
+
+    const transporter = createTransporter();
+    const result = await transporter.sendMail(mailOptions);
+    console.log('Email sent successfully:', result.messageId);
+    return result;
+  } catch (error) {
+    console.error('Email sending failed:', error);
+    throw error;
+  }
+};

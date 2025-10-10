@@ -11,7 +11,11 @@ export const authenticateToken = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = { userId: decoded.userId };
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+    req.user = { id: decoded.userId, userId: decoded.userId, fullName: user.fullName, email: user.email };
     next();
   } catch (error) {
     return res.status(401).json({ message: 'Invalid token' });

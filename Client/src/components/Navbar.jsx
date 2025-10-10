@@ -7,6 +7,9 @@ const Navbar = () => {
     return localStorage.getItem('theme') || 'dark';
   });
   const [showSidebar, setShowSidebar] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem('userProfile');
     return savedUser ? JSON.parse(savedUser) : null;
@@ -32,6 +35,7 @@ const Navbar = () => {
     
     if (token) {
       fetchUserProfile();
+      fetchNotifications();
     }
   }, []);
   
@@ -40,8 +44,11 @@ const Navbar = () => {
       const token = localStorage.getItem('accessToken');
       if (token) {
         fetchUserProfile();
+        fetchNotifications();
       } else {
         setUser(null);
+        setNotifications([]);
+        setUnreadCount(0);
       }
     };
     
@@ -53,6 +60,75 @@ const Navbar = () => {
     setShowSidebar(!showSidebar);
   };
   
+  const handleNotificationClick = async (notification) => {
+    // Mark as read
+    if (!notification.isRead) {
+      try {
+        await fetch(`${import.meta.env.VITE_API_URL}/api/notifications/${notification._id}/read`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+          }
+        });
+        
+        // Update local state
+        setNotifications(notifications.map(n => 
+          n._id === notification._id ? {...n, isRead: true} : n
+        ));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      } catch (error) {
+        console.error('Error marking notification as read:', error);
+      }
+    }
+    
+    // Navigate based on notification type
+    setShowNotifications(false);
+    
+    switch (notification.type) {
+      case 'collaboration_request':
+        navigate('/', { state: { activeSection: 'Collaboration' } });
+        break;
+      case 'collaboration_accepted':
+      case 'collaboration_rejected':
+        if (notification.data?.documentId) {
+          navigate(`/editor/${notification.data.documentId}`);
+        } else {
+          navigate('/');
+        }
+        break;
+      case 'document_shared':
+        if (notification.data?.documentId) {
+          navigate(`/viewer/${notification.data.documentId}`);
+        } else {
+          navigate('/');
+        }
+        break;
+      default:
+        navigate('/');
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) return;
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/notifications`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data.notifications);
+        setUnreadCount(data.unreadCount);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
   const fetchUserProfile = async () => {
     setLoading(true);
     try {
@@ -118,16 +194,19 @@ const Navbar = () => {
       if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
         setShowSidebar(false);
       }
+      if (!event.target.closest('.notification-dropdown')) {
+        setShowNotifications(false);
+      }
     };
     
-    if (showSidebar) {
+    if (showSidebar || showNotifications) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showSidebar]);
+  }, [showSidebar, showNotifications]);
 
   return (
     <>
@@ -139,12 +218,57 @@ const Navbar = () => {
         </div>
         
         <div className="navbar-right">
-          <button 
-            className="nav-icon"
-            aria-label="Notifications"
-          >
-            🔔
-          </button>
+          <div className="notification-dropdown">
+            <button 
+              className="nav-icon"
+              aria-label="Notifications"
+              onClick={() => setShowNotifications(!showNotifications)}
+            >
+              <i className="ri-notification-3-line"></i>
+              {unreadCount > 0 && (
+                <span className="notification-badge">{unreadCount}</span>
+              )}
+            </button>
+            {showNotifications && (
+              <div className="dropdown-menu">
+                <div className="notification-header">
+                  <h4>Notifications</h4>
+                </div>
+                {notifications.length === 0 ? (
+                  <div className="notification-item">
+                    <span className="notification-text">No new notifications</span>
+                  </div>
+                ) : (
+                  notifications.slice(0, 5).map(notification => (
+                    <div 
+                      key={notification._id} 
+                      className={`notification-item ${!notification.isRead ? 'unread' : ''} clickable`}
+                      onClick={() => handleNotificationClick(notification)}
+                    >
+                      <span className="notification-text">{notification.message}</span>
+                      <span className="notification-time">
+                        {new Date(notification.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  ))
+                )}
+                <div className="notification-footer">
+                  <button className="clear-all-btn" onClick={() => {
+                    // Mark all as read
+                    fetch(`${import.meta.env.VITE_API_URL}/api/notifications/read-all`, {
+                      method: 'PATCH',
+                      headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                      }
+                    }).then(() => {
+                      setUnreadCount(0);
+                      setNotifications(notifications.map(n => ({...n, isRead: true})));
+                    });
+                  }}>Mark All Read</button>
+                </div>
+              </div>
+            )}
+          </div>
           
           <button 
             className="theme-toggle"
@@ -220,7 +344,7 @@ const Navbar = () => {
               <span>Documents</span>
             </button>
             <button className="sidebar-item">
-              <span className="item-icon">🔔</span>
+              <span className="item-icon"><i className="ri-notification-3-line"></i></span>
               <span>Notifications</span>
             </button>
             <button className="sidebar-item logout" onClick={handleLogout}>
