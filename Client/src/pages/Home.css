@@ -46,6 +46,7 @@
   width: 0;
   height: calc(100vh - 88px);
   background: var(--surface);
+  backdrop-filter: blur(10px);
   border-right: 1px solid var(--border-color);
   transition: width 0.3s ease;
   z-index: 80;
@@ -216,6 +217,7 @@
 
 .document-card {
   background: var(--surface);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 20px;
@@ -301,6 +303,7 @@
   min-width: 200px;
   padding: 20px;
   background: var(--surface);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   text-align: center;
@@ -414,10 +417,12 @@
 
 .collaboration-panel {
   background: var(--surface);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 0;
   overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .collaboration-panel h3 {

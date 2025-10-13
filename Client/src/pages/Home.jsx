@@ -273,9 +273,9 @@ const Home = () => {
               <h3>Suggested Templates</h3>
               <div className="templates-slider">
                 <div className="template-card">📄 Blank Document</div>
-                <div className="template-card">📊 Report Template</div>
-                <div className="template-card">📝 Meeting Notes</div>
-                <div className="template-card">📋 Project Plan</div>
+                <div className="template-card"><i class="ri-chat-smile-3-line"></i> Work together</div>
+                <div className="template-card"><i class="ri-shake-hands-fill"></i> Rent a design</div>
+                <div className="template-card"><i class="ri-store-3-fill"></i> Make a design</div>
               </div>
             </div>
           </div>

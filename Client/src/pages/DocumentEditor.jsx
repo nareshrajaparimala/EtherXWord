@@ -33,6 +33,13 @@ const DocumentEditor = () => {
   });
   const [pages, setPages] = useState([{ id: 1, content: '<p>Start writing your document here...</p>' }]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showHeaderFooter, setShowHeaderFooter] = useState(false);
+  const [headerText, setHeaderText] = useState('');
+  const [footerText, setFooterText] = useState('');
+  const [headerAlignment, setHeaderAlignment] = useState('center');
+  const [footerAlignment, setFooterAlignment] = useState('center');
+  const [pageNumbering, setPageNumbering] = useState({ enabled: true, position: 'bottom-right', format: '1' });
+  const [showShapes, setShowShapes] = useState(false);
   const editorRef = useRef(null);
   const navigate = useNavigate();
   const { id: documentId } = useParams();
@@ -61,6 +68,23 @@ const DocumentEditor = () => {
         page.id === pageId ? { ...page, content } : page
       )
     );
+  };
+
+  const insertShape = (shapeType) => {
+    const shapes = {
+      rectangle: '<div style="width:100px;height:60px;border:2px solid #333;background:transparent;display:inline-block;margin:10px;"></div>',
+      circle: '<div style="width:80px;height:80px;border:2px solid #333;border-radius:50%;background:transparent;display:inline-block;margin:10px;"></div>',
+      triangle: '<div style="width:0;height:0;border-left:40px solid transparent;border-right:40px solid transparent;border-bottom:70px solid #333;display:inline-block;margin:10px;"></div>',
+      arrow: '<div style="width:0;height:0;border-top:20px solid transparent;border-bottom:20px solid transparent;border-left:60px solid #333;display:inline-block;margin:10px;"></div>',
+      star: '<div style="font-size:60px;color:#333;display:inline-block;margin:10px;">★</div>'
+    };
+    
+    document.execCommand('insertHTML', false, shapes[shapeType]);
+    setShowShapes(false);
+  };
+
+  const updatePageNumbering = (enabled, position, format) => {
+    setPageNumbering({ enabled, position, format });
   };
 
   const saveDocument = async (isAutoSave = false) => {
@@ -814,6 +838,16 @@ const DocumentEditor = () => {
             <option value="Georgia">Georgia</option>
             <option value="Times New Roman">Times New Roman</option>
             <option value="Courier New">Courier New</option>
+            <option value="Helvetica">Helvetica</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Trebuchet MS">Trebuchet MS</option>
+            <option value="Palatino">Palatino</option>
+            <option value="Garamond">Garamond</option>
+            <option value="Bookman">Bookman</option>
+            <option value="Comic Sans MS">Comic Sans MS</option>
+            <option value="Impact">Impact</option>
+            <option value="Lucida Console">Lucida Console</option>
+            <option value="Tahoma">Tahoma</option>
           </select>
           <input 
             type="color" 
@@ -841,6 +875,8 @@ const DocumentEditor = () => {
           <button onClick={() => formatText('insertOrderedList')} className="toolbar-btn"> <i class="ri-list-ordered-2"></i></button>
           <button onClick={togglePageBorder} className="toolbar-btn"><i class="ri-checkbox-blank-line"></i> </button>
           <button onClick={() => formatText('createLink', prompt('Enter URL:'))} className="toolbar-btn">🔗</button>
+          <button onClick={() => setShowShapes(!showShapes)} className="toolbar-btn"><i class="ri-shape-line"></i> Shapes</button>
+          <button onClick={() => setShowHeaderFooter(!showHeaderFooter)} className="toolbar-btn"><i class="ri-layout-top-2-line"></i> H/F</button>
         </div>
 
         <div className="toolbar-group mobile-hidden">
@@ -882,7 +918,10 @@ const DocumentEditor = () => {
                   margin: pageBorder.margin
                 } : {}}
               >
-                <div className="page-number">Page {index + 1}</div>
+                {headerText && (
+                  <div className={`page-header align-${headerAlignment}`}>{headerText}</div>
+                )}
+                
                 <div
                   ref={index === 0 ? editorRef : null}
                   contentEditable
@@ -901,6 +940,18 @@ const DocumentEditor = () => {
                     'Start writing your document here...'
                   ) : null}
                 </div>
+                
+                {footerText && (
+                  <div className={`page-footer align-${footerAlignment}`}>{footerText}</div>
+                )}
+                
+                {pageNumbering.enabled && (
+                  <div className={`page-number ${pageNumbering.position}`}>
+                    {pageNumbering.format === '1' ? index + 1 : 
+                     pageNumbering.format === 'i' ? ['i', 'ii', 'iii', 'iv', 'v'][index] || (index + 1) :
+                     pageNumbering.format === 'a' ? String.fromCharCode(97 + index) : index + 1}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -920,6 +971,111 @@ const DocumentEditor = () => {
                 <button onClick={() => addImageBorder('3px solid #000')}>Bold Border</button>
                 <button onClick={() => addImageBorder('none')}>No Border</button>
               </div>
+            </div>
+          )}
+          
+          {/* Shapes Panel */}
+          {showShapes && (
+            <div className="shapes-panel">
+              <h4>Insert Shapes</h4>
+              <div className="shapes-grid">
+                <button onClick={() => insertShape('rectangle')} className="shape-btn">⬜ Rectangle</button>
+                <button onClick={() => insertShape('circle')} className="shape-btn">⭕ Circle</button>
+                <button onClick={() => insertShape('triangle')} className="shape-btn">🔺 Triangle</button>
+                <button onClick={() => insertShape('arrow')} className="shape-btn">➡️ Arrow</button>
+                <button onClick={() => insertShape('star')} className="shape-btn">⭐ Star</button>
+              </div>
+              <button onClick={() => setShowShapes(false)} className="close-panel-btn">Close</button>
+            </div>
+          )}
+          
+          {/* Header Footer Controls */}
+          {showHeaderFooter && (
+            <div className="header-footer-controls">
+              <h4>Header & Footer</h4>
+              <div className="hf-control-group">
+                <label>Header Text:</label>
+                <input 
+                  type="text" 
+                  value={headerText}
+                  onChange={(e) => setHeaderText(e.target.value)}
+                  placeholder="Enter header text"
+                  className="hf-input"
+                />
+              </div>
+              <div className="hf-control-group">
+                <label>Footer Text:</label>
+                <input 
+                  type="text" 
+                  value={footerText}
+                  onChange={(e) => setFooterText(e.target.value)}
+                  placeholder="Enter footer text"
+                  className="hf-input"
+                />
+              </div>
+              <div className="hf-control-group">
+                <label>Header Align:</label>
+                <select 
+                  value={headerAlignment}
+                  onChange={(e) => setHeaderAlignment(e.target.value)}
+                  className="hf-select"
+                >
+                  <option value="left">Left</option>
+                  <option value="center">Center</option>
+                  <option value="right">Right</option>
+                </select>
+              </div>
+              <div className="hf-control-group">
+                <label>Footer Align:</label>
+                <select 
+                  value={footerAlignment}
+                  onChange={(e) => setFooterAlignment(e.target.value)}
+                  className="hf-select"
+                >
+                  <option value="left">Left</option>
+                  <option value="center">Center</option>
+                  <option value="right">Right</option>
+                </select>
+              </div>
+              <div className="hf-control-group">
+                <label>Page Numbers:</label>
+                <select 
+                  value={pageNumbering.enabled}
+                  onChange={(e) => updatePageNumbering(e.target.value === 'true', pageNumbering.position, pageNumbering.format)}
+                  className="hf-select"
+                >
+                  <option value="true">Enabled</option>
+                  <option value="false">Disabled</option>
+                </select>
+              </div>
+              <div className="hf-control-group">
+                <label>Position:</label>
+                <select 
+                  value={pageNumbering.position}
+                  onChange={(e) => updatePageNumbering(pageNumbering.enabled, e.target.value, pageNumbering.format)}
+                  className="hf-select"
+                >
+                  <option value="bottom-right">Bottom Right</option>
+                  <option value="bottom-center">Bottom Center</option>
+                  <option value="bottom-left">Bottom Left</option>
+                  <option value="top-right">Top Right</option>
+                  <option value="top-center">Top Center</option>
+                  <option value="top-left">Top Left</option>
+                </select>
+              </div>
+              <div className="hf-control-group">
+                <label>Format:</label>
+                <select 
+                  value={pageNumbering.format}
+                  onChange={(e) => updatePageNumbering(pageNumbering.enabled, pageNumbering.position, e.target.value)}
+                  className="hf-select"
+                >
+                  <option value="1">1, 2, 3</option>
+                  <option value="i">i, ii, iii</option>
+                  <option value="a">a, b, c</option>
+                </select>
+              </div>
+              <button onClick={() => setShowHeaderFooter(false)} className="close-panel-btn">Close</button>
             </div>
           )}
           
