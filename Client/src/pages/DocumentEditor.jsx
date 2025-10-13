@@ -6,8 +6,10 @@ import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { saveAs } from 'file-saver';
 import './DocumentEditor.css';
 import ShareModal from '../components/ShareModal';
+import { useNotification } from '../context/NotificationContext';
 
 const DocumentEditor = () => {
+  const { showNotification } = useNotification();
   const [documentTitle, setDocumentTitle] = useState('Untitled Document');
   const [isEditing, setIsEditing] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
@@ -36,10 +38,10 @@ const DocumentEditor = () => {
   const [showHeaderFooter, setShowHeaderFooter] = useState(false);
   const [headerText, setHeaderText] = useState('');
   const [footerText, setFooterText] = useState('');
-  const [headerAlignment, setHeaderAlignment] = useState('center');
-  const [footerAlignment, setFooterAlignment] = useState('center');
+  const [headerAlignment, setHeaderAlignment] = useState('top-center');
+  const [footerAlignment, setFooterAlignment] = useState('bottom-center');
   const [pageNumbering, setPageNumbering] = useState({ enabled: true, position: 'bottom-right', format: '1' });
-  const [showShapes, setShowShapes] = useState(false);
+
   const editorRef = useRef(null);
   const navigate = useNavigate();
   const { id: documentId } = useParams();
@@ -70,18 +72,7 @@ const DocumentEditor = () => {
     );
   };
 
-  const insertShape = (shapeType) => {
-    const shapes = {
-      rectangle: '<div style="width:100px;height:60px;border:2px solid #333;background:transparent;display:inline-block;margin:10px;"></div>',
-      circle: '<div style="width:80px;height:80px;border:2px solid #333;border-radius:50%;background:transparent;display:inline-block;margin:10px;"></div>',
-      triangle: '<div style="width:0;height:0;border-left:40px solid transparent;border-right:40px solid transparent;border-bottom:70px solid #333;display:inline-block;margin:10px;"></div>',
-      arrow: '<div style="width:0;height:0;border-top:20px solid transparent;border-bottom:20px solid transparent;border-left:60px solid #333;display:inline-block;margin:10px;"></div>',
-      star: '<div style="font-size:60px;color:#333;display:inline-block;margin:10px;">★</div>'
-    };
-    
-    document.execCommand('insertHTML', false, shapes[shapeType]);
-    setShowShapes(false);
-  };
+
 
   const updatePageNumbering = (enabled, position, format) => {
     setPageNumbering({ enabled, position, format });
@@ -91,7 +82,7 @@ const DocumentEditor = () => {
     // Check if user has edit permission
     if (isCollaborative && userPermission !== 'edit') {
       if (!isAutoSave) {
-        alert('You do not have permission to edit this document');
+        showNotification('You do not have permission to edit this document', 'error');
       }
       return;
     }
@@ -115,17 +106,17 @@ const DocumentEditor = () => {
           const updatedDoc = await response.json();
           setDocumentData(updatedDoc);
           if (!isAutoSave) {
-            alert('Document saved successfully!');
+            showNotification('Document saved successfully!', 'success');
           }
         } else {
           if (!isAutoSave) {
-            alert('Failed to save document');
+            showNotification('Failed to save document', 'error');
           }
         }
       } catch (error) {
         console.error('Error saving document:', error);
         if (!isAutoSave) {
-          alert('Failed to save document');
+          showNotification('Failed to save document', 'error');
         }
       }
       return;
@@ -176,12 +167,12 @@ const DocumentEditor = () => {
     localStorage.setItem('recentDocuments', JSON.stringify(recentDocs.slice(0, 10)));
     
     if (!isAutoSave) {
-      alert('Document saved successfully!');
+      showNotification('Document saved successfully!', 'success');
     }
   };
   
   const deleteDocument = () => {
-    if (confirm('Are you sure you want to delete this document?')) {
+    if (window.confirm('Are you sure you want to delete this document?')) {
       const deletedDoc = {
         title: documentTitle,
         content: editorRef.current.innerHTML,
@@ -207,11 +198,11 @@ const DocumentEditor = () => {
     const link = `${window.location.origin}/editor/shared/${btoa(documentTitle)}`;
     setShareLink(link);
     navigator.clipboard.writeText(link);
-    alert('Share link copied to clipboard!');
+    showNotification('Share link copied to clipboard!', 'success');
   };
   
   const addCollaborator = () => {
-    const email = prompt('Enter collaborator email:');
+    const email = window.prompt('Enter collaborator email:');
     if (email && email.includes('@')) {
       const newCollaborator = {
         id: Date.now().toString(),
@@ -220,14 +211,18 @@ const DocumentEditor = () => {
         addedAt: new Date().toISOString()
       };
       setCollaborators([...collaborators, newCollaborator]);
+      showNotification(`Collaborator ${email} added successfully!`, 'success');
+    } else if (email) {
+      showNotification('Please enter a valid email address', 'error');
     }
   };
   
   const restoreVersion = (version) => {
-    if (confirm('Restore this version? Current changes will be lost.')) {
+    if (window.confirm('Restore this version? Current changes will be lost.')) {
       editorRef.current.innerHTML = version.content;
       saveDocument();
       setShowVersionHistory(false);
+      showNotification('Version restored successfully!', 'success');
     }
   };
   
@@ -433,7 +428,7 @@ const DocumentEditor = () => {
       }
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Export failed. Please try again.');
+      showNotification('Export failed. Please try again.', 'error');
     }
   };
 
@@ -713,7 +708,7 @@ const DocumentEditor = () => {
             className="sidebar-toggle"
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           >
-            ☰
+            <i className="ri-menu-line"></i>
           </button>
           <div className="logo">EtherXWord</div>
         </div>
@@ -787,14 +782,14 @@ const DocumentEditor = () => {
             className="nav-icon mobile-sidebar-toggle"
             onClick={() => setShowRightSidebar(!showRightSidebar)}
           >
-            ⚙️
+            <i className="ri-settings-3-line"></i>
           </button>
           <div className="profile-dropdown">
             <button 
               className="nav-icon" 
               onClick={() => setShowProfileDropdown(!showProfileDropdown)}
             >
-              👤
+              <i className="ri-user-line"></i>
             </button>
             {showProfileDropdown && (
               <div className="dropdown-menu">
@@ -864,25 +859,24 @@ const DocumentEditor = () => {
         </div>
 
         <div className="toolbar-group">
-          <button onClick={() => formatText('justifyLeft')} className="toolbar-btn"><i class="ri-align-left"></i> </button>
-          <button onClick={() => formatText('justifyCenter')} className="toolbar-btn"><i class="ri-align-center"></i></button>
-          <button onClick={() => formatText('justifyRight')} className="toolbar-btn"><i class="ri-align-right"></i></button>
-          <button onClick={() => formatText('justifyFull')} className="toolbar-btn"><i class="ri-expand-up-down-fill"></i> </button>
+          <button onClick={() => formatText('justifyLeft')} className="toolbar-btn"><i className="ri-align-left"></i></button>
+          <button onClick={() => formatText('justifyCenter')} className="toolbar-btn"><i className="ri-align-center"></i></button>
+          <button onClick={() => formatText('justifyRight')} className="toolbar-btn"><i className="ri-align-right"></i></button>
+          <button onClick={() => formatText('justifyFull')} className="toolbar-btn"><i className="ri-align-justify"></i></button>
         </div>
 
         <div className="toolbar-group">
-          <button onClick={() => formatText('insertUnorderedList')} className="toolbar-btn"> <i class="ri-list-unordered"></i></button>
-          <button onClick={() => formatText('insertOrderedList')} className="toolbar-btn"> <i class="ri-list-ordered-2"></i></button>
-          <button onClick={togglePageBorder} className="toolbar-btn"><i class="ri-checkbox-blank-line"></i> </button>
-          <button onClick={() => formatText('createLink', prompt('Enter URL:'))} className="toolbar-btn">🔗</button>
-          <button onClick={() => setShowShapes(!showShapes)} className="toolbar-btn"><i class="ri-shape-line"></i> Shapes</button>
-          <button onClick={() => setShowHeaderFooter(!showHeaderFooter)} className="toolbar-btn"><i class="ri-layout-top-2-line"></i> H/F</button>
+          <button onClick={() => formatText('insertUnorderedList')} className="toolbar-btn"><i className="ri-list-unordered"></i></button>
+          <button onClick={() => formatText('insertOrderedList')} className="toolbar-btn"><i className="ri-list-ordered-2"></i></button>
+          <button onClick={togglePageBorder} className="toolbar-btn"><i className="ri-checkbox-blank-line"></i></button>
+          <button onClick={() => formatText('createLink', prompt('Enter URL:'))} className="toolbar-btn"><i className="ri-link"></i></button>
+          <button onClick={() => setShowHeaderFooter(!showHeaderFooter)} className="toolbar-btn"><i className="ri-layout-top-2-line"></i> H/F</button>
         </div>
 
         <div className="toolbar-group mobile-hidden">
-          <button onClick={() => exportDocument('pdf')} className="toolbar-btn"><i class="ri-file-pdf-2-line"></i> PDF</button>
-          <button onClick={() => exportDocument('docx')} className="toolbar-btn"><i class="ri-file-edit-fill"></i> DOCX</button>
-          <button onClick={addNewPage} className="toolbar-btn"><i class="ri-file-add-line"></i> New Page</button>
+          <button onClick={() => exportDocument('pdf')} className="toolbar-btn"><i className="ri-file-pdf-2-line"></i> PDF</button>
+          <button onClick={() => exportDocument('docx')} className="toolbar-btn"><i className="ri-file-edit-fill"></i> DOCX</button>
+          <button onClick={addNewPage} className="toolbar-btn"><i className="ri-file-add-line"></i> New Page</button>
         </div>
       </div>
 
@@ -890,19 +884,19 @@ const DocumentEditor = () => {
         {/* Left Sidebar */}
         <aside className={`left-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
           <div className="sidebar-section">
-            <h3><i class="ri-file-3-fill"></i> Document</h3>
-            <button className="sidebar-btn">📊 Word Count</button>
-            <button className="sidebar-btn"><i class="ri-find-replace-line"></i> Find & Replace</button>
-            <button className="sidebar-btn">📋 Outline</button>
+            <h3><i className="ri-file-3-fill"></i> Document</h3>
+            <button className="sidebar-btn"><i className="ri-bar-chart-line"></i> Word Count</button>
+            <button className="sidebar-btn"><i className="ri-find-replace-line"></i> Find & Replace</button>
+            <button className="sidebar-btn"><i className="ri-list-unordered"></i> Outline</button>
           </div>
           <div className="sidebar-section">
-            <h3>🎨 Format</h3>
-            <button className="sidebar-btn" onClick={() => formatText('formatBlock', 'h1')}>🎨 Heading 1</button>
-            <button className="sidebar-btn" onClick={() => formatText('formatBlock', 'h2')}>🎨 Heading 2</button>
-            <button className="sidebar-btn" onClick={() => formatText('formatBlock', 'p')}>🎨 Paragraph</button>
-            <button className="sidebar-btn" onClick={() => formatText('indent')}><i class="ri-indent-increase"></i> Indent</button>
-            <button className="sidebar-btn" onClick={() => formatText('outdent')}><i class="ri-indent-decrease"></i> Outdent</button>
-            <button className="sidebar-btn" onClick={() => formatText('insertHTML', '<br><br>')}><i class="ri-letter-spacing-2"></i> Line Spacing</button>
+            <h3><i className="ri-palette-line"></i> Format</h3>
+            <button className="sidebar-btn" onClick={() => formatText('formatBlock', 'h1')}><i className="ri-h-1"></i> Heading 1</button>
+            <button className="sidebar-btn" onClick={() => formatText('formatBlock', 'h2')}><i className="ri-h-2"></i> Heading 2</button>
+            <button className="sidebar-btn" onClick={() => formatText('formatBlock', 'p')}><i className="ri-paragraph"></i> Paragraph</button>
+            <button className="sidebar-btn" onClick={() => formatText('indent')}><i className="ri-indent-increase"></i> Indent</button>
+            <button className="sidebar-btn" onClick={() => formatText('outdent')}><i className="ri-indent-decrease"></i> Outdent</button>
+            <button className="sidebar-btn" onClick={() => formatText('insertHTML', '<br><br>')}><i className="ri-letter-spacing-2"></i> Line Spacing</button>
           </div>
         </aside>
 
@@ -919,7 +913,7 @@ const DocumentEditor = () => {
                 } : {}}
               >
                 {headerText && (
-                  <div className={`page-header align-${headerAlignment}`}>{headerText}</div>
+                  <div className={`page-hf-element ${headerAlignment}`}>{headerText}</div>
                 )}
                 
                 <div
@@ -942,7 +936,7 @@ const DocumentEditor = () => {
                 </div>
                 
                 {footerText && (
-                  <div className={`page-footer align-${footerAlignment}`}>{footerText}</div>
+                  <div className={`page-hf-element ${footerAlignment}`}>{footerText}</div>
                 )}
                 
                 {pageNumbering.enabled && (
@@ -974,20 +968,7 @@ const DocumentEditor = () => {
             </div>
           )}
           
-          {/* Shapes Panel */}
-          {showShapes && (
-            <div className="shapes-panel">
-              <h4>Insert Shapes</h4>
-              <div className="shapes-grid">
-                <button onClick={() => insertShape('rectangle')} className="shape-btn">⬜ Rectangle</button>
-                <button onClick={() => insertShape('circle')} className="shape-btn">⭕ Circle</button>
-                <button onClick={() => insertShape('triangle')} className="shape-btn">🔺 Triangle</button>
-                <button onClick={() => insertShape('arrow')} className="shape-btn">➡️ Arrow</button>
-                <button onClick={() => insertShape('star')} className="shape-btn">⭐ Star</button>
-              </div>
-              <button onClick={() => setShowShapes(false)} className="close-panel-btn">Close</button>
-            </div>
-          )}
+
           
           {/* Header Footer Controls */}
           {showHeaderFooter && (
@@ -1014,27 +995,27 @@ const DocumentEditor = () => {
                 />
               </div>
               <div className="hf-control-group">
-                <label>Header Align:</label>
+                <label>Header Position:</label>
                 <select 
                   value={headerAlignment}
                   onChange={(e) => setHeaderAlignment(e.target.value)}
                   className="hf-select"
                 >
-                  <option value="left">Left</option>
-                  <option value="center">Center</option>
-                  <option value="right">Right</option>
+                  <option value="top-left">Top Left</option>
+                  <option value="top-center">Top Center</option>
+                  <option value="top-right">Top Right</option>
                 </select>
               </div>
               <div className="hf-control-group">
-                <label>Footer Align:</label>
+                <label>Footer Position:</label>
                 <select 
                   value={footerAlignment}
                   onChange={(e) => setFooterAlignment(e.target.value)}
                   className="hf-select"
                 >
-                  <option value="left">Left</option>
-                  <option value="center">Center</option>
-                  <option value="right">Right</option>
+                  <option value="bottom-left">Bottom Left</option>
+                  <option value="bottom-center">Bottom Center</option>
+                  <option value="bottom-right">Bottom Right</option>
                 </select>
               </div>
               <div className="hf-control-group">
@@ -1145,12 +1126,12 @@ const DocumentEditor = () => {
         {/* Right Sidebar */}
         <aside className={`right-sidebar ${showRightSidebar ? 'mobile-open' : ''}`}>
           <div className="sidebar-section">
-            <h3>🛠️ Tools</h3>
-            <button className="sidebar-btn">✏️ Comments</button>
-            <button className="sidebar-btn">📝 Suggestions</button>
-            <button className="sidebar-btn" onClick={() => setShowVersionHistory(true)}>🕑 Version History</button>
-            <button className="sidebar-btn">📊 Word Count: {editorRef.current ? editorRef.current.innerText.trim().split(/\s+/).length : 0}</button>
-            <button className="sidebar-btn" onClick={() => document.querySelector('input[type="file"]').click()}>📁 Upload Image</button>
+            <h3><i className="ri-tools-line"></i> Tools</h3>
+            <button className="sidebar-btn"><i className="ri-chat-3-line"></i> Comments</button>
+            <button className="sidebar-btn"><i className="ri-lightbulb-line"></i> Suggestions</button>
+            <button className="sidebar-btn" onClick={() => setShowVersionHistory(true)}><i className="ri-history-line"></i> Version History</button>
+            <button className="sidebar-btn"><i className="ri-bar-chart-line"></i> Word Count: {editorRef.current ? editorRef.current.innerText.trim().split(/\s+/).length : 0}</button>
+            <button className="sidebar-btn" onClick={() => document.querySelector('input[type="file"]').click()}><i className="ri-image-add-line"></i> Upload Image</button>
             <input type="file" accept="image/*" style={{display: 'none'}} onChange={(e) => {
               const file = e.target.files[0];
               if (file) {
@@ -1174,9 +1155,9 @@ const DocumentEditor = () => {
             }} />
           </div>
           <div className="sidebar-section">
-            <h3>👥 Collaboration</h3>
-            <button className="sidebar-btn" onClick={addCollaborator}>👤 Add Collaborator</button>
-            <button className="sidebar-btn" onClick={generateShareLink}>🔗 Generate Link</button>
+            <h3><i className="ri-team-line"></i> Collaboration</h3>
+            <button className="sidebar-btn" onClick={addCollaborator}><i className="ri-user-add-line"></i> Add Collaborator</button>
+            <button className="sidebar-btn" onClick={generateShareLink}><i className="ri-link"></i> Generate Link</button>
             <div className="collaborators">
               {collaborators.map(collab => (
                 <div key={collab.id} className="collaborator-item">
@@ -1193,12 +1174,12 @@ const DocumentEditor = () => {
             )}
           </div>
           <div className="sidebar-section">
-            <h3>📤 Export</h3>
-            <button className="sidebar-btn" onClick={() => exportDocument('pdf')}>📄 PDF</button>
-            <button className="sidebar-btn" onClick={() => exportDocument('docx')}>📝 DOCX</button>
-            <button className="sidebar-btn" onClick={addNewPage}><i class="ri-file-add-line"></i> New Page</button>
-            <button className="sidebar-btn" onClick={() => exportDocument('md')}>📋 Markdown</button>
-            <button className="sidebar-btn" onClick={() => exportDocument('html')}>🌐 HTML</button>
+            <h3><i className="ri-upload-line"></i> Export</h3>
+            <button className="sidebar-btn" onClick={() => exportDocument('pdf')}><i className="ri-file-pdf-2-line"></i> PDF</button>
+            <button className="sidebar-btn" onClick={() => exportDocument('docx')}><i className="ri-file-word-2-line"></i> DOCX</button>
+            <button className="sidebar-btn" onClick={addNewPage}><i className="ri-file-add-line"></i> New Page</button>
+            <button className="sidebar-btn" onClick={() => exportDocument('md')}><i className="ri-markdown-line"></i> Markdown</button>
+            <button className="sidebar-btn" onClick={() => exportDocument('html')}><i className="ri-code-line"></i> HTML</button>
           </div>
         </aside>
       </div>
@@ -1209,7 +1190,7 @@ const DocumentEditor = () => {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Version History</h3>
-              <button className="close-btn" onClick={() => setShowVersionHistory(false)}>✕</button>
+              <button className="close-btn" onClick={() => setShowVersionHistory(false)}><i className="ri-close-line"></i></button>
             </div>
             <div className="modal-body">
               {documentHistory.length === 0 ? (
@@ -1226,7 +1207,7 @@ const DocumentEditor = () => {
                       <button onClick={() => {
                         const preview = document.createElement('div');
                         preview.innerHTML = version.content;
-                        alert(preview.textContent.substring(0, 200) + '...');
+                        showNotification(`Preview: ${preview.textContent.substring(0, 100)}...`, 'info');
                       }}>Preview</button>
                     </div>
                   </div>

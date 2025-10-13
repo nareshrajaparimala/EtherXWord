@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './CollaborationRequests.css';
+import { useNotification } from '../context/NotificationContext';
 
 const CollaborationRequests = () => {
+  const { showNotification } = useNotification();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,14 +43,14 @@ const CollaborationRequests = () => {
 
       if (response.ok) {
         setRequests(requests.filter(req => req._id !== requestId));
-        alert(`Collaboration request ${action}ed successfully!`);
+        showNotification(`Collaboration request ${action}ed successfully!`, 'success');
       } else {
         const error = await response.json();
-        alert(error.message || `Failed to ${action} request`);
+        showNotification(error.message || `Failed to ${action} request`, 'error');
       }
     } catch (error) {
       console.error(`Error ${action}ing request:`, error);
-      alert(`Failed to ${action} request`);
+      showNotification(`Failed to ${action} request`, 'error');
     }
   };
 

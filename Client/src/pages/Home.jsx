@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import CollaborationRequests from '../components/CollaborationRequests';
+import { useNotification } from '../context/NotificationContext';
 import './Home.css';
 
 const Home = () => {
+  const { showNotification } = useNotification();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [selectedSection, setSelectedSection] = useState('Quick Access');
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -152,7 +154,7 @@ const Home = () => {
   };
   
   const permanentlyDelete = async (docId) => {
-    if (confirm('Are you sure? This action cannot be undone.')) {
+    if (window.confirm('Are you sure? This action cannot be undone.')) {
       try {
         await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${docId}/permanent`, {
           method: 'DELETE',
@@ -177,7 +179,7 @@ const Home = () => {
         }
       });
       
-      alert('Start document updated!');
+      showNotification('Start document updated!', 'success');
       if (selectedSection === 'All Documents') fetchUserDocuments();
       if (selectedSection === 'Favorites') fetchFavoriteDocuments();
     } catch (error) {

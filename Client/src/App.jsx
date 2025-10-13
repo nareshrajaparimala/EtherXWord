@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import LoadingPage from './components/LoadingPage';
+import NotificationContainer from './components/NotificationContainer';
+import { NotificationProvider } from './context/NotificationContext';
 import Home from './pages/Home';
 import DocumentEditor from './pages/DocumentEditor';
 import DocumentViewer from './pages/DocumentViewer';
@@ -33,6 +35,7 @@ function AppContent() {
         <Route path="/verify-otp" element={<VerifyOtp />} />
         <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
+      <NotificationContainer />
     </div>
   );
 }
@@ -62,9 +65,11 @@ function App() {
   }
 
   return (
-    <Router>
-      <AppContent />
-    </Router>
+    <NotificationProvider>
+      <Router>
+        <AppContent />
+      </Router>
+    </NotificationProvider>
   );
 }
 

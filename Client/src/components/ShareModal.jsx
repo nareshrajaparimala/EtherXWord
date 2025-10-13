@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import './ShareModal.css';
+import { useNotification } from '../context/NotificationContext';
 
 const ShareModal = ({ isOpen, onClose, documentId, documentTitle }) => {
+  const { showNotification } = useNotification();
   const [activeTab, setActiveTab] = useState('collaborate');
   const [email, setEmail] = useState('');
   const [permission, setPermission] = useState('edit');
@@ -11,7 +13,7 @@ const ShareModal = ({ isOpen, onClose, documentId, documentTitle }) => {
 
   const sendCollaborationRequest = async () => {
     if (!email.trim()) {
-      alert('Please enter an email address');
+      showNotification('Please enter an email address', 'warning');
       return;
     }
     
@@ -27,7 +29,7 @@ const ShareModal = ({ isOpen, onClose, documentId, documentTitle }) => {
     try {
       const token = localStorage.getItem('accessToken');
       if (!token) {
-        alert('Please log in to send collaboration requests');
+        showNotification('Please log in to send collaboration requests', 'error');
         return;
       }
       
@@ -51,18 +53,18 @@ const ShareModal = ({ isOpen, onClose, documentId, documentTitle }) => {
       if (response.ok) {
         const result = await response.json();
         console.log('Success:', result);
-        alert('Collaboration request sent successfully!');
+        showNotification('Collaboration request sent successfully!', 'success');
         setEmail('');
         setMessage('');
         onClose();
       } else {
         const error = await response.json();
         console.error('Server error:', error);
-        alert(error.message || `Failed to send collaboration request (${response.status})`);
+        showNotification(error.message || `Failed to send collaboration request (${response.status})`, 'error');
       }
     } catch (error) {
       console.error('Network error:', error);
-      alert('Network error: Failed to send collaboration request');
+      showNotification('Network error: Failed to send collaboration request', 'error');
     } finally {
       setLoading(false);
     }
@@ -87,14 +89,14 @@ const ShareModal = ({ isOpen, onClose, documentId, documentTitle }) => {
         const data = await response.json();
         setShareLink(data.shareLink);
         navigator.clipboard.writeText(data.shareLink);
-        alert('Share link copied to clipboard!');
+        showNotification('Share link copied to clipboard!', 'success');
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to generate share link');
+        showNotification(error.message || 'Failed to generate share link', 'error');
       }
     } catch (error) {
       console.error('Error generating share link:', error);
-      alert('Failed to generate share link');
+      showNotification('Failed to generate share link', 'error');
     } finally {
       setLoading(false);
     }
@@ -211,7 +213,7 @@ const ShareModal = ({ isOpen, onClose, documentId, documentTitle }) => {
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(shareLink);
-                        alert('Link copied!');
+                        showNotification('Link copied!', 'success');
                       }}
                       className="copy-btn"
                     >
