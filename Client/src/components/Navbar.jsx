@@ -86,25 +86,25 @@ const Navbar = () => {
     
     switch (notification.type) {
       case 'collaboration_request':
-        navigate('/', { state: { activeSection: 'Collaboration' } });
+        navigate('/home', { state: { activeSection: 'Collaboration' } });
         break;
       case 'collaboration_accepted':
       case 'collaboration_rejected':
         if (notification.data?.documentId) {
           navigate(`/editor/${notification.data.documentId}`);
         } else {
-          navigate('/');
+          navigate('/home');
         }
         break;
       case 'document_shared':
         if (notification.data?.documentId) {
           navigate(`/viewer/${notification.data.documentId}`);
         } else {
-          navigate('/');
+          navigate('/home');
         }
         break;
       default:
-        navigate('/');
+        navigate('/home');
     }
   };
 
@@ -335,11 +335,11 @@ const Navbar = () => {
               <span className="item-icon">⚙️</span>
               <span>Settings</span>
             </button>
-            <button className="sidebar-item" onClick={() => { navigate('/'); setShowSidebar(false); }}>
+            <button className="sidebar-item" onClick={() => { navigate('/home'); setShowSidebar(false); }}>
               <span className="item-icon">📊</span>
               <span>Dashboard</span>
             </button>
-            <button className="sidebar-item" onClick={() => { navigate('/'); setShowSidebar(false); }}>
+            <button className="sidebar-item" onClick={() => { navigate('/home'); setShowSidebar(false); }}>
               <span className="item-icon">📄</span>
               <span>Documents</span>
             </button>

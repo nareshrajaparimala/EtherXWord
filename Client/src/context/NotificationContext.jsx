@@ -31,8 +31,12 @@ export const NotificationProvider = ({ children }) => {
     setNotifications(prev => prev.filter(notification => notification.id !== id));
   };
 
+  const clearAllNotifications = () => {
+    setNotifications([]);
+  };
+
   return (
-    <NotificationContext.Provider value={{ notifications, showNotification, removeNotification }}>
+    <NotificationContext.Provider value={{ notifications, showNotification, removeNotification, clearAllNotifications }}>
       {children}
     </NotificationContext.Provider>
   );

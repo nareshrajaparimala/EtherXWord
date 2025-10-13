@@ -9,7 +9,7 @@ import ShareModal from '../components/ShareModal';
 import { useNotification } from '../context/NotificationContext';
 
 const DocumentEditor = () => {
-  const { showNotification } = useNotification();
+  const { showNotification, clearAllNotifications } = useNotification();
   const [documentTitle, setDocumentTitle] = useState('Untitled Document');
   const [isEditing, setIsEditing] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
@@ -773,7 +773,7 @@ const DocumentEditor = () => {
                   <span className="notification-time">3 hours ago</span>
                 </div>
                 <div className="notification-footer">
-                  <button className="clear-all-btn">Clear All</button>
+                  <button className="clear-all-btn" onClick={clearAllNotifications}>Clear All</button>
                 </div>
               </div>
             )}

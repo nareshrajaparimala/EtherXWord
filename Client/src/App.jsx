@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import LoadingPage from './components/LoadingPage';
 import NotificationContainer from './components/NotificationContainer';
+import ProtectedRoute from './components/ProtectedRoute';
 import { NotificationProvider } from './context/NotificationContext';
 import Home from './pages/Home';
 import DocumentEditor from './pages/DocumentEditor';
@@ -19,16 +20,18 @@ import './styles/auth.css';
 function AppContent() {
   const location = useLocation();
   const hideNavbar = location.pathname.startsWith('/editor') || location.pathname.startsWith('/viewer');
+  const token = localStorage.getItem('accessToken');
 
   return (
     <div className="App">
       {!hideNavbar && <Navbar />}
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/editor" element={<DocumentEditor />} />
-        <Route path="/editor/:id" element={<DocumentEditor />} />
-        <Route path="/viewer/:documentId" element={<DocumentViewer />} />
-        <Route path="/profile" element={<Profile />} />
+        <Route path="/" element={token ? <Navigate to="/home" replace /> : <Navigate to="/signin" replace />} />
+        <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+        <Route path="/editor" element={<ProtectedRoute><DocumentEditor /></ProtectedRoute>} />
+        <Route path="/editor/:id" element={<ProtectedRoute><DocumentEditor /></ProtectedRoute>} />
+        <Route path="/viewer/:documentId" element={<ProtectedRoute><DocumentViewer /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -55,7 +58,7 @@ function App() {
     // Simulate app initialization
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 3000); // 3 seconds loading
+    }, 5000); // 10 seconds loading
 
     return () => clearTimeout(timer);
   }, []);

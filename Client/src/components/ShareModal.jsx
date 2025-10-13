@@ -168,13 +168,21 @@ const ShareModal = ({ isOpen, onClose, documentId, documentTitle }) => {
                 />
               </div>
 
-              <button
-                onClick={sendCollaborationRequest}
-                disabled={loading || !email.trim()}
-                className="btn btn-primary"
-              >
-                {loading ? 'Sending...' : 'Send Invitation'}
-              </button>
+              <div className="button-group">
+                <button
+                  onClick={sendCollaborationRequest}
+                  disabled={loading || !email.trim()}
+                  className="btn btn-primary"
+                >
+                  {loading ? 'Sending...' : 'Send Invitation'}
+                </button>
+                <button
+                  onClick={onClose}
+                  className="btn btn-cancel"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           )}
 
@@ -192,13 +200,21 @@ const ShareModal = ({ isOpen, onClose, documentId, documentTitle }) => {
                 </select>
               </div>
 
-              <button
-                onClick={generateShareLink}
-                disabled={loading}
-                className="btn btn-primary"
-              >
-                {loading ? 'Generating...' : 'Generate Share Link'}
-              </button>
+              <div className="button-group">
+                <button
+                  onClick={generateShareLink}
+                  disabled={loading}
+                  className="btn btn-primary"
+                >
+                  {loading ? 'Generating...' : 'Generate Share Link'}
+                </button>
+                <button
+                  onClick={onClose}
+                  className="btn btn-cancel"
+                >
+                  Cancel
+                </button>
+              </div>
 
               {shareLink && (
                 <div className="share-link-result">
