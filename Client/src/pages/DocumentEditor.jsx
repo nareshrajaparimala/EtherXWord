@@ -4,6 +4,8 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { saveAs } from 'file-saver';
+import Logo from '../components/Logo';
+import { useLogoAnimation } from '../hooks/useLogoAnimation';
 import './DocumentEditor.css';
 import ShareModal from '../components/ShareModal';
 import { useNotification } from '../context/NotificationContext';
@@ -41,11 +43,27 @@ const DocumentEditor = () => {
   const [headerAlignment, setHeaderAlignment] = useState('top-center');
   const [footerAlignment, setFooterAlignment] = useState('bottom-center');
   const [pageNumbering, setPageNumbering] = useState({ enabled: true, position: 'bottom-right', format: '1' });
+  const [showListStyles, setShowListStyles] = useState(false);
 
   const editorRef = useRef(null);
+
+  // Load template data if available
+  React.useEffect(() => {
+    const selectedTemplate = localStorage.getItem('selectedTemplate');
+    if (selectedTemplate) {
+      const templateData = JSON.parse(selectedTemplate);
+      setDocumentTitle(templateData.title);
+      if (editorRef.current) {
+        editorRef.current.innerHTML = templateData.content;
+      }
+      // Clear the template data after loading
+      localStorage.removeItem('selectedTemplate');
+    }
+  }, []);
   const navigate = useNavigate();
   const { id: documentId } = useParams();
   const autoSaveInterval = useRef(null);
+  const isLogoAnimating = useLogoAnimation();
 
   const formatText = (command, value = null) => {
     document.execCommand(command, false, value);
@@ -53,6 +71,47 @@ const DocumentEditor = () => {
       editorRef.current.focus();
     }
   };
+
+  const insertCustomList = (style, icon = null) => {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const ul = document.createElement('ul');
+      ul.style.listStyleType = style;
+      ul.style.paddingLeft = '20px';
+      ul.style.margin = '10px 0';
+
+      if (icon) {
+        ul.classList.add('custom-list');
+        ul.setAttribute('data-icon', icon);
+      }
+
+      const li = document.createElement('li');
+      li.innerHTML = '';
+      ul.appendChild(li);
+
+      range.deleteContents();
+      range.insertNode(ul);
+
+      const newRange = document.createRange();
+      newRange.setStart(li, 0);
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+    }
+    setShowListStyles(false);
+  };
+
+  const listStyles = [
+    { name: 'Bullet', style: 'disc', icon: '•' },
+    { name: 'Circle', style: 'circle', icon: '○' },
+    { name: 'Square', style: 'square', icon: '■' },
+    { name: 'Arrow', style: 'none', icon: '→', custom: true },
+    { name: 'Check', style: 'none', icon: '✓', custom: true },
+    { name: 'Star', style: 'none', icon: '★', custom: true },
+    { name: 'Diamond', style: 'none', icon: '♦', custom: true },
+    { name: 'Triangle', style: 'none', icon: '▶', custom: true }
+  ];
 
   const addNewPage = () => {
     const newPage = {
@@ -710,7 +769,10 @@ const DocumentEditor = () => {
           >
             <i className="ri-menu-line"></i>
           </button>
-          <div className="logo">EtherXWord</div>
+          <div className="logo">
+            <Logo size={24} className={isLogoAnimating ? 'animate' : ''} />
+            <span>EtherXWord</span>
+          </div>
         </div>
         <div className="navbar-center">
           {isEditing ? (
@@ -868,6 +930,12 @@ const DocumentEditor = () => {
         <div className="toolbar-group">
           <button onClick={() => formatText('insertUnorderedList')} className="toolbar-btn"><i className="ri-list-unordered"></i></button>
           <button onClick={() => formatText('insertOrderedList')} className="toolbar-btn"><i className="ri-list-ordered-2"></i></button>
+          <button 
+            onClick={() => setShowListStyles(!showListStyles)} 
+            className="toolbar-btn"
+          >
+            <i className="ri-list-settings-line"></i>
+          </button>
           <button onClick={togglePageBorder} className="toolbar-btn"><i className="ri-checkbox-blank-line"></i></button>
           <button onClick={() => formatText('createLink', prompt('Enter URL:'))} className="toolbar-btn"><i className="ri-link"></i></button>
           <button onClick={() => setShowHeaderFooter(!showHeaderFooter)} className="toolbar-btn"><i className="ri-layout-top-2-line"></i> H/F</button>
@@ -964,6 +1032,40 @@ const DocumentEditor = () => {
                 <button onClick={() => addImageBorder('2px solid #FFD700')}>Gold Border</button>
                 <button onClick={() => addImageBorder('3px solid #000')}>Bold Border</button>
                 <button onClick={() => addImageBorder('none')}>No Border</button>
+              </div>
+            </div>
+          )}
+          
+          {showListStyles && (
+            <div className="list-styles-controls">
+              <h4>List Styles</h4>
+              <div className="control-group">
+                <button onClick={() => insertCustomList('disc')}>
+                  <span className="list-icon">•</span> Bullet
+                </button>
+                <button onClick={() => insertCustomList('circle')}>
+                  <span className="list-icon">○</span> Circle
+                </button>
+                <button onClick={() => insertCustomList('square')}>
+                  <span className="list-icon">■</span> Square
+                </button>
+                <button onClick={() => insertCustomList('none', '→')}>
+                  <span className="list-icon">→</span> Arrow
+                </button>
+              </div>
+              <div className="control-group">
+                <button onClick={() => insertCustomList('none', '✓')}>
+                  <span className="list-icon">✓</span> Check
+                </button>
+                <button onClick={() => insertCustomList('none', '★')}>
+                  <span className="list-icon">★</span> Star
+                </button>
+                <button onClick={() => insertCustomList('none', '♦')}>
+                  <span className="list-icon">♦</span> Diamond
+                </button>
+                <button onClick={() => insertCustomList('none', '▶')}>
+                  <span className="list-icon">▶</span> Triangle
+                </button>
               </div>
             </div>
           )}

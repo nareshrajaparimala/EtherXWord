@@ -6,6 +6,7 @@ import NotificationContainer from './components/NotificationContainer';
 import ProtectedRoute from './components/ProtectedRoute';
 import { NotificationProvider } from './context/NotificationContext';
 import Home from './pages/Home';
+import Templates from './pages/Templates';
 import DocumentEditor from './pages/DocumentEditor';
 import DocumentViewer from './pages/DocumentViewer';
 import Profile from './pages/Profile';
@@ -28,6 +29,7 @@ function AppContent() {
       <Routes>
         <Route path="/" element={token ? <Navigate to="/home" replace /> : <Navigate to="/signin" replace />} />
         <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+        <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
         <Route path="/editor" element={<ProtectedRoute><DocumentEditor /></ProtectedRoute>} />
         <Route path="/editor/:id" element={<ProtectedRoute><DocumentEditor /></ProtectedRoute>} />
         <Route path="/viewer/:documentId" element={<ProtectedRoute><DocumentViewer /></ProtectedRoute>} />

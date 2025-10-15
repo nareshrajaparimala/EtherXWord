@@ -18,7 +18,7 @@ const Home = () => {
   const menuItems = [
     { icon: '📄', label: 'Quick Access', mobileVisible: false },
     { icon: '➕', label: 'New Document', mobileVisible: true },
-    { icon: '📑', label: 'Templates', mobileVisible: true },
+    { icon: '📑', label: 'Templates', mobileVisible: true, action: () => navigate('/templates') },
     { icon: '📂', label: 'All Documents', mobileVisible: true },
     { icon: '👥', label: 'Collaboration', mobileVisible: true },
     { icon: '⭐', label: 'Favorites', mobileVisible: true },
@@ -223,7 +223,7 @@ const Home = () => {
             <button
               key={index}
               className={`sidebar-item ${selectedSection === item.label ? 'active' : ''} ${item.mobileVisible ? 'mobile-visible' : ''}`}
-              onClick={() => setSelectedSection(item.label)}
+              onClick={() => item.action ? item.action() : setSelectedSection(item.label)}
             >
               <span className="sidebar-icon">{item.icon}</span>
               <span className="sidebar-label">{item.label}</span>

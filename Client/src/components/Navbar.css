@@ -35,6 +35,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.navbar-logo:hover {
+  transform: scale(1.02);
 }
 
 .logo-text-main {

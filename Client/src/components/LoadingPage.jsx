@@ -1,12 +1,19 @@
 import React from 'react';
+import Logo from './Logo';
+import { useLogoAnimation } from '../hooks/useLogoAnimation';
 import './LoadingPage.css';
 
 const LoadingPage = () => {
+  const isLogoAnimating = useLogoAnimation();
+  
   return (
     <div className="loading-container">
       <div className="loading-content">
         {/* Logo Animation */}
         <div className="logo-container">
+          <div className="loading-logo-wrapper">
+            <Logo size={80} className={isLogoAnimating ? 'animate' : ''} />
+          </div>
           <div className="logo-text">
             <span className="letter">E</span>
             <span className="letter">t</span>
@@ -19,7 +26,6 @@ const LoadingPage = () => {
             <span className="letter">r</span>
             <span className="letter">d</span>
           </div>
-          <div className="tagline">Decentralized Document Editor</div>
         </div>
 
         {/* Loading Animation */}

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Logo from './Logo';
+import { useLogoAnimation } from '../hooks/useLogoAnimation';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -17,6 +19,7 @@ const Navbar = () => {
   const [loading, setLoading] = useState(false);
   const sidebarRef = useRef(null);
   const navigate = useNavigate();
+  const isLogoAnimating = useLogoAnimation();
   
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
@@ -213,6 +216,7 @@ const Navbar = () => {
       <nav className={`navbar ${theme}`}>
         <div className="navbar-left">
           <div className="navbar-logo">
+            <Logo size={28} className={isLogoAnimating ? 'animate' : ''} />
             <span className="logo-text-main">EtherXWord</span>
           </div>
         </div>
@@ -283,7 +287,7 @@ const Navbar = () => {
             onClick={toggleSidebar}
             aria-label="Profile"
           >
-            👤
+            <i className="ri-user-line"></i>
           </button>
         </div>
       </nav>
@@ -339,9 +343,13 @@ const Navbar = () => {
               <span className="item-icon">📊</span>
               <span>Dashboard</span>
             </button>
-            <button className="sidebar-item" onClick={() => { navigate('/home'); setShowSidebar(false); }}>
+            <button className="sidebar-item" onClick={() => { navigate('/templates'); setShowSidebar(false); }}>
               <span className="item-icon">📄</span>
-              <span>Documents</span>
+              <span>Templates</span>
+            </button>
+            <button className="sidebar-item" onClick={() => { navigate('/home'); setShowSidebar(false); }}>
+              <span className="item-icon">📝</span>
+              <span>My Documents</span>
             </button>
             <button className="sidebar-item">
               <span className="item-icon"><i className="ri-notification-3-line"></i></span>

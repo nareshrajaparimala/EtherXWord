@@ -1,0 +1,41 @@
+.logo-wrapper {
+  display: inline-block;
+  position: relative;
+}
+
+.logo-image {
+  transition: transform 0.3s ease;
+  object-fit: contain;
+}
+
+/* Rotation animation - triggers every 3 minutes for 3 seconds */
+.logo-wrapper.animate {
+  animation: logoRotate 3s ease-in-out;
+}
+
+@keyframes logoRotate {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(90deg); }
+  50% { transform: rotate(180deg); }
+  75% { transform: rotate(270deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Glow effect during animation */
+.logo-wrapper.animate .logo-image {
+  animation: logoGlow 3s ease-in-out;
+}
+
+@keyframes logoGlow {
+  0%, 100% { 
+    filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.5)); 
+  }
+  50% { 
+    filter: drop-shadow(0 0 15px rgba(255, 215, 0, 1)); 
+  }
+}
+
+/* Hover effect */
+.logo-wrapper:hover .logo-image {
+  transform: scale(1.1);
+}
