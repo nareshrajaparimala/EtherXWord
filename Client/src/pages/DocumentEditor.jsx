@@ -9,6 +9,7 @@ import { useLogoAnimation } from '../hooks/useLogoAnimation';
 import './DocumentEditor.css';
 import ShareModal from '../components/ShareModal';
 import { useNotification } from '../context/NotificationContext';
+import TemplateDemo from '../components/TemplateDemo';
 
 const DocumentEditor = () => {
   const { showNotification, clearAllNotifications } = useNotification();
@@ -59,6 +60,7 @@ const DocumentEditor = () => {
     lineHeight: '1.5',
     color: '#333333'
   });
+  const [showTemplateDemo, setShowTemplateDemo] = useState(false);
 
   const editorRef = useRef(null);
   const undoTimeoutRef = useRef(null);
@@ -67,23 +69,31 @@ const DocumentEditor = () => {
   React.useEffect(() => {
     const selectedTemplate = localStorage.getItem('selectedTemplate');
     if (selectedTemplate) {
-      const templateData = JSON.parse(selectedTemplate);
-      setDocumentTitle(templateData.title);
-      if (editorRef.current) {
-        editorRef.current.innerHTML = templateData.content;
-        // Apply default font after loading content
-        setTimeout(() => {
+      try {
+        const templateData = JSON.parse(selectedTemplate);
+        if (editorRef.current) {
+          // Use safe loading function to preserve existing features
+          safeLoadTemplate(templateData);
+        }
+        // Clear the template data after loading
+        localStorage.removeItem('selectedTemplate');
+      } catch (error) {
+        console.error('Error parsing template data:', error);
+        localStorage.removeItem('selectedTemplate');
+        showNotification('Invalid template data, cleared from storage', 'warning');
+      }
+    } else if (editorRef.current) {
+      // Apply default font to new document only if it's truly empty
+      setTimeout(() => {
+        const currentContent = editorRef.current.innerHTML;
+        const isEmpty = !currentContent || currentContent.trim() === '' || 
+                       currentContent === '<p>Start writing your document here...</p>' ||
+                       currentContent === '<p><br></p>' ||
+                       currentContent === '<div><br></div>';
+        if (isEmpty) {
           applyDefaultFont();
           saveToUndoStack();
-        }, 100);
-      }
-      // Clear the template data after loading
-      localStorage.removeItem('selectedTemplate');
-    } else if (editorRef.current) {
-      // Apply default font to new document
-      setTimeout(() => {
-        applyDefaultFont();
-        saveToUndoStack();
+        }
       }, 100);
     }
   }, []);
@@ -276,13 +286,22 @@ const DocumentEditor = () => {
       editorRef.current.style.lineHeight = defaultFont.lineHeight;
       editorRef.current.style.color = defaultFont.color;
       
-      // Apply to all existing paragraphs and text elements
+      // Apply to existing elements only if they don't have custom formatting
       const textElements = editorRef.current.querySelectorAll('p, div, span, h1, h2, h3, h4, h5, h6');
       textElements.forEach(el => {
-        el.style.fontFamily = defaultFont.family;
-        el.style.fontSize = defaultFont.size;
-        el.style.lineHeight = defaultFont.lineHeight;
-        el.style.color = defaultFont.color;
+        // Only apply if element doesn't have existing custom styles
+        if (!el.style.fontFamily || el.style.fontFamily === '') {
+          el.style.fontFamily = defaultFont.family;
+        }
+        if (!el.style.fontSize || el.style.fontSize === '') {
+          el.style.fontSize = defaultFont.size;
+        }
+        if (!el.style.lineHeight || el.style.lineHeight === '') {
+          el.style.lineHeight = defaultFont.lineHeight;
+        }
+        if (!el.style.color || el.style.color === '') {
+          el.style.color = defaultFont.color;
+        }
       });
       
       // Set default for new content
@@ -291,6 +310,79 @@ const DocumentEditor = () => {
       document.execCommand('foreColor', false, defaultFont.color);
       
       editorRef.current.focus();
+    }
+  };
+
+  const safeLoadTemplate = (templateData) => {
+    if (!editorRef.current || !templateData) return;
+    
+    // Save current state
+    const currentState = {
+      content: editorRef.current.innerHTML,
+      title: documentTitle,
+      collaborators: collaborators,
+      history: documentHistory,
+      pageBorder: pageBorder,
+      pages: pages,
+      headerText: headerText,
+      footerText: footerText
+    };
+    
+    try {
+      // Check if editor has meaningful content
+      const hasContent = currentState.content && 
+                        currentState.content.trim() !== '' &&
+                        currentState.content !== '<p>Start writing your document here...</p>' &&
+                        currentState.content !== '<p><br></p>' &&
+                        currentState.content !== '<div><br></div>';
+      
+      if (hasContent) {
+        // Merge template with existing content
+        const separator = document.createElement('hr');
+        separator.style.margin = '20px 0';
+        separator.style.border = '1px solid #ddd';
+        
+        const templateSection = document.createElement('div');
+        templateSection.innerHTML = templateData.content;
+        templateSection.style.marginTop = '20px';
+        
+        editorRef.current.appendChild(separator);
+        editorRef.current.appendChild(templateSection);
+        
+        showNotification('Template content added below existing content', 'info');
+      } else {
+        // Replace empty content with template
+        editorRef.current.innerHTML = templateData.content;
+        setDocumentTitle(templateData.title);
+      }
+      
+      // Preserve all existing functionality
+      setCollaborators(currentState.collaborators);
+      setDocumentHistory(currentState.history);
+      setPageBorder(currentState.pageBorder);
+      setPages(currentState.pages);
+      setHeaderText(currentState.headerText);
+      setFooterText(currentState.footerText);
+      
+      // Apply fonts carefully
+      setTimeout(() => {
+        const newElements = editorRef.current.querySelectorAll('*:not([data-processed])');
+        newElements.forEach(el => {
+          if (!el.style.fontFamily) el.style.fontFamily = defaultFont.family;
+          if (!el.style.fontSize) el.style.fontSize = defaultFont.size;
+          if (!el.style.lineHeight) el.style.lineHeight = defaultFont.lineHeight;
+          if (!el.style.color) el.style.color = defaultFont.color;
+          el.setAttribute('data-processed', 'true');
+        });
+        saveToUndoStack();
+      }, 100);
+      
+    } catch (error) {
+      console.error('Error loading template safely:', error);
+      // Restore previous state on error
+      editorRef.current.innerHTML = currentState.content;
+      setDocumentTitle(currentState.title);
+      showNotification('Failed to load template, content restored', 'error');
     }
   };
 
@@ -1092,6 +1184,97 @@ const DocumentEditor = () => {
     saveAs(blob, `${documentTitle}.docx`);
   };
 
+  // Public method to load templates from external sources
+  const loadTemplate = (templateData, options = {}) => {
+    const { 
+      merge = true, 
+      preserveTitle = false, 
+      preserveFormatting = true,
+      showNotification: notify = true 
+    } = options;
+    
+    if (!templateData || !editorRef.current) {
+      if (notify) showNotification('Invalid template data', 'error');
+      return false;
+    }
+    
+    try {
+      // Save current editor state
+      const currentState = {
+        content: editorRef.current.innerHTML,
+        title: documentTitle,
+        selection: window.getSelection().rangeCount > 0 ? window.getSelection().getRangeAt(0) : null
+      };
+      
+      const hasContent = currentState.content && 
+                        currentState.content.trim() !== '' &&
+                        !currentState.content.includes('Start writing your document here');
+      
+      if (merge && hasContent) {
+        // Merge template with existing content
+        const separator = document.createElement('div');
+        separator.innerHTML = '<hr style="margin: 20px 0; border: 1px solid #ddd;">';
+        
+        const templateContainer = document.createElement('div');
+        templateContainer.innerHTML = templateData.content;
+        templateContainer.style.marginTop = '20px';
+        
+        // Preserve cursor position if possible
+        if (currentState.selection) {
+          currentState.selection.insertNode(separator);
+          currentState.selection.collapse(false);
+          currentState.selection.insertNode(templateContainer);
+        } else {
+          editorRef.current.appendChild(separator);
+          editorRef.current.appendChild(templateContainer);
+        }
+        
+        if (notify) showNotification('Template merged with existing content', 'success');
+      } else {
+        // Replace content
+        editorRef.current.innerHTML = templateData.content;
+        if (!preserveTitle && templateData.title) {
+          setDocumentTitle(templateData.title);
+        }
+        if (notify) showNotification('Template loaded successfully', 'success');
+      }
+      
+      // Apply formatting if needed
+      if (!preserveFormatting) {
+        setTimeout(() => {
+          applyDefaultFont();
+          saveToUndoStack();
+        }, 100);
+      } else {
+        saveToUndoStack();
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error loading template:', error);
+      if (notify) showNotification('Failed to load template', 'error');
+      return false;
+    }
+  };
+  
+  // Expose loadTemplate method globally for external use
+  React.useEffect(() => {
+    window.EtherXWordEditor = {
+      loadTemplate,
+      getCurrentContent: () => editorRef.current?.innerHTML || '',
+      setContent: (content) => {
+        if (editorRef.current) {
+          editorRef.current.innerHTML = content;
+          saveToUndoStack();
+        }
+      }
+    };
+    
+    return () => {
+      delete window.EtherXWordEditor;
+    };
+  }, []);
+
   const htmlToMarkdown = (html) => {
     return html
       .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n')
@@ -1771,6 +1954,12 @@ const DocumentEditor = () => {
             )}
           </div>
           <div className="sidebar-section">
+            <h3><i className="ri-file-text-line"></i> Templates</h3>
+            <button className="sidebar-btn" onClick={() => setShowTemplateDemo(!showTemplateDemo)}>
+              <i className="ri-layout-2-line"></i> {showTemplateDemo ? 'Hide' : 'Show'} Templates
+            </button>
+          </div>
+          <div className="sidebar-section">
             <h3><i className="ri-upload-line"></i> Import/Export</h3>
             <button className="sidebar-btn" onClick={importDocument}><i className="ri-file-upload-line"></i> Import File</button>
             <button className="sidebar-btn" onClick={() => exportDocument('pdf')}><i className="ri-file-pdf-2-line"></i> PDF</button>
@@ -1874,6 +2063,11 @@ const DocumentEditor = () => {
         documentId={documentId || 'temp-doc-id'}
         documentTitle={documentTitle}
       />
+      
+      {/* Template Demo */}
+      {showTemplateDemo && (
+        <TemplateDemo onHide={() => setShowTemplateDemo(false)} />
+      )}
     </div>
   );
 };

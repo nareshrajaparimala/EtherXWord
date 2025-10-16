@@ -704,7 +704,7 @@
 }
 
 .active-page {
-  box-shadow: 0 0 0 2px var(--primary-yellow), 0 4px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0 0 2px white, 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
 .page-number {
@@ -1769,6 +1769,111 @@
   color: var(--bg-primary);
   font-weight: bold;
   box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.5);
+}
+
+/* Template Integration Styles */
+.template-separator {
+  margin: 20px 0;
+  border: none;
+  border-top: 1px solid var(--border-color);
+  position: relative;
+}
+
+.template-separator::after {
+  content: 'Template Content';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-primary);
+  padding: 0 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.template-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
+  position: relative;
+  animation: templateFadeIn 0.5s ease;
+}
+
+.template-section::before {
+  content: 'Template';
+  position: absolute;
+  top: -8px;
+  left: 0;
+  background: var(--accent-color);
+  color: var(--bg-primary);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+@keyframes templateFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Preserve existing content styles */
+.editor-content [data-processed] {
+  transition: all 0.3s ease;
+}
+
+.editor-content [data-original-content] {
+  border-left: 3px solid var(--accent-color);
+  padding-left: 12px;
+  margin-bottom: 20px;
+}
+
+/* Template loading indicator */
+.template-loading {
+  position: relative;
+  opacity: 0.7;
+}
+
+.template-loading::after {
+  content: 'Loading template...';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 10;
+}
+
+/* Safe template merge styles */
+.template-merge-container {
+  border: 1px dashed var(--accent-color);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+  background: rgba(255, 215, 0, 0.05);
+  position: relative;
+}
+
+.template-merge-container::before {
+  content: 'Merged Template Content';
+  position: absolute;
+  top: -8px;
+  left: 12px;
+  background: var(--bg-primary);
+  padding: 0 8px;
+  font-size: 11px;
+  color: var(--accent-color);
+  font-weight: 600;
 }
 
 /* Animations */
