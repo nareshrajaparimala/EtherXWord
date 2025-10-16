@@ -33,7 +33,8 @@ const DocumentEditor = () => {
     color: '#FFD700',
     width: '2px',
     style: 'solid',
-    margin: '20px'
+    padding: '10px',
+    borderType: 'simple'
   });
   const [pages, setPages] = useState([{ id: 1, content: '<p>Start writing your document here...</p>' }]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -633,17 +634,31 @@ const DocumentEditor = () => {
     }
   };
   
-  const togglePageBorder = () => {
-    setShowPageBorderControls(!showPageBorderControls);
-  };
-  
   const applyPageBorder = () => {
     setPageBorder({ ...pageBorder, enabled: true });
     setShowPageBorderControls(false);
+    // Force re-render of editor content
+    if (editorRef.current) {
+      const content = editorRef.current.innerHTML;
+      setTimeout(() => {
+        if (editorRef.current) {
+          editorRef.current.innerHTML = content;
+        }
+      }, 50);
+    }
   };
   
   const removePageBorder = () => {
     setPageBorder({ ...pageBorder, enabled: false });
+    // Force re-render of editor content
+    if (editorRef.current) {
+      const content = editorRef.current.innerHTML;
+      setTimeout(() => {
+        if (editorRef.current) {
+          editorRef.current.innerHTML = content;
+        }
+      }, 50);
+    }
   };
 
   const exportDocument = async (format) => {
@@ -1137,7 +1152,7 @@ const DocumentEditor = () => {
           >
             <i className="ri-list-settings-line"></i>
           </button>
-          <button onClick={togglePageBorder} className="toolbar-btn"><i className="ri-checkbox-blank-line"></i></button>
+          <button onClick={() => setShowPageBorderControls(true)} className="toolbar-btn" title="Page Border"><i className="ri-checkbox-blank-line"></i></button>
           <button onClick={() => formatText('createLink', prompt('Enter URL:'))} className="toolbar-btn"><i className="ri-link"></i></button>
           <button onClick={() => setShowHeaderFooter(!showHeaderFooter)} className="toolbar-btn"><i className="ri-layout-top-2-line"></i> H/F</button>
         </div>
@@ -1175,10 +1190,6 @@ const DocumentEditor = () => {
               <div 
                 key={page.id}
                 className={`editor-page a4-page ${currentPage === page.id ? 'active-page' : ''}`}
-                style={pageBorder.enabled ? {
-                  border: `${pageBorder.width} ${pageBorder.style} ${pageBorder.color}`,
-                  margin: pageBorder.margin
-                } : {}}
               >
                 {headerText && (
                   <div className={`page-hf-element ${headerAlignment}`}>{headerText}</div>
@@ -1187,7 +1198,7 @@ const DocumentEditor = () => {
                 <div
                   ref={index === 0 ? editorRef : null}
                   contentEditable
-                  className="editor-content a4-content"
+                  className={`editor-content a4-content ${pageBorder.enabled ? 'has-border' : ''}`}
                   suppressContentEditableWarning={true}
                   onDrop={handleImageDrop}
                   onDragOver={(e) => e.preventDefault()}
@@ -1197,10 +1208,36 @@ const DocumentEditor = () => {
                   }}
                   onInput={(e) => handleContentChange(e, page.id)}
                   data-page-id={page.id}
+                  style={pageBorder.enabled ? {
+                    border: pageBorder.borderType === 'shadow' ? 'none' : `${pageBorder.width} ${pageBorder.style} ${pageBorder.color}`,
+                    margin: pageBorder.padding,
+                    width: `calc(100% - ${parseInt(pageBorder.padding) * 2}px - ${parseInt(pageBorder.width) * 2}px)`,
+                    height: `calc(100% - ${parseInt(pageBorder.padding) * 2}px - ${parseInt(pageBorder.width) * 2}px)`,
+                    borderRadius: pageBorder.borderType === 'rounded' ? '8px' : '0',
+                    boxShadow: pageBorder.borderType === 'shadow' ? `inset 0 0 0 ${pageBorder.width} ${pageBorder.color}` : 'none',
+                    position: 'relative',
+                    boxSizing: 'border-box'
+                  } : {}}
                 >
                   {page.id === 1 && page.content === '<p>Start writing your document here...</p>' ? (
                     'Start writing your document here...'
                   ) : null}
+                  
+                  {pageBorder.enabled && pageBorder.borderType === 'double' && (
+                    <div 
+                      className="double-border-inner"
+                      style={{
+                        position: 'absolute',
+                        top: `calc(${pageBorder.padding} + 4px)`,
+                        left: `calc(${pageBorder.padding} + 4px)`,
+                        right: `calc(${pageBorder.padding} + 4px)`,
+                        bottom: `calc(${pageBorder.padding} + 4px)`,
+                        border: `1px ${pageBorder.style} ${pageBorder.color}`,
+                        borderRadius: pageBorder.borderType === 'rounded' ? '4px' : '0',
+                        pointerEvents: 'none'
+                      }}
+                    />
+                  )}
                 </div>
                 
                 {footerText && (
@@ -1365,16 +1402,54 @@ const DocumentEditor = () => {
           {/* Page Border Controls */}
           {showPageBorderControls && (
             <div className="page-border-controls">
-              <h4>Page Border Settings</h4>
+              <h4>Professional Page Border</h4>
+              
+              <div className="border-control-group">
+                <label>Border Type:</label>
+                <select 
+                  value={pageBorder.borderType}
+                  onChange={(e) => setPageBorder({...pageBorder, borderType: e.target.value})}
+                  className="border-select"
+                >
+                  <option value="simple">Simple Border</option>
+                  <option value="rounded">Rounded Border</option>
+                  <option value="shadow">Shadow Border</option>
+                  <option value="double">Double Border</option>
+                </select>
+              </div>
+              
               <div className="border-control-group">
                 <label>Border Color:</label>
-                <input 
-                  type="color" 
-                  value={pageBorder.color}
-                  onChange={(e) => setPageBorder({...pageBorder, color: e.target.value})}
-                  className="border-color-picker"
-                />
+                <div className="color-presets">
+                  <button 
+                    className={`color-preset ${pageBorder.color === '#FFD700' ? 'active' : ''}`}
+                    style={{backgroundColor: '#FFD700'}}
+                    onClick={() => setPageBorder({...pageBorder, color: '#FFD700'})}
+                  ></button>
+                  <button 
+                    className={`color-preset ${pageBorder.color === '#000000' ? 'active' : ''}`}
+                    style={{backgroundColor: '#000000'}}
+                    onClick={() => setPageBorder({...pageBorder, color: '#000000'})}
+                  ></button>
+                  <button 
+                    className={`color-preset ${pageBorder.color === '#0066CC' ? 'active' : ''}`}
+                    style={{backgroundColor: '#0066CC'}}
+                    onClick={() => setPageBorder({...pageBorder, color: '#0066CC'})}
+                  ></button>
+                  <button 
+                    className={`color-preset ${pageBorder.color === '#CC0000' ? 'active' : ''}`}
+                    style={{backgroundColor: '#CC0000'}}
+                    onClick={() => setPageBorder({...pageBorder, color: '#CC0000'})}
+                  ></button>
+                  <input 
+                    type="color" 
+                    value={pageBorder.color}
+                    onChange={(e) => setPageBorder({...pageBorder, color: e.target.value})}
+                    className="border-color-picker"
+                  />
+                </div>
               </div>
+              
               <div className="border-control-group">
                 <label>Border Width:</label>
                 <select 
@@ -1382,13 +1457,14 @@ const DocumentEditor = () => {
                   onChange={(e) => setPageBorder({...pageBorder, width: e.target.value})}
                   className="border-select"
                 >
-                  <option value="1px">1px</option>
-                  <option value="2px">2px</option>
-                  <option value="3px">3px</option>
-                  <option value="4px">4px</option>
-                  <option value="5px">5px</option>
+                  <option value="1px">Thin (1px)</option>
+                  <option value="2px">Medium (2px)</option>
+                  <option value="3px">Thick (3px)</option>
+                  <option value="4px">Extra Thick (4px)</option>
+                  <option value="6px">Bold (6px)</option>
                 </select>
               </div>
+              
               <div className="border-control-group">
                 <label>Border Style:</label>
                 <select 
@@ -1396,26 +1472,43 @@ const DocumentEditor = () => {
                   onChange={(e) => setPageBorder({...pageBorder, style: e.target.value})}
                   className="border-select"
                 >
-                  <option value="solid">Solid</option>
-                  <option value="dashed">Dashed</option>
-                  <option value="dotted">Dotted</option>
-                  <option value="double">Double</option>
+                  <option value="solid">Solid Line</option>
+                  <option value="dashed">Dashed Line</option>
+                  <option value="dotted">Dotted Line</option>
+                  <option value="double">Double Line</option>
+                  <option value="groove">Groove Effect</option>
+                  <option value="ridge">Ridge Effect</option>
                 </select>
               </div>
+              
               <div className="border-control-group">
-                <label>Margin:</label>
+                <label>Inner Padding:</label>
                 <select 
-                  value={pageBorder.margin}
-                  onChange={(e) => setPageBorder({...pageBorder, margin: e.target.value})}
+                  value={pageBorder.padding}
+                  onChange={(e) => setPageBorder({...pageBorder, padding: e.target.value})}
                   className="border-select"
                 >
-                  <option value="10px">10px</option>
-                  <option value="15px">15px</option>
-                  <option value="20px">20px</option>
-                  <option value="25px">25px</option>
-                  <option value="30px">30px</option>
+                  <option value="5px">Tight (5px)</option>
+                  <option value="10px">Normal (10px)</option>
+                  <option value="15px">Comfortable (15px)</option>
+                  <option value="20px">Spacious (20px)</option>
+                  <option value="25px">Extra Space (25px)</option>
                 </select>
               </div>
+              
+              <div className="border-preview">
+                <div 
+                  className="preview-box"
+                  style={{
+                    border: `${pageBorder.width} ${pageBorder.style} ${pageBorder.color}`,
+                    borderRadius: pageBorder.borderType === 'rounded' ? '8px' : '0',
+                    boxShadow: pageBorder.borderType === 'shadow' ? `inset 0 0 0 ${pageBorder.width} ${pageBorder.color}` : 'none'
+                  }}
+                >
+                  Preview
+                </div>
+              </div>
+              
               <div className="border-actions">
                 <button onClick={applyPageBorder} className="apply-border-btn">Apply Border</button>
                 <button onClick={removePageBorder} className="remove-border-btn">Remove Border</button>
