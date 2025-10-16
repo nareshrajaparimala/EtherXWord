@@ -44,8 +44,17 @@ const DocumentEditor = () => {
   const [footerAlignment, setFooterAlignment] = useState('bottom-center');
   const [pageNumbering, setPageNumbering] = useState({ enabled: true, position: 'bottom-right', format: '1' });
   const [showListStyles, setShowListStyles] = useState(false);
+  const [undoStack, setUndoStack] = useState([]);
+  const [redoStack, setRedoStack] = useState([]);
+  const [isUndoRedo, setIsUndoRedo] = useState(false);
+  const [showFindReplace, setShowFindReplace] = useState(false);
+  const [findText, setFindText] = useState('');
+  const [replaceText, setReplaceText] = useState('');
+  const [currentMatch, setCurrentMatch] = useState(0);
+  const [totalMatches, setTotalMatches] = useState(0);
 
   const editorRef = useRef(null);
+  const undoTimeoutRef = useRef(null);
 
   // Load template data if available
   React.useEffect(() => {
@@ -55,21 +64,183 @@ const DocumentEditor = () => {
       setDocumentTitle(templateData.title);
       if (editorRef.current) {
         editorRef.current.innerHTML = templateData.content;
+        // Save initial content to undo stack
+        setTimeout(() => saveToUndoStack(), 100);
       }
       // Clear the template data after loading
       localStorage.removeItem('selectedTemplate');
+    } else if (editorRef.current) {
+      // Save initial empty content to undo stack
+      setTimeout(() => saveToUndoStack(), 100);
     }
   }, []);
+
+  // Keyboard shortcuts for undo/redo and find/replace
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        redo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        setShowFindReplace(true);
+      } else if (e.key === 'Escape' && showFindReplace) {
+        closeFindReplace();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [undoStack, redoStack, showFindReplace]);
   const navigate = useNavigate();
   const { id: documentId } = useParams();
   const autoSaveInterval = useRef(null);
   const isLogoAnimating = useLogoAnimation();
 
+  const saveToUndoStack = () => {
+    if (editorRef.current && !isUndoRedo) {
+      const content = editorRef.current.innerHTML;
+      setUndoStack(prev => {
+        const newStack = [...prev, content];
+        return newStack.slice(-50); // Keep last 50 states
+      });
+      setRedoStack([]); // Clear redo stack when new action is performed
+    }
+  };
+
+  const undo = () => {
+    if (undoStack.length > 0 && editorRef.current) {
+      setIsUndoRedo(true);
+      const currentContent = editorRef.current.innerHTML;
+      const previousContent = undoStack[undoStack.length - 1];
+      
+      setRedoStack(prev => [...prev, currentContent]);
+      setUndoStack(prev => prev.slice(0, -1));
+      
+      editorRef.current.innerHTML = previousContent;
+      setTimeout(() => setIsUndoRedo(false), 100);
+    }
+  };
+
+  const redo = () => {
+    if (redoStack.length > 0 && editorRef.current) {
+      setIsUndoRedo(true);
+      const currentContent = editorRef.current.innerHTML;
+      const nextContent = redoStack[redoStack.length - 1];
+      
+      setUndoStack(prev => [...prev, currentContent]);
+      setRedoStack(prev => prev.slice(0, -1));
+      
+      editorRef.current.innerHTML = nextContent;
+      setTimeout(() => setIsUndoRedo(false), 100);
+    }
+  };
+
   const formatText = (command, value = null) => {
+    saveToUndoStack();
     document.execCommand(command, false, value);
     if (editorRef.current) {
       editorRef.current.focus();
     }
+  };
+
+  const highlightMatches = (searchText) => {
+    if (!searchText || !editorRef.current) return;
+    
+    // Remove existing highlights
+    clearHighlights();
+    
+    const content = editorRef.current.innerHTML;
+    const regex = new RegExp(`(${searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const matches = content.match(regex);
+    
+    if (matches) {
+      setTotalMatches(matches.length);
+      const highlightedContent = content.replace(regex, '<mark class="find-highlight">$1</mark>');
+      editorRef.current.innerHTML = highlightedContent;
+      
+      // Highlight current match
+      const highlights = editorRef.current.querySelectorAll('.find-highlight');
+      if (highlights.length > 0) {
+        highlights[0].classList.add('current-match');
+        highlights[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setCurrentMatch(1);
+      }
+    } else {
+      setTotalMatches(0);
+      setCurrentMatch(0);
+    }
+  };
+
+  const clearHighlights = () => {
+    if (!editorRef.current) return;
+    const highlights = editorRef.current.querySelectorAll('.find-highlight');
+    highlights.forEach(highlight => {
+      const parent = highlight.parentNode;
+      parent.replaceChild(document.createTextNode(highlight.textContent), highlight);
+      parent.normalize();
+    });
+  };
+
+  const findNext = () => {
+    const highlights = editorRef.current.querySelectorAll('.find-highlight');
+    if (highlights.length === 0) return;
+    
+    highlights.forEach(h => h.classList.remove('current-match'));
+    const nextIndex = currentMatch >= highlights.length ? 0 : currentMatch;
+    highlights[nextIndex].classList.add('current-match');
+    highlights[nextIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setCurrentMatch(nextIndex + 1);
+  };
+
+  const findPrevious = () => {
+    const highlights = editorRef.current.querySelectorAll('.find-highlight');
+    if (highlights.length === 0) return;
+    
+    highlights.forEach(h => h.classList.remove('current-match'));
+    const prevIndex = currentMatch <= 1 ? highlights.length - 1 : currentMatch - 2;
+    highlights[prevIndex].classList.add('current-match');
+    highlights[prevIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setCurrentMatch(prevIndex + 1);
+  };
+
+  const replaceOne = () => {
+    const currentHighlight = editorRef.current.querySelector('.find-highlight.current-match');
+    if (currentHighlight) {
+      saveToUndoStack();
+      currentHighlight.textContent = replaceText;
+      currentHighlight.classList.remove('find-highlight', 'current-match');
+      
+      // Re-highlight remaining matches
+      setTimeout(() => {
+        highlightMatches(findText);
+      }, 100);
+    }
+  };
+
+  const replaceAll = () => {
+    if (!findText || !editorRef.current) return;
+    
+    saveToUndoStack();
+    const content = editorRef.current.textContent;
+    const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    const newContent = content.replace(regex, replaceText);
+    editorRef.current.innerHTML = newContent;
+    
+    setTotalMatches(0);
+    setCurrentMatch(0);
+  };
+
+  const closeFindReplace = () => {
+    clearHighlights();
+    setShowFindReplace(false);
+    setFindText('');
+    setReplaceText('');
+    setCurrentMatch(0);
+    setTotalMatches(0);
   };
 
   const insertCustomList = (style, icon = null) => {
@@ -129,6 +300,16 @@ const DocumentEditor = () => {
         page.id === pageId ? { ...page, content } : page
       )
     );
+    
+    // Debounced undo stack save
+    if (!isUndoRedo) {
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current);
+      }
+      undoTimeoutRef.current = setTimeout(() => {
+        saveToUndoStack();
+      }, 1000); // Save to undo stack after 1 second of inactivity
+    }
   };
 
 
@@ -306,6 +487,7 @@ const DocumentEditor = () => {
     
     return () => {
       if (autoSaveInterval.current) clearInterval(autoSaveInterval.current);
+      if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
     };
   }, [documentId, documentTitle]);
   
@@ -868,6 +1050,25 @@ const DocumentEditor = () => {
       {/* Toolbar */}
       <div className="toolbar">
         <div className="toolbar-group">
+          <button 
+            onClick={undo} 
+            className="toolbar-btn" 
+            disabled={undoStack.length === 0}
+            title="Undo (Ctrl+Z)"
+          >
+            <i className="ri-arrow-go-back-line"></i>
+          </button>
+          <button 
+            onClick={redo} 
+            className="toolbar-btn" 
+            disabled={redoStack.length === 0}
+            title="Redo (Ctrl+Y)"
+          >
+            <i className="ri-arrow-go-forward-line"></i>
+          </button>
+        </div>
+        
+        <div className="toolbar-group">
           <button onClick={() => formatText('bold')} className="toolbar-btn">
             <strong>B</strong>
           </button>
@@ -953,8 +1154,7 @@ const DocumentEditor = () => {
         <aside className={`left-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
           <div className="sidebar-section">
             <h3><i className="ri-file-3-fill"></i> Document</h3>
-            <button className="sidebar-btn"><i className="ri-bar-chart-line"></i> Word Count</button>
-            <button className="sidebar-btn"><i className="ri-find-replace-line"></i> Find & Replace</button>
+            <button className="sidebar-btn" onClick={() => setShowFindReplace(true)}><i className="ri-find-replace-line"></i> Find & Replace</button>
             <button className="sidebar-btn"><i className="ri-list-unordered"></i> Outline</button>
           </div>
           <div className="sidebar-section">
@@ -1232,7 +1432,6 @@ const DocumentEditor = () => {
             <button className="sidebar-btn"><i className="ri-chat-3-line"></i> Comments</button>
             <button className="sidebar-btn"><i className="ri-lightbulb-line"></i> Suggestions</button>
             <button className="sidebar-btn" onClick={() => setShowVersionHistory(true)}><i className="ri-history-line"></i> Version History</button>
-            <button className="sidebar-btn"><i className="ri-bar-chart-line"></i> Word Count: {editorRef.current ? editorRef.current.innerText.trim().split(/\s+/).length : 0}</button>
             <button className="sidebar-btn" onClick={() => document.querySelector('input[type="file"]').click()}><i className="ri-image-add-line"></i> Upload Image</button>
             <input type="file" accept="image/*" style={{display: 'none'}} onChange={(e) => {
               const file = e.target.files[0];
@@ -1315,6 +1514,57 @@ const DocumentEditor = () => {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Find & Replace Modal */}
+      {showFindReplace && (
+        <div className="modal-overlay" onClick={closeFindReplace}>
+          <div className="find-replace-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="find-replace-header">
+              <h3>Find & Replace</h3>
+              <button className="close-btn" onClick={closeFindReplace}><i className="ri-close-line"></i></button>
+            </div>
+            <div className="find-replace-body">
+              <div className="find-replace-row">
+                <input
+                  type="text"
+                  placeholder="Find..."
+                  value={findText}
+                  onChange={(e) => {
+                    setFindText(e.target.value);
+                    if (e.target.value) {
+                      highlightMatches(e.target.value);
+                    } else {
+                      clearHighlights();
+                      setTotalMatches(0);
+                      setCurrentMatch(0);
+                    }
+                  }}
+                  className="find-input"
+                  autoFocus
+                />
+                <div className="find-controls">
+                  <button onClick={findPrevious} disabled={totalMatches === 0}><i className="ri-arrow-up-s-line"></i></button>
+                  <button onClick={findNext} disabled={totalMatches === 0}><i className="ri-arrow-down-s-line"></i></button>
+                  <span className="match-counter">{totalMatches > 0 ? `${currentMatch}/${totalMatches}` : '0/0'}</span>
+                </div>
+              </div>
+              <div className="find-replace-row">
+                <input
+                  type="text"
+                  placeholder="Replace with..."
+                  value={replaceText}
+                  onChange={(e) => setReplaceText(e.target.value)}
+                  className="replace-input"
+                />
+                <div className="replace-controls">
+                  <button onClick={replaceOne} disabled={totalMatches === 0}>Replace</button>
+                  <button onClick={replaceAll} disabled={totalMatches === 0}>Replace All</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
