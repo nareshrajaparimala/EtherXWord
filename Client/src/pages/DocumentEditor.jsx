@@ -53,11 +53,17 @@ const DocumentEditor = () => {
   const [replaceText, setReplaceText] = useState('');
   const [currentMatch, setCurrentMatch] = useState(0);
   const [totalMatches, setTotalMatches] = useState(0);
+  const [defaultFont, setDefaultFont] = useState({
+    family: 'Georgia',
+    size: '12pt',
+    lineHeight: '1.5',
+    color: '#333333'
+  });
 
   const editorRef = useRef(null);
   const undoTimeoutRef = useRef(null);
 
-  // Load template data if available
+  // Load template data if available and apply default font
   React.useEffect(() => {
     const selectedTemplate = localStorage.getItem('selectedTemplate');
     if (selectedTemplate) {
@@ -65,16 +71,32 @@ const DocumentEditor = () => {
       setDocumentTitle(templateData.title);
       if (editorRef.current) {
         editorRef.current.innerHTML = templateData.content;
-        // Save initial content to undo stack
-        setTimeout(() => saveToUndoStack(), 100);
+        // Apply default font after loading content
+        setTimeout(() => {
+          applyDefaultFont();
+          saveToUndoStack();
+        }, 100);
       }
       // Clear the template data after loading
       localStorage.removeItem('selectedTemplate');
     } else if (editorRef.current) {
-      // Save initial empty content to undo stack
-      setTimeout(() => saveToUndoStack(), 100);
+      // Apply default font to new document
+      setTimeout(() => {
+        applyDefaultFont();
+        saveToUndoStack();
+      }, 100);
     }
   }, []);
+
+  // Apply default font when settings change
+  React.useEffect(() => {
+    if (editorRef.current) {
+      editorRef.current.style.fontFamily = defaultFont.family;
+      editorRef.current.style.fontSize = defaultFont.size;
+      editorRef.current.style.lineHeight = defaultFont.lineHeight;
+      editorRef.current.style.color = defaultFont.color;
+    }
+  }, [defaultFont]);
 
   // Keyboard shortcuts for undo/redo and find/replace
   React.useEffect(() => {
@@ -244,30 +266,105 @@ const DocumentEditor = () => {
     setTotalMatches(0);
   };
 
+  const applyDefaultFont = () => {
+    if (editorRef.current) {
+      saveToUndoStack();
+      
+      // Set default styles on the editor
+      editorRef.current.style.fontFamily = defaultFont.family;
+      editorRef.current.style.fontSize = defaultFont.size;
+      editorRef.current.style.lineHeight = defaultFont.lineHeight;
+      editorRef.current.style.color = defaultFont.color;
+      
+      // Apply to all existing paragraphs and text elements
+      const textElements = editorRef.current.querySelectorAll('p, div, span, h1, h2, h3, h4, h5, h6');
+      textElements.forEach(el => {
+        el.style.fontFamily = defaultFont.family;
+        el.style.fontSize = defaultFont.size;
+        el.style.lineHeight = defaultFont.lineHeight;
+        el.style.color = defaultFont.color;
+      });
+      
+      // Set default for new content
+      document.execCommand('fontName', false, defaultFont.family);
+      document.execCommand('fontSize', false, defaultFont.size);
+      document.execCommand('foreColor', false, defaultFont.color);
+      
+      editorRef.current.focus();
+    }
+  };
+
+  const resetToDefaultFont = () => {
+    if (editorRef.current) {
+      saveToUndoStack();
+      const selection = window.getSelection();
+      
+      if (selection.rangeCount > 0 && !selection.isCollapsed) {
+        // Apply to selected text
+        const range = selection.getRangeAt(0);
+        const span = document.createElement('span');
+        span.style.fontFamily = defaultFont.family;
+        span.style.fontSize = defaultFont.size;
+        span.style.lineHeight = defaultFont.lineHeight;
+        span.style.color = defaultFont.color;
+        
+        try {
+          const contents = range.extractContents();
+          span.appendChild(contents);
+          range.insertNode(span);
+          
+          // Clear selection and place cursor after the span
+          selection.removeAllRanges();
+          const newRange = document.createRange();
+          newRange.setStartAfter(span);
+          newRange.collapse(true);
+          selection.addRange(newRange);
+        } catch (e) {
+          console.error('Error applying font to selection:', e);
+        }
+      } else {
+        // No selection, apply to entire document
+        applyDefaultFont();
+      }
+      
+      editorRef.current.focus();
+    }
+  };
+
   const insertCustomList = (style, icon = null) => {
+    saveToUndoStack();
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
       const ul = document.createElement('ul');
-      ul.style.listStyleType = style;
-      ul.style.paddingLeft = '20px';
-      ul.style.margin = '10px 0';
-
+      
       if (icon) {
         ul.classList.add('custom-list');
         ul.setAttribute('data-icon', icon);
+        ul.style.listStyleType = 'none';
+        ul.style.paddingLeft = '20px';
+      } else {
+        ul.style.listStyleType = style;
+        ul.style.paddingLeft = '20px';
       }
+      
+      ul.style.margin = '10px 0';
 
       const li = document.createElement('li');
-      li.innerHTML = '';
+      if (icon) {
+        li.setAttribute('data-icon', icon);
+        li.style.position = 'relative';
+        li.style.paddingLeft = '20px';
+      }
+      li.innerHTML = 'List item';
       ul.appendChild(li);
 
       range.deleteContents();
       range.insertNode(ul);
 
       const newRange = document.createRange();
-      newRange.setStart(li, 0);
-      newRange.collapse(true);
+      newRange.selectNodeContents(li);
+      newRange.collapse(false);
       selection.removeAllRanges();
       selection.addRange(newRange);
     }
@@ -302,6 +399,9 @@ const DocumentEditor = () => {
       )
     );
     
+    // Check line count and create new page if needed
+    checkAndCreateNewPage(e.target);
+    
     // Debounced undo stack save
     if (!isUndoRedo) {
       if (undoTimeoutRef.current) {
@@ -310,6 +410,29 @@ const DocumentEditor = () => {
       undoTimeoutRef.current = setTimeout(() => {
         saveToUndoStack();
       }, 1000); // Save to undo stack after 1 second of inactivity
+    }
+  };
+
+  const checkAndCreateNewPage = (element) => {
+    const textContent = element.innerText || element.textContent || '';
+    const lines = textContent.split('\n').length;
+    
+    if (lines >= 38 && pages.length === currentPage) {
+      // Create new page
+      const newPage = {
+        id: pages.length + 1,
+        content: '<p><br></p>'
+      };
+      setPages(prev => [...prev, newPage]);
+      
+      // Move cursor to new page after a short delay
+      setTimeout(() => {
+        const newPageElement = document.querySelector(`[data-page-id="${newPage.id}"]`);
+        if (newPageElement) {
+          newPageElement.focus();
+          setCurrentPage(newPage.id);
+        }
+      }, 100);
     }
   };
 
@@ -1173,6 +1296,55 @@ const DocumentEditor = () => {
             <button className="sidebar-btn"><i className="ri-list-unordered"></i> Outline</button>
           </div>
           <div className="sidebar-section">
+            <h3><i className="ri-font-size-2"></i> Default Font</h3>
+            <div className="font-control-group">
+              <label>Font Family:</label>
+              <select 
+                value={defaultFont.family}
+                onChange={(e) => setDefaultFont({...defaultFont, family: e.target.value})}
+                className="font-select"
+              >
+                <option value="Georgia">Georgia</option>
+                <option value="Arial">Arial</option>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Helvetica">Helvetica</option>
+                <option value="Verdana">Verdana</option>
+                <option value="Calibri">Calibri</option>
+              </select>
+            </div>
+            <div className="font-control-group">
+              <label>Font Size:</label>
+              <select 
+                value={defaultFont.size}
+                onChange={(e) => setDefaultFont({...defaultFont, size: e.target.value})}
+                className="font-select"
+              >
+                <option value="10pt">10pt</option>
+                <option value="11pt">11pt</option>
+                <option value="12pt">12pt</option>
+                <option value="14pt">14pt</option>
+                <option value="16pt">16pt</option>
+                <option value="18pt">18pt</option>
+              </select>
+            </div>
+            <div className="font-control-group">
+              <label>Line Height:</label>
+              <select 
+                value={defaultFont.lineHeight}
+                onChange={(e) => setDefaultFont({...defaultFont, lineHeight: e.target.value})}
+                className="font-select"
+              >
+                <option value="1.0">Single</option>
+                <option value="1.15">1.15</option>
+                <option value="1.5">1.5</option>
+                <option value="2.0">Double</option>
+              </select>
+            </div>
+            <button className="sidebar-btn" onClick={applyDefaultFont}><i className="ri-font-size"></i> Apply to Document</button>
+            <button className="sidebar-btn" onClick={resetToDefaultFont}><i className="ri-refresh-line"></i> Reset Selection</button>
+          </div>
+          
+          <div className="sidebar-section">
             <h3><i className="ri-palette-line"></i> Format</h3>
             <button className="sidebar-btn" onClick={() => formatText('formatBlock', 'h1')}><i className="ri-h-1"></i> Heading 1</button>
             <button className="sidebar-btn" onClick={() => formatText('formatBlock', 'h2')}><i className="ri-h-2"></i> Heading 2</button>
@@ -1304,6 +1476,7 @@ const DocumentEditor = () => {
                   <span className="list-icon">▶</span> Triangle
                 </button>
               </div>
+              <button onClick={() => setShowListStyles(false)} className="close-panel-btn">Close</button>
             </div>
           )}
           
