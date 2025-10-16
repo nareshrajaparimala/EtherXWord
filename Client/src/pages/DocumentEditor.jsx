@@ -527,7 +527,13 @@ const DocumentEditor = () => {
     if (recentIndex >= 0) {
       recentDocs.splice(recentIndex, 1);
     }
-    recentDocs.unshift({ title: documentTitle, lastModified: timestamp });
+    const preview = editorRef.current.innerText.substring(0, 100) + '...';
+    recentDocs.unshift({ 
+      title: documentTitle, 
+      lastModified: timestamp,
+      preview: preview,
+      wordCount: editorRef.current.innerText.trim().split(/\s+/).length
+    });
     localStorage.setItem('recentDocuments', JSON.stringify(recentDocs.slice(0, 10)));
     
     if (!isAutoSave) {

@@ -15,6 +15,7 @@ const SignUp = () => {
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -122,7 +123,14 @@ const SignUp = () => {
                 className="checkbox"
               />
               <label htmlFor="agreeToTerms" className="form-label" style={{ marginBottom: 0 }}>
-                I agree to the Terms of Service
+                I agree to the{' '}
+                <button
+                  type="button"
+                  className="terms-link"
+                  onClick={() => setShowTermsModal(true)}
+                >
+                  Terms of Service
+                </button>
               </label>
             </div>
             {errors.agreeToTerms && <div className="error-message">{errors.agreeToTerms}</div>}
@@ -152,6 +160,73 @@ const SignUp = () => {
           Already have an account? <Link to="/signin" className="auth-link">Sign In</Link>
         </div>
       </div>
+      
+      {/* Terms of Service Modal */}
+      {showTermsModal && (
+        <div className="modal-overlay" onClick={() => setShowTermsModal(false)}>
+          <div className="terms-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="terms-header">
+              <h2>Terms of Service</h2>
+              <button 
+                className="close-btn"
+                onClick={() => setShowTermsModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="terms-content">
+              <h3>1. Acceptance of Terms</h3>
+              <p>By accessing and using EtherXWord, you accept and agree to be bound by the terms and provision of this agreement.</p>
+              
+              <h3>2. Use License</h3>
+              <p>Permission is granted to temporarily use EtherXWord for personal, non-commercial transitory viewing only. This is the grant of a license, not a transfer of title.</p>
+              
+              <h3>3. User Account</h3>
+              <p>You are responsible for safeguarding the password and for maintaining the confidentiality of your account. You agree not to disclose your password to any third party.</p>
+              
+              <h3>4. Privacy Policy</h3>
+              <p>Your privacy is important to us. Our Privacy Policy explains how we collect, use, and protect your information when you use our service.</p>
+              
+              <h3>5. Content Ownership</h3>
+              <p>You retain ownership of any content you create using EtherXWord. We do not claim ownership of your documents or data.</p>
+              
+              <h3>6. Prohibited Uses</h3>
+              <p>You may not use EtherXWord for any unlawful purpose or to solicit others to perform unlawful acts. You may not transmit any worms, viruses, or any code of a destructive nature.</p>
+              
+              <h3>7. Service Availability</h3>
+              <p>We strive to keep EtherXWord available 24/7, but we cannot guarantee uninterrupted service. We may need to suspend the service for maintenance or updates.</p>
+              
+              <h3>8. Limitation of Liability</h3>
+              <p>EtherXWord shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the service.</p>
+              
+              <h3>9. Changes to Terms</h3>
+              <p>We reserve the right to modify these terms at any time. We will notify users of any material changes via email or through the service.</p>
+              
+              <h3>10. Contact Information</h3>
+              <p>If you have any questions about these Terms of Service, please contact us at support@etherxword.com</p>
+            </div>
+            
+            <div className="terms-actions">
+              <button 
+                className="btn btn-secondary"
+                onClick={() => setShowTermsModal(false)}
+              >
+                Back
+              </button>
+              <button 
+                className="btn btn-primary"
+                onClick={() => {
+                  setFormData(prev => ({ ...prev, agreeToTerms: true }));
+                  setShowTermsModal(false);
+                }}
+              >
+                Accept & Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

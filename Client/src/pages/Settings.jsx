@@ -1,591 +1,501 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Logo from '../components/Logo';
-import { useLogoAnimation } from '../hooks/useLogoAnimation';
+import { useNotification } from '../context/NotificationContext';
 import './Settings.css';
 
 const Settings = () => {
+  const { showNotification } = useNotification();
   const navigate = useNavigate();
-  const isLogoAnimating = useLogoAnimation();
-
-  // Theme settings
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('theme') || 'dark';
+  const [activeTab, setActiveTab] = useState('profile');
+  const [userProfile, setUserProfile] = useState({
+    fullName: '',
+    email: '',
+    avatar: '',
+    bio: '',
+    location: '',
+    website: ''
+  });
+  
+  const [preferences, setPreferences] = useState({
+    theme: 'dark',
+    language: 'en',
+    autoSave: true,
+    notifications: true,
+    emailNotifications: true,
+    defaultFont: 'Georgia',
+    defaultFontSize: '12pt',
+    pageSize: 'A4',
+    showLineNumbers: false,
+    spellCheck: true,
+    wordWrap: true
+  });
+  
+  const [privacy, setPrivacy] = useState({
+    profileVisibility: 'public',
+    documentSharing: 'enabled',
+    activityStatus: true,
+    dataCollection: true
+  });
+  
+  const [security, setSecurity] = useState({
+    twoFactorAuth: false,
+    loginAlerts: true,
+    sessionTimeout: '30',
+    passwordLastChanged: null
   });
 
-  // Notification settings
-  const [notifications, setNotifications] = useState(() => {
-    return JSON.parse(localStorage.getItem('notificationSettings') || '{"email":true,"push":true,"collaboration":true,"documentUpdates":true,"marketing":false}');
-  });
-
-  // Editor settings
-  const [editorSettings, setEditorSettings] = useState(() => {
-    return JSON.parse(localStorage.getItem('editorSettings') || '{"autoSave":true,"autoSaveInterval":30,"spellCheck":true,"wordCount":true,"lineNumbers":false,"fontSize":"medium","fontFamily":"Arial"}');
-  });
-
-  // Privacy settings
-  const [privacySettings, setPrivacySettings] = useState(() => {
-    return JSON.parse(localStorage.getItem('privacySettings') || '{"profileVisibility":"private","documentSharing":"invite-only","analytics":true,"cookies":true}');
-  });
-
-  // Account settings
-  const [accountSettings, setAccountSettings] = useState(() => {
-    return JSON.parse(localStorage.getItem('accountSettings') || '{"language":"en","timezone":"UTC","dateFormat":"MM/DD/YYYY","currency":"USD"}');
-  });
-
-  const [activeSection, setActiveSection] = useState('appearance');
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    document.body.className = theme;
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  const handleThemeChange = (newTheme) => {
-    setTheme(newTheme);
-  };
-
-  const handleNotificationChange = (key, value) => {
-    const updated = { ...notifications, [key]: value };
-    setNotifications(updated);
-    localStorage.setItem('notificationSettings', JSON.stringify(updated));
-  };
-
-  const handleEditorChange = (key, value) => {
-    const updated = { ...editorSettings, [key]: value };
-    setEditorSettings(updated);
-    localStorage.setItem('editorSettings', JSON.stringify(updated));
-  };
-
-  const handlePrivacyChange = (key, value) => {
-    const updated = { ...privacySettings, [key]: value };
-    setPrivacySettings(updated);
-    localStorage.setItem('privacySettings', JSON.stringify(updated));
-  };
-
-  const handleAccountChange = (key, value) => {
-    const updated = { ...accountSettings, [key]: value };
-    setAccountSettings(updated);
-    localStorage.setItem('accountSettings', JSON.stringify(updated));
-  };
-
-  const exportSettings = () => {
-    const allSettings = {
-      theme,
-      notifications,
-      editorSettings,
-      privacySettings,
-      accountSettings,
-      exportedAt: new Date().toISOString()
-    };
-
-    const dataStr = JSON.stringify(allSettings, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-
-    const exportFileDefaultName = `etherxword-settings-${new Date().toISOString().split('T')[0]}.json`;
-
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-  };
-
-  const importSettings = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const importedSettings = JSON.parse(e.target.result);
-
-          if (importedSettings.theme) {
-            setTheme(importedSettings.theme);
-          }
-          if (importedSettings.notifications) {
-            setNotifications(importedSettings.notifications);
-          }
-          if (importedSettings.editorSettings) {
-            setEditorSettings(importedSettings.editorSettings);
-          }
-          if (importedSettings.privacySettings) {
-            setPrivacySettings(importedSettings.privacySettings);
-          }
-          if (importedSettings.accountSettings) {
-            setAccountSettings(importedSettings.accountSettings);
-          }
-
-          alert('Settings imported successfully!');
-        } catch (error) {
-          alert('Invalid settings file format.');
-        }
-      };
-      reader.readAsText(file);
-    }
-  };
-
-  const resetToDefaults = () => {
-    if (window.confirm('Are you sure you want to reset all settings to defaults? This action cannot be undone.')) {
-      // Reset theme
-      setTheme('dark');
-
-      // Reset notifications
-      const defaultNotifications = {
-        email: true,
-        push: true,
-        collaboration: true,
-        documentUpdates: true,
-        marketing: false
-      };
-      setNotifications(defaultNotifications);
-
-      // Reset editor settings
-      const defaultEditor = {
-        autoSave: true,
-        autoSaveInterval: 30,
-        spellCheck: true,
-        wordCount: true,
-        lineNumbers: false,
-        fontSize: "medium",
-        fontFamily: "Arial"
-      };
-      setEditorSettings(defaultEditor);
-
-      // Reset privacy settings
-      const defaultPrivacy = {
-        profileVisibility: "private",
-        documentSharing: "invite-only",
-        analytics: true,
-        cookies: true
-      };
-      setPrivacySettings(defaultPrivacy);
-
-      // Reset account settings
-      const defaultAccount = {
-        language: "en",
-        timezone: "UTC",
-        dateFormat: "MM/DD/YYYY",
-        currency: "USD"
-      };
-      setAccountSettings(defaultAccount);
-
-      // Clear localStorage
-      localStorage.removeItem('notificationSettings');
-      localStorage.removeItem('editorSettings');
-      localStorage.removeItem('privacySettings');
-      localStorage.removeItem('accountSettings');
-
-      alert('Settings reset to defaults successfully!');
-    }
-  };
-
-  const menuItems = [
-    { id: 'appearance', label: 'Appearance', icon: '🎨' },
-    { id: 'notifications', label: 'Notifications', icon: '🔔' },
-    { id: 'editor', label: 'Editor', icon: '📝' },
-    { id: 'privacy', label: 'Privacy & Security', icon: '🔒' },
-    { id: 'account', label: 'Account', icon: '👤' },
-    { id: 'data', label: 'Data Management', icon: '💾' }
+  const tabs = [
+    { id: 'profile', label: 'Profile', icon: 'ri-user-line' },
+    { id: 'preferences', label: 'Preferences', icon: 'ri-settings-3-line' },
+    { id: 'privacy', label: 'Privacy', icon: 'ri-shield-user-line' },
+    { id: 'security', label: 'Security', icon: 'ri-lock-line' },
+    { id: 'notifications', label: 'Notifications', icon: 'ri-notification-3-line' },
+    { id: 'storage', label: 'Storage', icon: 'ri-hard-drive-2-line' },
+    { id: 'account', label: 'Account', icon: 'ri-user-settings-line' }
   ];
 
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  const loadUserData = () => {
+    const profile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+    setUserProfile(profile);
+    
+    const savedPrefs = JSON.parse(localStorage.getItem('userPreferences') || '{}');
+    setPreferences(prev => ({ ...prev, ...savedPrefs }));
+    
+    const savedPrivacy = JSON.parse(localStorage.getItem('userPrivacy') || '{}');
+    setPrivacy(prev => ({ ...prev, ...savedPrivacy }));
+    
+    const savedSecurity = JSON.parse(localStorage.getItem('userSecurity') || '{}');
+    setSecurity(prev => ({ ...prev, ...savedSecurity }));
+  };
+
+  const saveSettings = async (section, data) => {
+    try {
+      localStorage.setItem(`user${section.charAt(0).toUpperCase() + section.slice(1)}`, JSON.stringify(data));
+      
+      // Also save to server if needed
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/user/settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        },
+        body: JSON.stringify({ section, data })
+      });
+      
+      if (response.ok) {
+        showNotification('Settings saved successfully!', 'success');
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      showNotification('Failed to save settings', 'error');
+    }
+  };
+
+  const handleProfileUpdate = (field, value) => {
+    const updated = { ...userProfile, [field]: value };
+    setUserProfile(updated);
+    saveSettings('profile', updated);
+  };
+
+  const handlePreferenceUpdate = (field, value) => {
+    const updated = { ...preferences, [field]: value };
+    setPreferences(updated);
+    saveSettings('preferences', updated);
+    
+    // Apply theme immediately
+    if (field === 'theme') {
+      document.documentElement.setAttribute('data-theme', value);
+      localStorage.setItem('theme', value);
+    }
+  };
+
+  const handlePrivacyUpdate = (field, value) => {
+    const updated = { ...privacy, [field]: value };
+    setPrivacy(updated);
+    saveSettings('privacy', updated);
+  };
+
+  const handleSecurityUpdate = (field, value) => {
+    const updated = { ...security, [field]: value };
+    setSecurity(updated);
+    saveSettings('security', updated);
+  };
+
+  const exportData = () => {
+    const data = {
+      profile: userProfile,
+      preferences,
+      privacy,
+      documents: JSON.parse(localStorage.getItem('documents') || '[]'),
+      recentDocuments: JSON.parse(localStorage.getItem('recentDocuments') || '[]')
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'etherxword-data.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const clearAllData = () => {
+    if (window.confirm('Are you sure? This will delete all your local data and cannot be undone.')) {
+      localStorage.clear();
+      showNotification('All data cleared', 'success');
+      navigate('/signin');
+    }
+  };
+
   return (
-    <div className="settings-page">
-      {/* Settings Header */}
+    <div className="settings-container">
       <div className="settings-header">
-        <div className="header-left">
-          <div className="logo-section">
-            <Logo size={32} className={isLogoAnimating ? 'animate' : ''} />
-            <span className="brand-text">EtherXWord</span>
-          </div>
-        </div>
-        <div className="header-center">
-          <h1>Settings</h1>
-          <p>Customize your EtherXWord experience</p>
-        </div>
-        <div className="header-right">
-          <button className="back-btn" onClick={() => navigate('/home')}>
-            <i className="ri-arrow-left-line"></i>
-            Back to Home
-          </button>
-        </div>
+        <button className="back-btn" onClick={() => navigate('/')}>
+          <i className="ri-arrow-left-line"></i>
+        </button>
+        <h1>Settings</h1>
       </div>
 
-      <div className="settings-container">
-        {/* Sidebar */}
-        <div className="settings-sidebar">
-          {menuItems.map(item => (
+      <div className="settings-content">
+        <nav className="settings-nav">
+          {tabs.map(tab => (
             <button
-              key={item.id}
-              className={`sidebar-item ${activeSection === item.id ? 'active' : ''}`}
-              onClick={() => setActiveSection(item.id)}
+              key={tab.id}
+              className={`nav-tab ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
             >
-              <span className="item-icon">{item.icon}</span>
-              <span className="item-label">{item.label}</span>
+              <i className={tab.icon}></i>
+              <span>{tab.label}</span>
             </button>
           ))}
-        </div>
+        </nav>
 
-        {/* Main Content */}
-        <div className="settings-content">
-          {/* Appearance Section */}
-          {activeSection === 'appearance' && (
-            <div className="settings-section">
-              <h2>Appearance</h2>
-              <div className="settings-group">
-                <h3>Theme</h3>
-                <div className="theme-options">
-                  <button
-                    className={`theme-option ${theme === 'light' ? 'active' : ''}`}
-                    onClick={() => handleThemeChange('light')}
-                  >
-                    <div className="theme-preview light">
-                      <div className="preview-header"></div>
-                      <div className="preview-content"></div>
-                    </div>
-                    <span>Light</span>
-                  </button>
-                  <button
-                    className={`theme-option ${theme === 'dark' ? 'active' : ''}`}
-                    onClick={() => handleThemeChange('dark')}
-                  >
-                    <div className="theme-preview dark">
-                      <div className="preview-header"></div>
-                      <div className="preview-content"></div>
-                    </div>
-                    <span>Dark</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Notifications Section */}
-          {activeSection === 'notifications' && (
-            <div className="settings-section">
-              <h2>Notifications</h2>
-
-              <div className="settings-group">
-                <h3>Email Notifications</h3>
-                <div className="toggle-options">
-                  <label className="toggle-item">
-                    <input
-                      type="checkbox"
-                      checked={notifications.email}
-                      onChange={(e) => handleNotificationChange('email', e.target.checked)}
-                    />
-                    <span className="toggle-slider"></span>
-                    <span className="toggle-label">Email notifications</span>
-                  </label>
-                  <label className="toggle-item">
-                    <input
-                      type="checkbox"
-                      checked={notifications.collaboration}
-                      onChange={(e) => handleNotificationChange('collaboration', e.target.checked)}
-                    />
-                    <span className="toggle-slider"></span>
-                    <span className="toggle-label">Collaboration requests</span>
-                  </label>
-                  <label className="toggle-item">
-                    <input
-                      type="checkbox"
-                      checked={notifications.documentUpdates}
-                      onChange={(e) => handleNotificationChange('documentUpdates', e.target.checked)}
-                    />
-                    <span className="toggle-slider"></span>
-                    <span className="toggle-label">Document updates</span>
-                  </label>
-                  <label className="toggle-item">
-                    <input
-                      type="checkbox"
-                      checked={notifications.marketing}
-                      onChange={(e) => handleNotificationChange('marketing', e.target.checked)}
-                    />
-                    <span className="toggle-slider"></span>
-                    <span className="toggle-label">Marketing emails</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="settings-group">
-                <h3>Push Notifications</h3>
-                <div className="toggle-options">
-                  <label className="toggle-item">
-                    <input
-                      type="checkbox"
-                      checked={notifications.push}
-                      onChange={(e) => handleNotificationChange('push', e.target.checked)}
-                    />
-                    <span className="toggle-slider"></span>
-                    <span className="toggle-label">Browser push notifications</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Editor Section */}
-          {activeSection === 'editor' && (
-            <div className="settings-section">
-              <h2>Editor Preferences</h2>
-
-              <div className="settings-group">
-                <h3>Auto-save</h3>
-                <div className="toggle-options">
-                  <label className="toggle-item">
-                    <input
-                      type="checkbox"
-                      checked={editorSettings.autoSave}
-                      onChange={(e) => handleEditorChange('autoSave', e.target.checked)}
-                    />
-                    <span className="toggle-slider"></span>
-                    <span className="toggle-label">Enable auto-save</span>
-                  </label>
-                </div>
-                {editorSettings.autoSave && (
-                  <div className="sub-setting">
-                    <label>Auto-save interval (seconds):</label>
-                    <select
-                      value={editorSettings.autoSaveInterval}
-                      onChange={(e) => handleEditorChange('autoSaveInterval', parseInt(e.target.value))}
-                    >
-                      <option value={15}>15 seconds</option>
-                      <option value={30}>30 seconds</option>
-                      <option value={60}>1 minute</option>
-                      <option value={300}>5 minutes</option>
-                    </select>
+        <div className="settings-panel">
+          {/* Profile Tab */}
+          {activeTab === 'profile' && (
+            <div className="tab-content">
+              <h2>Profile Information</h2>
+              
+              <div className="profile-section">
+                <div className="avatar-section">
+                  <div className="avatar-preview">
+                    {userProfile.avatar ? (
+                      <img src={userProfile.avatar} alt="Avatar" />
+                    ) : (
+                      <div className="avatar-placeholder">
+                        <i className="ri-user-line"></i>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-
-              <div className="settings-group">
-                <h3>Editor Features</h3>
-                <div className="toggle-options">
-                  <label className="toggle-item">
-                    <input
-                      type="checkbox"
-                      checked={editorSettings.spellCheck}
-                      onChange={(e) => handleEditorChange('spellCheck', e.target.checked)}
-                    />
-                    <span className="toggle-slider"></span>
-                    <span className="toggle-label">Spell check</span>
-                  </label>
-                  <label className="toggle-item">
-                    <input
-                      type="checkbox"
-                      checked={editorSettings.wordCount}
-                      onChange={(e) => handleEditorChange('wordCount', e.target.checked)}
-                    />
-                    <span className="toggle-slider"></span>
-                    <span className="toggle-label">Word count display</span>
-                  </label>
-                  <label className="toggle-item">
-                    <input
-                      type="checkbox"
-                      checked={editorSettings.lineNumbers}
-                      onChange={(e) => handleEditorChange('lineNumbers', e.target.checked)}
-                    />
-                    <span className="toggle-slider"></span>
-                    <span className="toggle-label">Line numbers</span>
-                  </label>
+                  <button className="btn btn-secondary">Change Avatar</button>
                 </div>
-              </div>
-
-              <div className="settings-group">
-                <h3>Typography</h3>
+                
+                <div className="form-group">
+                  <label>Full Name</label>
+                  <input
+                    type="text"
+                    value={userProfile.fullName}
+                    onChange={(e) => handleProfileUpdate('fullName', e.target.value)}
+                    placeholder="Enter your full name"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    value={userProfile.email}
+                    onChange={(e) => handleProfileUpdate('email', e.target.value)}
+                    placeholder="Enter your email"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Bio</label>
+                  <textarea
+                    value={userProfile.bio}
+                    onChange={(e) => handleProfileUpdate('bio', e.target.value)}
+                    placeholder="Tell us about yourself"
+                    rows="3"
+                  />
+                </div>
+                
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Font Size:</label>
-                    <select
-                      value={editorSettings.fontSize}
-                      onChange={(e) => handleEditorChange('fontSize', e.target.value)}
-                    >
-                      <option value="small">Small</option>
-                      <option value="medium">Medium</option>
-                      <option value="large">Large</option>
-                      <option value="extra-large">Extra Large</option>
-                    </select>
+                    <label>Location</label>
+                    <input
+                      type="text"
+                      value={userProfile.location}
+                      onChange={(e) => handleProfileUpdate('location', e.target.value)}
+                      placeholder="City, Country"
+                    />
                   </div>
+                  
                   <div className="form-group">
-                    <label>Font Family:</label>
+                    <label>Website</label>
+                    <input
+                      type="url"
+                      value={userProfile.website}
+                      onChange={(e) => handleProfileUpdate('website', e.target.value)}
+                      placeholder="https://yourwebsite.com"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Preferences Tab */}
+          {activeTab === 'preferences' && (
+            <div className="tab-content">
+              <h2>Preferences</h2>
+              
+              <div className="settings-section">
+                <h3>Appearance</h3>
+                <div className="form-group">
+                  <label>Theme</label>
+                  <select
+                    value={preferences.theme}
+                    onChange={(e) => handlePreferenceUpdate('theme', e.target.value)}
+                  >
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                    <option value="auto">Auto</option>
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label>Language</label>
+                  <select
+                    value={preferences.language}
+                    onChange={(e) => handlePreferenceUpdate('language', e.target.value)}
+                  >
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                    <option value="de">German</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="settings-section">
+                <h3>Editor</h3>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Default Font</label>
                     <select
-                      value={editorSettings.fontFamily}
-                      onChange={(e) => handleEditorChange('fontFamily', e.target.value)}
+                      value={preferences.defaultFont}
+                      onChange={(e) => handlePreferenceUpdate('defaultFont', e.target.value)}
                     >
+                      <option value="Georgia">Georgia</option>
                       <option value="Arial">Arial</option>
                       <option value="Times New Roman">Times New Roman</option>
-                      <option value="Georgia">Georgia</option>
-                      <option value="Verdana">Verdana</option>
                       <option value="Helvetica">Helvetica</option>
                     </select>
                   </div>
+                  
+                  <div className="form-group">
+                    <label>Font Size</label>
+                    <select
+                      value={preferences.defaultFontSize}
+                      onChange={(e) => handlePreferenceUpdate('defaultFontSize', e.target.value)}
+                    >
+                      <option value="10pt">10pt</option>
+                      <option value="12pt">12pt</option>
+                      <option value="14pt">14pt</option>
+                      <option value="16pt">16pt</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* Privacy Section */}
-          {activeSection === 'privacy' && (
-            <div className="settings-section">
-              <h2>Privacy & Security</h2>
-
-              <div className="settings-group">
-                <h3>Profile Visibility</h3>
-                <select
-                  value={privacySettings.profileVisibility}
-                  onChange={(e) => handlePrivacyChange('profileVisibility', e.target.value)}
-                >
-                  <option value="public">Public</option>
-                  <option value="private">Private</option>
-                  <option value="friends">Friends Only</option>
-                </select>
-              </div>
-
-              <div className="settings-group">
-                <h3>Document Sharing</h3>
-                <select
-                  value={privacySettings.documentSharing}
-                  onChange={(e) => handlePrivacyChange('documentSharing', e.target.value)}
-                >
-                  <option value="public">Anyone with link</option>
-                  <option value="invite-only">Invite only</option>
-                  <option value="private">Private</option>
-                </select>
-              </div>
-
-              <div className="settings-group">
-                <h3>Data Collection</h3>
-                <div className="toggle-options">
-                  <label className="toggle-item">
+                
+                <div className="toggle-group">
+                  <div className="toggle-item">
+                    <label>Auto Save</label>
                     <input
                       type="checkbox"
-                      checked={privacySettings.analytics}
-                      onChange={(e) => handlePrivacyChange('analytics', e.target.checked)}
+                      checked={preferences.autoSave}
+                      onChange={(e) => handlePreferenceUpdate('autoSave', e.target.checked)}
                     />
-                    <span className="toggle-slider"></span>
-                    <span className="toggle-label">Analytics tracking</span>
-                  </label>
-                  <label className="toggle-item">
+                  </div>
+                  
+                  <div className="toggle-item">
+                    <label>Spell Check</label>
                     <input
                       type="checkbox"
-                      checked={privacySettings.cookies}
-                      onChange={(e) => handlePrivacyChange('cookies', e.target.checked)}
+                      checked={preferences.spellCheck}
+                      onChange={(e) => handlePreferenceUpdate('spellCheck', e.target.checked)}
                     />
-                    <span className="toggle-slider"></span>
-                    <span className="toggle-label">Essential cookies</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Account Section */}
-          {activeSection === 'account' && (
-            <div className="settings-section">
-              <h2>Account Preferences</h2>
-
-              <div className="settings-group">
-                <h3>Language & Region</h3>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Language:</label>
-                    <select
-                      value={accountSettings.language}
-                      onChange={(e) => handleAccountChange('language', e.target.value)}
-                    >
-                      <option value="en">English</option>
-                      <option value="es">Español</option>
-                      <option value="fr">Français</option>
-                      <option value="de">Deutsch</option>
-                      <option value="it">Italiano</option>
-                    </select>
                   </div>
-                  <div className="form-group">
-                    <label>Timezone:</label>
-                    <select
-                      value={accountSettings.timezone}
-                      onChange={(e) => handleAccountChange('timezone', e.target.value)}
-                    >
-                      <option value="UTC">UTC</option>
-                      <option value="EST">Eastern Time</option>
-                      <option value="PST">Pacific Time</option>
-                      <option value="GMT">Greenwich Mean Time</option>
-                      <option value="CET">Central European Time</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="settings-group">
-                <h3>Display Preferences</h3>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Date Format:</label>
-                    <select
-                      value={accountSettings.dateFormat}
-                      onChange={(e) => handleAccountChange('dateFormat', e.target.value)}
-                    >
-                      <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                      <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                      <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Currency:</label>
-                    <select
-                      value={accountSettings.currency}
-                      onChange={(e) => handleAccountChange('currency', e.target.value)}
-                    >
-                      <option value="USD">USD ($)</option>
-                      <option value="EUR">EUR (€)</option>
-                      <option value="GBP">GBP (£)</option>
-                      <option value="JPY">JPY (¥)</option>
-                    </select>
+                  
+                  <div className="toggle-item">
+                    <label>Word Wrap</label>
+                    <input
+                      type="checkbox"
+                      checked={preferences.wordWrap}
+                      onChange={(e) => handlePreferenceUpdate('wordWrap', e.target.checked)}
+                    />
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Data Management Section */}
-          {activeSection === 'data' && (
-            <div className="settings-section">
-              <h2>Data Management</h2>
+          {/* Privacy Tab */}
+          {activeTab === 'privacy' && (
+            <div className="tab-content">
+              <h2>Privacy Settings</h2>
+              
+              <div className="settings-section">
+                <div className="form-group">
+                  <label>Profile Visibility</label>
+                  <select
+                    value={privacy.profileVisibility}
+                    onChange={(e) => handlePrivacyUpdate('profileVisibility', e.target.value)}
+                  >
+                    <option value="public">Public</option>
+                    <option value="private">Private</option>
+                    <option value="friends">Friends Only</option>
+                  </select>
+                </div>
+                
+                <div className="toggle-group">
+                  <div className="toggle-item">
+                    <label>Document Sharing</label>
+                    <input
+                      type="checkbox"
+                      checked={privacy.documentSharing}
+                      onChange={(e) => handlePrivacyUpdate('documentSharing', e.target.checked)}
+                    />
+                  </div>
+                  
+                  <div className="toggle-item">
+                    <label>Show Activity Status</label>
+                    <input
+                      type="checkbox"
+                      checked={privacy.activityStatus}
+                      onChange={(e) => handlePrivacyUpdate('activityStatus', e.target.checked)}
+                    />
+                  </div>
+                  
+                  <div className="toggle-item">
+                    <label>Allow Data Collection</label>
+                    <input
+                      type="checkbox"
+                      checked={privacy.dataCollection}
+                      onChange={(e) => handlePrivacyUpdate('dataCollection', e.target.checked)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
-              <div className="settings-group">
-                <h3>Export Settings</h3>
-                <p>Download a copy of your settings and preferences.</p>
-                <button className="action-btn" onClick={exportSettings}>
+          {/* Security Tab */}
+          {activeTab === 'security' && (
+            <div className="tab-content">
+              <h2>Security Settings</h2>
+              
+              <div className="settings-section">
+                <div className="toggle-group">
+                  <div className="toggle-item">
+                    <label>Two-Factor Authentication</label>
+                    <input
+                      type="checkbox"
+                      checked={security.twoFactorAuth}
+                      onChange={(e) => handleSecurityUpdate('twoFactorAuth', e.target.checked)}
+                    />
+                  </div>
+                  
+                  <div className="toggle-item">
+                    <label>Login Alerts</label>
+                    <input
+                      type="checkbox"
+                      checked={security.loginAlerts}
+                      onChange={(e) => handleSecurityUpdate('loginAlerts', e.target.checked)}
+                    />
+                  </div>
+                </div>
+                
+                <div className="form-group">
+                  <label>Session Timeout (minutes)</label>
+                  <select
+                    value={security.sessionTimeout}
+                    onChange={(e) => handleSecurityUpdate('sessionTimeout', e.target.value)}
+                  >
+                    <option value="15">15 minutes</option>
+                    <option value="30">30 minutes</option>
+                    <option value="60">1 hour</option>
+                    <option value="120">2 hours</option>
+                  </select>
+                </div>
+                
+                <div className="action-buttons">
+                  <button className="btn btn-primary">Change Password</button>
+                  <button className="btn btn-secondary">Download Recovery Codes</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Storage Tab */}
+          {activeTab === 'storage' && (
+            <div className="tab-content">
+              <h2>Storage & Data</h2>
+              
+              <div className="storage-info">
+                <div className="storage-item">
+                  <i className="ri-file-text-line"></i>
+                  <div>
+                    <h4>Documents</h4>
+                    <p>{JSON.parse(localStorage.getItem('documents') || '[]').length} documents</p>
+                  </div>
+                </div>
+                
+                <div className="storage-item">
+                  <i className="ri-image-line"></i>
+                  <div>
+                    <h4>Images</h4>
+                    <p>0 MB used</p>
+                  </div>
+                </div>
+                
+                <div className="storage-item">
+                  <i className="ri-settings-line"></i>
+                  <div>
+                    <h4>Settings</h4>
+                    <p>&lt; 1 MB</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="action-buttons">
+                <button className="btn btn-primary" onClick={exportData}>
                   <i className="ri-download-line"></i>
-                  Export Settings
+                  Export Data
+                </button>
+                <button className="btn btn-danger" onClick={clearAllData}>
+                  <i className="ri-delete-bin-line"></i>
+                  Clear All Data
                 </button>
               </div>
+            </div>
+          )}
 
-              <div className="settings-group">
-                <h3>Import Settings</h3>
-                <p>Import settings from a previously exported file.</p>
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={importSettings}
-                  style={{ display: 'none' }}
-                  id="import-settings"
-                />
-                <button
-                  className="action-btn"
-                  onClick={() => document.getElementById('import-settings').click()}
-                >
-                  <i className="ri-upload-line"></i>
-                  Import Settings
-                </button>
-              </div>
-
-              <div className="settings-group danger">
-                <h3>Reset to Defaults</h3>
-                <p>This will reset all your settings to their default values. This action cannot be undone.</p>
-                <button className="action-btn danger" onClick={resetToDefaults}>
-                  <i className="ri-refresh-line"></i>
-                  Reset All Settings
-                </button>
+          {/* Account Tab */}
+          {activeTab === 'account' && (
+            <div className="tab-content">
+              <h2>Account Management</h2>
+              
+              <div className="account-section">
+                <h3>Danger Zone</h3>
+                <div className="danger-actions">
+                  <button className="btn btn-danger">Deactivate Account</button>
+                  <button className="btn btn-danger">Delete Account</button>
+                </div>
               </div>
             </div>
           )}

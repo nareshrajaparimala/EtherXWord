@@ -12,6 +12,8 @@ const Home = () => {
   const [userDocuments, setUserDocuments] = useState([]);
   const [favoriteDocuments, setFavoriteDocuments] = useState([]);
   const [trashDocuments, setTrashDocuments] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [recentDocuments, setRecentDocuments] = useState([]);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -23,16 +25,52 @@ const Home = () => {
     { icon: '👥', label: 'Collaboration', mobileVisible: true },
     { icon: '⭐', label: 'Favorites', mobileVisible: true },
     { icon: '🗑️', label: 'Trash', mobileVisible: true },
-    { icon: '⚙️', label: 'Settings', mobileVisible: true }
+    { icon: '⚙️', label: 'Settings', mobileVisible: true, action: () => navigate('/settings') }
   ];
 
   const [collaborativeDocuments, setCollaborativeDocuments] = useState([]);
   
-  const recentDocs = [
-    { title: 'Project Proposal', preview: 'Lorem ipsum dolor sit amet...', lastEdit: '2 hours ago' },
-    { title: 'Meeting Notes', preview: 'Team meeting discussion...', lastEdit: '1 day ago' },
-    { title: 'Research Paper', preview: 'Academic research on...', lastEdit: '3 days ago' }
-  ];
+  useEffect(() => {
+    loadRecentDocuments();
+  }, []);
+  
+  const loadRecentDocuments = () => {
+    const recent = JSON.parse(localStorage.getItem('recentDocuments') || '[]');
+    setRecentDocuments(recent.slice(0, 6)); // Show last 6 recent documents
+  };
+  
+  const searchDocuments = async (query) => {
+    if (!query.trim()) {
+      if (selectedSection === 'All Documents') fetchUserDocuments();
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/search?q=${encodeURIComponent(query)}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setUserDocuments(data);
+      }
+    } catch (error) {
+      console.error('Error searching documents:', error);
+    }
+  };
+  
+  const handleSearch = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    
+    // Debounce search
+    clearTimeout(window.searchTimeout);
+    window.searchTimeout = setTimeout(() => {
+      searchDocuments(query);
+    }, 300);
+  };
   
   useEffect(() => {
     // Check if navigated from notification
@@ -249,25 +287,37 @@ const Home = () => {
             <div className="search-container">
               <input 
                 type="text" 
-                placeholder="Search by title, tags, or date" 
+                placeholder="Search by title, content, or date" 
                 className="search-input"
+                value={searchQuery}
+                onChange={handleSearch}
               />
+              <i className="ri-search-line search-icon"></i>
             </div>
 
             {/* Recent Documents Grid */}
             <div className="documents-grid">
-              {recentDocs.map((doc, index) => (
-                <div key={index} className="document-card" onClick={() => navigate('/editor')}>
-                  <div className="card-header">
-                    <h3>{doc.title}</h3>
-                    <button className="card-menu" onClick={(e) => e.stopPropagation()}>⋯</button>
-                  </div>
-                  <p className="card-preview">{doc.preview}</p>
-                  <div className="card-footer">
-                    <span className="last-edit">{doc.lastEdit}</span>
-                  </div>
+              {recentDocuments.length === 0 ? (
+                <div className="empty-state">
+                  <i className="ri-file-text-line"></i>
+                  <h3>No recent documents</h3>
+                  <p>Start creating documents to see them here</p>
+                  <button className="btn btn-primary" onClick={() => navigate('/editor')}>Create Document</button>
                 </div>
-              ))}
+              ) : (
+                recentDocuments.map((doc, index) => (
+                  <div key={index} className="document-card" onClick={() => navigate('/editor')}>
+                    <div className="card-header">
+                      <h3>{doc.title}</h3>
+                      <button className="card-menu" onClick={(e) => e.stopPropagation()}>⋯</button>
+                    </div>
+                    <p className="card-preview">{doc.preview || 'No preview available'}</p>
+                    <div className="card-footer">
+                      <span className="last-edit">{new Date(doc.lastModified).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
 
             {/* Suggested Templates */}
@@ -303,6 +353,18 @@ const Home = () => {
               <div className="quick-actions">
                 <button className="btn btn-primary" onClick={() => navigate('/editor')}>➕ New Document</button>
               </div>
+            </div>
+            
+            {/* Search Bar */}
+            <div className="search-container">
+              <input 
+                type="text" 
+                placeholder="Search documents..." 
+                className="search-input"
+                value={searchQuery}
+                onChange={handleSearch}
+              />
+              <i className="ri-search-line search-icon"></i>
             </div>
             
             {userDocuments.length === 0 ? (
@@ -347,7 +409,7 @@ const Home = () => {
                         Edit
                       </button>
                       <button 
-                        className="action-btn favorite-btn"
+                        className={`action-btn favorite-btn ${doc.isFavorite ? 'favorited' : ''}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleFavorite(doc._id);

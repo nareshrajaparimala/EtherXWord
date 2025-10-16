@@ -187,12 +187,13 @@
 /* Search */
 .search-container {
   margin-bottom: 32px;
+  position: relative;
+  max-width: 500px;
 }
 
 .search-input {
   width: 100%;
-  max-width: 500px;
-  padding: 12px 16px;
+  padding: 12px 16px 12px 45px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   background: var(--surface);
@@ -205,6 +206,16 @@
   outline: none;
   border-color: var(--primary-yellow);
   box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.1);
+}
+
+.search-icon {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+  font-size: 16px;
+  pointer-events: none;
 }
 
 /* Documents Grid */

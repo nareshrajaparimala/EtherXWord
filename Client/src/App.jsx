@@ -10,6 +10,7 @@ import Templates from './pages/Templates';
 import DocumentEditor from './pages/DocumentEditor';
 import DocumentViewer from './pages/DocumentViewer';
 import Profile from './pages/Profile';
+import Settings from './pages/Settings';
 import SignUp from './pages/Auth/SignUp';
 import SignIn from './pages/Auth/SignIn';
 import ForgotPassword from './pages/Auth/ForgotPassword';
@@ -34,6 +35,7 @@ function AppContent() {
         <Route path="/editor/:id" element={<ProtectedRoute><DocumentEditor /></ProtectedRoute>} />
         <Route path="/viewer/:documentId" element={<ProtectedRoute><DocumentViewer /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />

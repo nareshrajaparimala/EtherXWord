@@ -182,6 +182,238 @@
   transition: width 0.3s ease;
 }
 
+/* Checkbox Styling */
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+  padding: 0.5rem 0;
+  width: 100%;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.checkbox {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+  max-width: 18px !important;
+  max-height: 18px !important;
+  appearance: none;
+  border: 2px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  flex-grow: 0;
+}
+
+.checkbox:hover {
+  border-color: var(--primary-yellow);
+}
+
+.checkbox:checked {
+  background: var(--primary-yellow);
+  border-color: var(--primary-yellow);
+}
+
+.checkbox:checked::before {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #000000;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.checkbox:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.3);
+}
+
+.checkbox-group .form-label {
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1;
+  margin: 0 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.checkbox-group .form-label:hover {
+  color: var(--primary-yellow);
+}
+
+/* Ensure proper spacing in form groups */
+.form-group .checkbox-group {
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Terms of Service Link */
+.terms-link {
+  background: none;
+  border: none;
+  color: var(--primary-yellow);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
+  font-weight: 500;
+  padding: 0;
+  margin: 0;
+  transition: all 0.2s ease;
+}
+
+.terms-link:hover {
+  color: #e6c200;
+  text-decoration: none;
+}
+
+/* Terms Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.terms-modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  animation: slideUp 0.3s ease-out;
+}
+
+.terms-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--hover-bg);
+}
+
+.terms-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.terms-content {
+  padding: 2rem;
+  max-height: 50vh;
+  overflow-y: auto;
+  line-height: 1.6;
+}
+
+.terms-content h3 {
+  color: var(--primary-yellow);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.75rem 0;
+}
+
+.terms-content h3:first-child {
+  margin-top: 0;
+}
+
+.terms-content p {
+  color: var(--text-primary);
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+}
+
+.terms-actions {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+  border-top: 1px solid var(--border-color);
+  background: var(--hover-bg);
+  justify-content: flex-end;
+}
+
+.terms-actions .btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 480px) {
+  .terms-modal {
+    margin: 0.5rem;
+    max-height: 90vh;
+  }
+  
+  .terms-header {
+    padding: 1rem 1.5rem;
+  }
+  
+  .terms-header h2 {
+    font-size: 1.25rem;
+  }
+  
+  .terms-content {
+    padding: 1.5rem;
+    max-height: 60vh;
+  }
+  
+  .terms-actions {
+    padding: 1rem 1.5rem;
+    flex-direction: column;
+  }
+  
+  .terms-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 @media (max-width: 480px) {
   .auth-card {
     padding: 2rem 1.5rem;
