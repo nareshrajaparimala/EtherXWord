@@ -442,6 +442,29 @@ const DocumentEditor = () => {
     setPageNumbering({ enabled, position, format });
   };
 
+  const importDocument = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.txt,.html,.md,.docx';
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const content = event.target.result;
+          if (editorRef.current) {
+            editorRef.current.innerHTML = content;
+            setDocumentTitle(file.name.replace(/\.[^/.]+$/, ''));
+            saveToUndoStack();
+            showNotification('Document imported successfully!', 'success');
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+  };
+
   const saveDocument = async (isAutoSave = false) => {
     // Check if user has edit permission
     if (isCollaborative && userPermission !== 'edit') {
@@ -1287,6 +1310,7 @@ const DocumentEditor = () => {
         </div>
 
         <div className="toolbar-group mobile-hidden">
+          <button onClick={importDocument} className="toolbar-btn"><i className="ri-file-upload-line"></i> Import</button>
           <button onClick={() => exportDocument('pdf')} className="toolbar-btn"><i className="ri-file-pdf-2-line"></i> PDF</button>
           <button onClick={() => exportDocument('docx')} className="toolbar-btn"><i className="ri-file-edit-fill"></i> DOCX</button>
           <button onClick={addNewPage} className="toolbar-btn"><i className="ri-file-add-line"></i> New Page</button>
@@ -1747,7 +1771,8 @@ const DocumentEditor = () => {
             )}
           </div>
           <div className="sidebar-section">
-            <h3><i className="ri-upload-line"></i> Export</h3>
+            <h3><i className="ri-upload-line"></i> Import/Export</h3>
+            <button className="sidebar-btn" onClick={importDocument}><i className="ri-file-upload-line"></i> Import File</button>
             <button className="sidebar-btn" onClick={() => exportDocument('pdf')}><i className="ri-file-pdf-2-line"></i> PDF</button>
             <button className="sidebar-btn" onClick={() => exportDocument('docx')}><i className="ri-file-word-2-line"></i> DOCX</button>
             <button className="sidebar-btn" onClick={addNewPage}><i className="ri-file-add-line"></i> New Page</button>
