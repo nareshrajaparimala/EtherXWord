@@ -608,7 +608,12 @@ const DocumentEditor = () => {
       content: content,
       lastModified: timestamp,
       wordCount: editorRef.current.innerText.trim().split(/\s+/).length,
-      collaborators: collaborators
+      collaborators: collaborators,
+      pageBorder: pageBorder,
+      headerText: headerText,
+      footerText: footerText,
+      pages: pages,
+      defaultFont: defaultFont
     };
     
     // Save version to history
@@ -719,11 +724,32 @@ const DocumentEditor = () => {
     }, 30000); // Auto-save every 30 seconds
   };
   
-  // Load document data if collaborative
+  // Load document data if collaborative or from localStorage
   React.useEffect(() => {
     if (documentId) {
       fetchDocumentData();
     } else {
+      // Load saved document from localStorage if available
+      const savedDocId = localStorage.getItem('currentDocumentId');
+      if (savedDocId) {
+        const savedDocs = JSON.parse(localStorage.getItem('documents') || '[]');
+        const savedDoc = savedDocs.find(doc => doc.id === savedDocId);
+        if (savedDoc && editorRef.current) {
+          setDocumentTitle(savedDoc.title);
+          editorRef.current.innerHTML = savedDoc.content;
+          setCollaborators(savedDoc.collaborators || []);
+          
+          // Load document-specific settings if available
+          if (savedDoc.pageBorder) setPageBorder(savedDoc.pageBorder);
+          if (savedDoc.headerText) setHeaderText(savedDoc.headerText);
+          if (savedDoc.footerText) setFooterText(savedDoc.footerText);
+          if (savedDoc.pages) setPages(savedDoc.pages);
+          
+          saveToUndoStack();
+        }
+        localStorage.removeItem('currentDocumentId');
+      }
+      
       // Load local document history
       const history = JSON.parse(localStorage.getItem(`history_${documentTitle}`) || '[]');
       setDocumentHistory(history);
@@ -1257,10 +1283,52 @@ const DocumentEditor = () => {
     }
   };
   
-  // Expose loadTemplate method globally for external use
+  // Load saved document function
+  const loadSavedDocument = (docId) => {
+    const savedDocs = JSON.parse(localStorage.getItem('documents') || '[]');
+    const doc = savedDocs.find(d => d.id === docId);
+    if (!doc || !editorRef.current) return false;
+    
+    try {
+      // Save current state before loading
+      const currentContent = editorRef.current.innerHTML;
+      if (currentContent && currentContent.trim() !== '' && 
+          currentContent !== '<p>Start writing your document here...</p>') {
+        const confirmLoad = window.confirm('Loading this document will replace current content. Continue?');
+        if (!confirmLoad) return false;
+      }
+      
+      // Load document data
+      setDocumentTitle(doc.title);
+      editorRef.current.innerHTML = doc.content;
+      setCollaborators(doc.collaborators || []);
+      
+      // Load document settings
+      if (doc.pageBorder) setPageBorder(doc.pageBorder);
+      if (doc.headerText) setHeaderText(doc.headerText);
+      if (doc.footerText) setFooterText(doc.footerText);
+      if (doc.pages) setPages(doc.pages);
+      if (doc.defaultFont) setDefaultFont(doc.defaultFont);
+      
+      // Load document history
+      const history = JSON.parse(localStorage.getItem(`history_${doc.title}`) || '[]');
+      setDocumentHistory(history);
+      
+      saveToUndoStack();
+      showNotification(`Document "${doc.title}" loaded successfully!`, 'success');
+      return true;
+    } catch (error) {
+      console.error('Error loading document:', error);
+      showNotification('Failed to load document', 'error');
+      return false;
+    }
+  };
+  
+  // Expose methods globally for external use
   React.useEffect(() => {
     window.EtherXWordEditor = {
       loadTemplate,
+      loadSavedDocument,
       getCurrentContent: () => editorRef.current?.innerHTML || '',
       setContent: (content) => {
         if (editorRef.current) {
