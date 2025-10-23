@@ -7,6 +7,8 @@ const Settings = () => {
   const { showNotification } = useNotification();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
+  const [isLoading, setIsLoading] = useState(false);
+  const [animateTab, setAnimateTab] = useState(false);
   const [userProfile, setUserProfile] = useState({
     fullName: '',
     email: '',
@@ -106,10 +108,14 @@ const Settings = () => {
     setPreferences(updated);
     saveSettings('preferences', updated);
     
-    // Apply theme immediately
+    // Apply theme immediately with animation
     if (field === 'theme') {
+      document.body.style.transition = 'all 0.5s ease';
       document.documentElement.setAttribute('data-theme', value);
       localStorage.setItem('theme', value);
+      setTimeout(() => {
+        document.body.style.transition = '';
+      }, 500);
     }
   };
 
@@ -165,8 +171,12 @@ const Settings = () => {
           {tabs.map(tab => (
             <button
               key={tab.id}
-              className={`nav-tab ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
+              className={`nav-tab ${activeTab === tab.id ? 'active' : ''} ${animateTab ? 'animate' : ''}`}
+              onClick={() => {
+                setAnimateTab(true);
+                setActiveTab(tab.id);
+                setTimeout(() => setAnimateTab(false), 300);
+              }}
             >
               <i className={tab.icon}></i>
               <span>{tab.label}</span>
@@ -191,7 +201,28 @@ const Settings = () => {
                       </div>
                     )}
                   </div>
-                  <button className="btn btn-secondary">Change Avatar</button>
+                  <button 
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = 'image/*';
+                      input.onchange = (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            handleProfileUpdate('avatar', event.target.result);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      };
+                      input.click();
+                    }}
+                  >
+                    <i className="ri-camera-line"></i>
+                    Change Avatar
+                  </button>
                 </div>
                 
                 <div className="form-group">
@@ -434,8 +465,39 @@ const Settings = () => {
                 </div>
                 
                 <div className="action-buttons">
-                  <button className="btn btn-primary">Change Password</button>
-                  <button className="btn btn-secondary">Download Recovery Codes</button>
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setIsLoading(true);
+                      setTimeout(() => {
+                        setIsLoading(false);
+                        showNotification('Password change initiated', 'info');
+                      }, 2000);
+                    }}
+                    disabled={isLoading}
+                  >
+                    <i className={`ri-lock-line ${isLoading ? 'ri-loader-4-line animate-spin' : ''}`}></i>
+                    {isLoading ? 'Processing...' : 'Change Password'}
+                  </button>
+                  <button 
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      const codes = Array.from({length: 10}, () => 
+                        Math.random().toString(36).substring(2, 10).toUpperCase()
+                      );
+                      const blob = new Blob([codes.join('\n')], { type: 'text/plain' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = 'recovery-codes.txt';
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      showNotification('Recovery codes downloaded', 'success');
+                    }}
+                  >
+                    <i className="ri-download-line"></i>
+                    Download Recovery Codes
+                  </button>
                 </div>
               </div>
             </div>
@@ -491,10 +553,32 @@ const Settings = () => {
               <h2>Account Management</h2>
               
               <div className="account-section">
-                <h3>Danger Zone</h3>
+                <h3><i className="ri-error-warning-line"></i> Danger Zone</h3>
                 <div className="danger-actions">
-                  <button className="btn btn-danger">Deactivate Account</button>
-                  <button className="btn btn-danger">Delete Account</button>
+                  <button 
+                    className="btn btn-danger"
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to deactivate your account? This action can be reversed.')) {
+                        showNotification('Account deactivation initiated', 'warning');
+                      }
+                    }}
+                  >
+                    <i className="ri-user-unfollow-line"></i>
+                    Deactivate Account
+                  </button>
+                  <button 
+                    className="btn btn-danger"
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to delete your account? This action cannot be undone!')) {
+                        if (window.confirm('This will permanently delete all your data. Type DELETE to confirm.')) {
+                          showNotification('Account deletion initiated', 'error');
+                        }
+                      }
+                    }}
+                  >
+                    <i className="ri-delete-bin-line"></i>
+                    Delete Account
+                  </button>
                 </div>
               </div>
             </div>

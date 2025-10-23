@@ -218,6 +218,28 @@ const Navbar = () => {
     <>
       <nav className={`navbar ${theme}`}>
         <div className="navbar-left">
+          <button 
+            className="sidebar-toggle"
+            onClick={() => window.dispatchEvent(new CustomEvent('toggleHomeSidebar'))}
+            style={{
+              background: 'var(--accent-color)',
+              border: 'none',
+              borderRadius: '8px',
+              width: '40px',
+              height: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#000000',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              marginRight: '16px'
+            }}
+          >
+            ☰
+          </button>
           <div className="navbar-logo">
             <Logo size={28} className={isLogoAnimating ? 'animate' : ''} />
             <span className="logo-text-main">EtherXWord</span>

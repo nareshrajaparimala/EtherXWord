@@ -81,6 +81,10 @@
   transition: all 0.2s ease;
 }
 
+[data-theme="light"] .back-btn {
+  color: #000000 !important;
+}
+
 .back-btn:hover {
   background: #e6c200;
   transform: translateY(-1px);

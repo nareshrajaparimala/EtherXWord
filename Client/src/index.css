@@ -19,19 +19,21 @@ body.dark,
   --accent-color: #ffd700;
   --primary-yellow: #ffd700;
   --transition: all 0.3s ease;
+  --hover-bg: #374151;
 }
 
 body.light,
 [data-theme="light"] {
   --bg-primary: #ffffff;
   --bg-secondary: #f8fafc;
-  --text-primary: #1f2937;
-  --text-secondary: #6b7280;
+  --text-primary: #000000;
+  --text-secondary: #4b5563;
   --text-muted: #6b7280;
   --border-color: #e5e7eb;
   --accent-color: #ffd700;
   --primary-yellow: #ffd700;
   --transition: all 0.3s ease;
+  --hover-bg: #f3f4f6;
 }
 
 /* Global Styles */

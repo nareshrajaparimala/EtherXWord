@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import Navbar from '../components/Navbar';
 import CollaborationRequests from '../components/CollaborationRequests';
 import { useNotification } from '../context/NotificationContext';
 import './Home.css';
@@ -8,6 +9,8 @@ const Home = () => {
   const { showNotification } = useNotification();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [selectedSection, setSelectedSection] = useState('Quick Access');
+  const [isLoading, setIsLoading] = useState(false);
+  const [animateCards, setAnimateCards] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [userDocuments, setUserDocuments] = useState([]);
   const [favoriteDocuments, setFavoriteDocuments] = useState([]);
@@ -18,21 +21,28 @@ const Home = () => {
   const location = useLocation();
 
   const menuItems = [
-    { icon: '📄', label: 'Quick Access', mobileVisible: false },
-    { icon: '➕', label: 'New Document', mobileVisible: true },
-    { icon: '📑', label: 'Templates', mobileVisible: true, action: () => navigate('/templates') },
-    { icon: '📂', label: 'All Documents', mobileVisible: true },
-    { icon: '👥', label: 'Collaboration', mobileVisible: true },
-    { icon: '⭐', label: 'Favorites', mobileVisible: true },
-    { icon: '🗑️', label: 'Trash', mobileVisible: true },
-    { icon: '⚙️', label: 'Settings', mobileVisible: true, action: () => navigate('/settings') }
+    { icon: 'ri-dashboard-line', label: 'Quick Access', mobileVisible: false },
+    { icon: 'ri-add-circle-line', label: 'New Document', mobileVisible: true },
+    { icon: 'ri-layout-2-line', label: 'Templates', mobileVisible: true, action: () => navigate('/templates') },
+    { icon: 'ri-folder-line', label: 'All Documents', mobileVisible: true },
+    { icon: 'ri-team-line', label: 'Collaboration', mobileVisible: true },
+    { icon: 'ri-star-line', label: 'Favorites', mobileVisible: true },
+    { icon: 'ri-delete-bin-line', label: 'Trash', mobileVisible: true },
+    { icon: 'ri-settings-3-line', label: 'Settings', mobileVisible: true, action: () => navigate('/settings') }
   ];
 
   const [collaborativeDocuments, setCollaborativeDocuments] = useState([]);
   
   useEffect(() => {
     loadRecentDocuments();
-  }, []);
+    
+    const handleToggleSidebar = () => {
+      setSidebarCollapsed(!sidebarCollapsed);
+    };
+    
+    window.addEventListener('toggleHomeSidebar', handleToggleSidebar);
+    return () => window.removeEventListener('toggleHomeSidebar', handleToggleSidebar);
+  }, [sidebarCollapsed]);
   
   const loadRecentDocuments = () => {
     const recent = JSON.parse(localStorage.getItem('recentDocuments') || '[]');
@@ -244,15 +254,7 @@ const Home = () => {
 
   return (
     <div className="home-container">
-      {/* Home Header */}
-      <div className="home-header">
-        <button 
-          className="sidebar-toggle"
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-        >
-          ☰
-        </button>
-      </div>
+      <Navbar />
 
       {/* Sidebar */}
       <aside className={`home-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
@@ -261,9 +263,17 @@ const Home = () => {
             <button
               key={index}
               className={`sidebar-item ${selectedSection === item.label ? 'active' : ''} ${item.mobileVisible ? 'mobile-visible' : ''}`}
-              onClick={() => item.action ? item.action() : setSelectedSection(item.label)}
+              onClick={() => {
+                if (item.action) {
+                  item.action();
+                } else {
+                  setAnimateCards(true);
+                  setSelectedSection(item.label);
+                  setTimeout(() => setAnimateCards(false), 600);
+                }
+              }}
             >
-              <span className="sidebar-icon">{item.icon}</span>
+              <i className={`sidebar-icon ${item.icon}`}></i>
               <span className="sidebar-label">{item.label}</span>
             </button>
           ))}
@@ -278,8 +288,23 @@ const Home = () => {
             <div className="section-header">
               <h2>Quick Access</h2>
               <div className="quick-actions">
-                <button className="btn btn-primary" onClick={() => navigate('/editor')}>➕ New Document</button>
-                <button className="btn btn-secondary">📑 Default Template</button>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => {
+                    setIsLoading(true);
+                    setTimeout(() => {
+                      navigate('/editor');
+                    }, 500);
+                  }}
+                  disabled={isLoading}
+                >
+                  <i className={`ri-add-line ${isLoading ? 'animate-spin' : ''}`}></i>
+                  {isLoading ? 'Creating...' : 'New Document'}
+                </button>
+                <button className="btn btn-secondary" onClick={() => navigate('/templates')}>
+                  <i className="ri-layout-2-line"></i>
+                  Browse Templates
+                </button>
               </div>
             </div>
 
@@ -306,13 +331,34 @@ const Home = () => {
                 </div>
               ) : (
                 recentDocuments.map((doc, index) => (
-                  <div key={index} className="document-card" onClick={() => navigate('/editor')}>
+                  <div 
+                    key={index} 
+                    className={`document-card ${animateCards ? 'animate' : ''}`}
+                    onClick={() => {
+                      setIsLoading(true);
+                      setTimeout(() => {
+                        navigate('/editor');
+                      }, 300);
+                    }}
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
                     <div className="card-header">
                       <h3>{doc.title}</h3>
-                      <button className="card-menu" onClick={(e) => e.stopPropagation()}>⋯</button>
+                      <div className="card-menu">
+                        <button 
+                          className="menu-btn"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <i className="ri-more-line"></i>
+                        </button>
+                      </div>
                     </div>
                     <p className="card-preview">{doc.preview || 'No preview available'}</p>
                     <div className="card-footer">
+                      <span className="word-count">
+                        <i className="ri-file-text-line"></i>
+                        {doc.wordCount || 0} words
+                      </span>
                       <span className="last-edit">{new Date(doc.lastModified).toLocaleDateString()}</span>
                     </div>
                   </div>
@@ -322,12 +368,27 @@ const Home = () => {
 
             {/* Suggested Templates */}
             <div className="templates-section">
-              <h3>Suggested Templates</h3>
+              <h3>
+                <i className="ri-layout-2-line"></i>
+                Suggested Templates
+              </h3>
               <div className="templates-slider">
-                <div className="template-card">📄 Blank Document</div>
-                <div className="template-card"><i class="ri-chat-smile-3-line"></i> Work together</div>
-                <div className="template-card"><i class="ri-shake-hands-fill"></i> Rent a design</div>
-                <div className="template-card"><i class="ri-store-3-fill"></i> Make a design</div>
+                <div className="template-card" onClick={() => navigate('/editor')}>
+                  <i className="ri-file-text-line template-icon"></i>
+                  <span>Blank Document</span>
+                </div>
+                <div className="template-card" onClick={() => navigate('/templates')}>
+                  <i className="ri-team-line template-icon"></i>
+                  <span>Collaboration</span>
+                </div>
+                <div className="template-card" onClick={() => navigate('/templates')}>
+                  <i className="ri-briefcase-line template-icon"></i>
+                  <span>Business</span>
+                </div>
+                <div className="template-card" onClick={() => navigate('/templates')}>
+                  <i className="ri-graduation-cap-line template-icon"></i>
+                  <span>Academic</span>
+                </div>
               </div>
             </div>
           </div>
@@ -338,9 +399,45 @@ const Home = () => {
           <div className="workspace-section">
             <h2>Create New Document</h2>
             <div className="new-doc-options">
-              <button className="new-doc-btn" onClick={() => navigate('/editor')}>📄 Blank Document</button>
-              <button className="new-doc-btn">📑 From Template</button>
-              <button className="new-doc-btn">📤 Import File</button>
+              <button 
+                className="new-doc-btn" 
+                onClick={() => {
+                  setIsLoading(true);
+                  setTimeout(() => navigate('/editor'), 500);
+                }}
+              >
+                <i className="ri-file-text-line new-doc-icon"></i>
+                <span>Blank Document</span>
+                <p>Start with a clean slate</p>
+              </button>
+              <button 
+                className="new-doc-btn"
+                onClick={() => navigate('/templates')}
+              >
+                <i className="ri-layout-2-line new-doc-icon"></i>
+                <span>From Template</span>
+                <p>Choose from our collection</p>
+              </button>
+              <button 
+                className="new-doc-btn"
+                onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = '.txt,.docx,.html,.md';
+                  input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      showNotification('File import started', 'info');
+                      navigate('/editor');
+                    }
+                  };
+                  input.click();
+                }}
+              >
+                <i className="ri-upload-line new-doc-icon"></i>
+                <span>Import File</span>
+                <p>Upload existing document</p>
+              </button>
             </div>
           </div>
         )}

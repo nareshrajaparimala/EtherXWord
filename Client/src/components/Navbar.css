@@ -211,9 +211,17 @@
   transform: scale(1.1);
 }
 
+.navbar.light .nav-icon,
+.navbar.light .theme-toggle,
+.navbar.light .sidebar-toggle {
+  color: #000000;
+}
+
 .navbar.light .nav-icon:hover,
-.navbar.light .theme-toggle:hover {
+.navbar.light .theme-toggle:hover,
+.navbar.light .sidebar-toggle:hover {
   background-color: #f3f4f6;
+  color: #000000;
 }
 
 .navbar.dark .nav-icon:hover,
