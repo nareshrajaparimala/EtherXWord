@@ -12,7 +12,8 @@ import {
   permanentlyDelete,
   setStartDocument,
   getSharedDocument,
-  updateSharedDocument
+  updateSharedDocument,
+  generateShareLink
 } from '../controllers/document.controller.js';
 import { authenticateToken } from '../middleware/auth.middleware.js';
 
@@ -30,6 +31,7 @@ router.patch('/:documentId/trash', authenticateToken, moveToTrash);
 router.patch('/:documentId/restore', authenticateToken, restoreFromTrash);
 router.delete('/:documentId/permanent', authenticateToken, permanentlyDelete);
 router.patch('/:documentId/start', authenticateToken, setStartDocument);
+router.post('/:documentId/share', authenticateToken, generateShareLink);
 
 // Public shared document routes
 router.get('/shared/:shareToken', getSharedDocument);

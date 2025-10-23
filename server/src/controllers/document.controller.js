@@ -1,5 +1,6 @@
 import Document from '../models/document.model.js';
 import User from '../models/user.model.js';
+import crypto from 'crypto';
 // import { logActivity } from './activity.controller.js';
 
 // Create document
@@ -289,6 +290,47 @@ export const updateSharedDocument = async (req, res) => {
     res.json(document);
   } catch (error) {
     console.error('Update shared document error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Generate share link
+export const generateShareLink = async (req, res) => {
+  try {
+    const { documentId } = req.params;
+    const { permission = 'view' } = req.body;
+    const userId = req.user.id;
+
+    const document = await Document.findById(documentId);
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    // Check if user is owner
+    if (document.owner.toString() !== userId) {
+      return res.status(403).json({ message: 'Only document owner can generate share links' });
+    }
+
+    // Generate unique share token
+    const shareToken = crypto.randomBytes(32).toString('hex');
+
+    // Update document with share settings
+    document.shareSettings = {
+      isPublic: true,
+      shareLink: shareToken,
+      linkPermission: permission,
+      createdAt: new Date()
+    };
+
+    await document.save();
+
+    res.json({
+      shareToken,
+      permission,
+      message: 'Share link generated successfully'
+    });
+  } catch (error) {
+    console.error('Generate share link error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

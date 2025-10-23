@@ -67,18 +67,21 @@ const Navbar = () => {
     // Mark as read
     if (!notification.isRead) {
       try {
-        await fetch(`${import.meta.env.VITE_API_URL}/api/notifications/${notification._id}/read`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/notifications/${notification._id}/read`, {
           method: 'PATCH',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+            'Content-Type': 'application/json'
           }
         });
         
-        // Update local state
-        setNotifications(notifications.map(n => 
-          n._id === notification._id ? {...n, isRead: true} : n
-        ));
-        setUnreadCount(prev => Math.max(0, prev - 1));
+        if (response.ok) {
+          // Remove notification from display
+          setNotifications(prev => prev.filter(n => n._id !== notification._id));
+          setUnreadCount(prev => Math.max(0, prev - 1));
+        } else {
+          console.error('Failed to mark notification as read:', response.status);
+        }
       } catch (error) {
         console.error('Error marking notification as read:', error);
       }
@@ -257,17 +260,25 @@ const Navbar = () => {
                   ))
                 )}
                 <div className="notification-footer">
-                  <button className="clear-all-btn" onClick={() => {
-                    // Mark all as read
-                    fetch(`${import.meta.env.VITE_API_URL}/api/notifications/read-all`, {
-                      method: 'PATCH',
-                      headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                  <button className="clear-all-btn" onClick={async () => {
+                    try {
+                      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/notifications/read-all`, {
+                        method: 'PATCH',
+                        headers: {
+                          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+                          'Content-Type': 'application/json'
+                        }
+                      });
+                      
+                      if (response.ok) {
+                        setUnreadCount(0);
+                        setNotifications([]);
+                      } else {
+                        console.error('Failed to mark all notifications as read:', response.status);
                       }
-                    }).then(() => {
-                      setUnreadCount(0);
-                      setNotifications(notifications.map(n => ({...n, isRead: true})));
-                    });
+                    } catch (error) {
+                      console.error('Error marking all notifications as read:', error);
+                    }
                   }}>Mark All Read</button>
                 </div>
               </div>

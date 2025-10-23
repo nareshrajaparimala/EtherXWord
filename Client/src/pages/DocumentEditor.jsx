@@ -61,6 +61,18 @@ const DocumentEditor = () => {
     color: '#333333'
   });
   const [showTemplateDemo, setShowTemplateDemo] = useState(false);
+  const [showWatermarkControls, setShowWatermarkControls] = useState(false);
+  const [watermark, setWatermark] = useState({
+    enabled: false,
+    type: 'text', // 'text' or 'image'
+    text: 'CONFIDENTIAL',
+    image: null,
+    opacity: 0.3,
+    size: 48,
+    color: '#cccccc',
+    rotation: 45, // degrees
+    alignment: 'center' // 'center', 'diagonal', 'straight'
+  });
 
   const editorRef = useRef(null);
   const undoTimeoutRef = useRef(null);
@@ -177,6 +189,43 @@ const DocumentEditor = () => {
     document.execCommand(command, false, value);
     if (editorRef.current) {
       editorRef.current.focus();
+    }
+  };
+
+  const handleCut = () => {
+    document.execCommand('cut');
+    showNotification('Content cut to clipboard', 'success');
+  };
+
+  const handleCopy = () => {
+    document.execCommand('copy');
+    showNotification('Content copied to clipboard', 'success');
+  };
+
+  const handlePaste = () => {
+    document.execCommand('paste');
+    showNotification('Content pasted', 'success');
+  };
+
+  const applyWatermark = () => {
+    setWatermark({ ...watermark, enabled: true });
+    setShowWatermarkControls(false);
+    showNotification('Watermark applied successfully', 'success');
+  };
+
+  const removeWatermark = () => {
+    setWatermark({ ...watermark, enabled: false });
+    showNotification('Watermark removed', 'success');
+  };
+
+  const handleWatermarkImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setWatermark({ ...watermark, image: event.target.result, type: 'image' });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -684,11 +733,39 @@ const DocumentEditor = () => {
     }
   };
   
-  const generateShareLink = () => {
-    const link = `${window.location.origin}/editor/shared/${btoa(documentTitle)}`;
-    setShareLink(link);
-    navigator.clipboard.writeText(link);
-    showNotification('Share link copied to clipboard!', 'success');
+  const generateShareLink = async () => {
+    try {
+      if (isCollaborative && documentId) {
+        // Generate link for collaborative document
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${documentId}/share`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ permission: 'view' })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const link = `${window.location.origin}/viewer/${documentId}?token=${data.shareToken}`;
+          setShareLink(link);
+          await navigator.clipboard.writeText(link);
+          showNotification('Share link copied to clipboard!', 'success');
+        } else {
+          showNotification('Failed to generate share link', 'error');
+        }
+      } else {
+        // Generate link for local document
+        const link = `${window.location.origin}/editor/shared/${btoa(documentTitle)}`;
+        setShareLink(link);
+        await navigator.clipboard.writeText(link);
+        showNotification('Share link copied to clipboard!', 'success');
+      }
+    } catch (error) {
+      console.error('Error generating share link:', error);
+      showNotification('Failed to copy link to clipboard', 'error');
+    }
   };
   
   const addCollaborator = () => {
@@ -1487,6 +1564,18 @@ const DocumentEditor = () => {
         </div>
         
         <div className="toolbar-group">
+          <button onClick={handleCut} className="toolbar-btn" title="Cut (Ctrl+X)">
+            <i className="ri-scissors-cut-line"></i>
+          </button>
+          <button onClick={handleCopy} className="toolbar-btn" title="Copy (Ctrl+C)">
+            <i className="ri-file-copy-line"></i>
+          </button>
+          <button onClick={handlePaste} className="toolbar-btn" title="Paste (Ctrl+V)">
+            <i className="ri-clipboard-line"></i>
+          </button>
+        </div>
+        
+        <div className="toolbar-group">
           <button onClick={() => formatText('bold')} className="toolbar-btn">
             <strong>B</strong>
           </button>
@@ -1556,6 +1645,7 @@ const DocumentEditor = () => {
             <i className="ri-list-settings-line"></i>
           </button>
           <button onClick={() => setShowPageBorderControls(true)} className="toolbar-btn" title="Page Border"><i className="ri-checkbox-blank-line"></i></button>
+          <button onClick={() => setShowWatermarkControls(true)} className="toolbar-btn" title="Watermark"><i className="ri-drop-line"></i></button>
           <button onClick={() => formatText('createLink', prompt('Enter URL:'))} className="toolbar-btn"><i className="ri-link"></i></button>
           <button onClick={() => setShowHeaderFooter(!showHeaderFooter)} className="toolbar-btn"><i className="ri-layout-top-2-line"></i> H/F</button>
         </div>
@@ -1691,6 +1781,41 @@ const DocumentEditor = () => {
                       }}
                     />
                   )}
+                  
+                  {watermark.enabled && (
+                    <div 
+                      className="watermark-overlay"
+                      style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: `translate(-50%, -50%) rotate(${watermark.alignment === 'diagonal' ? watermark.rotation : watermark.alignment === 'straight' ? 0 : watermark.rotation}deg)`,
+                        opacity: watermark.opacity,
+                        pointerEvents: 'none',
+                        zIndex: 1,
+                        fontSize: watermark.type === 'text' ? `${watermark.size}px` : 'inherit',
+                        color: watermark.color,
+                        fontWeight: 'bold',
+                        userSelect: 'none',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {watermark.type === 'text' ? (
+                        watermark.text
+                      ) : watermark.image ? (
+                        <img 
+                          src={watermark.image} 
+                          alt="Watermark" 
+                          style={{
+                            width: `${watermark.size}px`,
+                            height: 'auto',
+                            maxWidth: '300px',
+                            maxHeight: '300px'
+                          }}
+                        />
+                      ) : null}
+                    </div>
+                  )}
                 </div>
                 
                 {footerText && (
@@ -1758,6 +1883,124 @@ const DocumentEditor = () => {
                 </button>
               </div>
               <button onClick={() => setShowListStyles(false)} className="close-panel-btn">Close</button>
+            </div>
+          )}
+          
+          {/* Watermark Controls */}
+          {showWatermarkControls && (
+            <div className="watermark-controls">
+              <h4>Watermark Settings</h4>
+              
+              <div className="watermark-control-group">
+                <label>Type:</label>
+                <div className="watermark-type-buttons">
+                  <button 
+                    className={watermark.type === 'text' ? 'active' : ''}
+                    onClick={() => setWatermark({...watermark, type: 'text'})}
+                  >
+                    Text
+                  </button>
+                  <button 
+                    className={watermark.type === 'image' ? 'active' : ''}
+                    onClick={() => setWatermark({...watermark, type: 'image'})}
+                  >
+                    Image
+                  </button>
+                </div>
+              </div>
+              
+              {watermark.type === 'text' && (
+                <div className="watermark-control-group">
+                  <label>Text:</label>
+                  <input 
+                    type="text" 
+                    value={watermark.text}
+                    onChange={(e) => setWatermark({...watermark, text: e.target.value})}
+                    className="watermark-input"
+                    placeholder="Enter watermark text"
+                  />
+                </div>
+              )}
+              
+              {watermark.type === 'image' && (
+                <div className="watermark-control-group">
+                  <label>Upload Image:</label>
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={handleWatermarkImageUpload}
+                    className="watermark-file-input"
+                  />
+                </div>
+              )}
+              
+              <div className="watermark-control-group">
+                <label>Alignment:</label>
+                <select 
+                  value={watermark.alignment}
+                  onChange={(e) => setWatermark({...watermark, alignment: e.target.value})}
+                  className="watermark-select"
+                >
+                  <option value="center">Center</option>
+                  <option value="diagonal">Diagonal</option>
+                  <option value="straight">Straight</option>
+                </select>
+              </div>
+              
+              <div className="watermark-control-group">
+                <label>Size: {watermark.size}px</label>
+                <input 
+                  type="range" 
+                  min="20" 
+                  max="120" 
+                  value={watermark.size}
+                  onChange={(e) => setWatermark({...watermark, size: parseInt(e.target.value)})}
+                  className="watermark-slider"
+                />
+              </div>
+              
+              <div className="watermark-control-group">
+                <label>Opacity: {Math.round(watermark.opacity * 100)}%</label>
+                <input 
+                  type="range" 
+                  min="0.1" 
+                  max="1" 
+                  step="0.1" 
+                  value={watermark.opacity}
+                  onChange={(e) => setWatermark({...watermark, opacity: parseFloat(e.target.value)})}
+                  className="watermark-slider"
+                />
+              </div>
+              
+              {watermark.type === 'text' && (
+                <div className="watermark-control-group">
+                  <label>Color:</label>
+                  <input 
+                    type="color" 
+                    value={watermark.color}
+                    onChange={(e) => setWatermark({...watermark, color: e.target.value})}
+                    className="watermark-color-picker"
+                  />
+                </div>
+              )}
+              
+              <div className="watermark-control-group">
+                <label>Rotation: {watermark.rotation}°</label>
+                <input 
+                  type="range" 
+                  min="-180" 
+                  max="180" 
+                  value={watermark.rotation}
+                  onChange={(e) => setWatermark({...watermark, rotation: parseInt(e.target.value)})}
+                  className="watermark-slider"
+                />
+              </div>
+              
+              <div className="watermark-actions">
+                <button onClick={applyWatermark} className="apply-watermark-btn">Apply Watermark</button>
+                <button onClick={removeWatermark} className="remove-watermark-btn">Remove Watermark</button>
+                <button onClick={() => setShowWatermarkControls(false)} className="cancel-watermark-btn">Cancel</button>
+              </div>
             </div>
           )}
           
