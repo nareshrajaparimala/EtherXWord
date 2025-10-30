@@ -63,6 +63,8 @@
 
 .header-right {
   display: flex;
+  width: 100px;
+  background-color: #FFD700;
   align-items: center;
 }
 
@@ -70,9 +72,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--accent-color);
+  width: 100%;
+  background-color: #000000;
   color: var(--bg-primary);
-  border: none;
+  border:2px solid black;
   padding: 10px 16px;
   border-radius: 8px;
   font-size: 14px;
@@ -214,12 +217,14 @@
 
 .template-actions {
   padding: 20px;
+  background-color: e6c200;
+  border-top: 1px solid var(--border-color);
 }
 
 .use-template-btn {
   width: 100%;
-  background: var(--accent-color);
-  color: var(--bg-primary);
+  background-color: e6c200;
+  color: e6c200;
   border: none;
   padding: 12px 24px;
   border-radius: 8px;

@@ -140,8 +140,9 @@ body {
 }
 
 .checkbox {
-  width: 1.2rem;
-  height: 1.2rem;
+  width: 2px;
+  /* height: 1.2rem; */
+  background-color: #10b981;
   accent-color: var(--primary-yellow);
 }
 

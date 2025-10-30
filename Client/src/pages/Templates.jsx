@@ -279,7 +279,7 @@ const Templates = () => {
         <div className="header-right">
           <button className="back-btn" onClick={() => navigate('/home')}>
             <i className="ri-arrow-left-line"></i>
-            Back to Home
+            Back
           </button>
         </div>
       </div>

@@ -35,7 +35,8 @@ const DocumentEditor = () => {
     width: '2px',
     style: 'solid',
     padding: '10px',
-    borderType: 'simple'
+    borderType: 'simple',
+    position: 'all' // 'all', 'top', 'bottom', 'both'
   });
   const [pages, setPages] = useState([{ id: 1, content: '<p>Start writing your document here...</p>' }]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -186,7 +187,28 @@ const DocumentEditor = () => {
 
   const formatText = (command, value = null) => {
     saveToUndoStack();
-    document.execCommand(command, false, value);
+    
+    if (command === 'foreColor' && value) {
+      // Modern approach for text color
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0 && !selection.isCollapsed) {
+        const range = selection.getRangeAt(0);
+        const span = document.createElement('span');
+        span.style.color = value;
+        
+        try {
+          const contents = range.extractContents();
+          span.appendChild(contents);
+          range.insertNode(span);
+        } catch (e) {
+          console.error('Error applying text color:', e);
+        }
+      }
+    } else {
+      // Use execCommand for other formatting
+      document.execCommand(command, false, value);
+    }
+    
     if (editorRef.current) {
       editorRef.current.focus();
     }
@@ -586,21 +608,122 @@ const DocumentEditor = () => {
   const importDocument = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.txt,.html,.md,.docx';
+    input.accept = '.txt,.html,.md,.docx,.pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.csv,.xlsx,.xls';
     input.onchange = (e) => {
       const file = e.target.files[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const content = event.target.result;
-          if (editorRef.current) {
-            editorRef.current.innerHTML = content;
-            setDocumentTitle(file.name.replace(/\.[^/.]+$/, ''));
-            saveToUndoStack();
-            showNotification('Document imported successfully!', 'success');
-          }
-        };
-        reader.readAsText(file);
+        const fileType = file.type;
+        const fileName = file.name;
+        const fileExtension = fileName.split('.').pop().toLowerCase();
+        
+        if (fileType.startsWith('image/')) {
+          // Handle image files
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const img = document.createElement('img');
+            img.src = event.target.result;
+            img.style.maxWidth = '100%';
+            img.style.height = 'auto';
+            img.style.margin = '16px 0';
+            img.style.cursor = 'pointer';
+            img.style.borderRadius = '4px';
+            img.style.transition = 'all 0.2s ease';
+            img.alt = fileName;
+            
+            // Make image clickable for editing
+            img.onclick = (e) => {
+              e.stopPropagation();
+              setSelectedImage(img);
+              document.querySelectorAll('.editor-content img').forEach(i => i.classList.remove('selected'));
+              img.classList.add('selected');
+            };
+            
+            // Add hover effect
+            img.onmouseenter = () => {
+              img.style.boxShadow = '0 2px 8px rgba(255, 215, 0, 0.3)';
+            };
+            img.onmouseleave = () => {
+              if (!img.classList.contains('selected')) {
+                img.style.boxShadow = 'none';
+              }
+            };
+            
+            if (editorRef.current) {
+              editorRef.current.appendChild(img);
+              saveToUndoStack();
+              showNotification('Image imported successfully! Click to edit.', 'success');
+            }
+          };
+          reader.readAsDataURL(file);
+        } else if (fileType === 'application/pdf' || fileExtension === 'pdf') {
+          // Handle PDF files - create a link and placeholder
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const pdfDiv = document.createElement('div');
+            pdfDiv.style.cssText = 'border: 2px dashed #FFD700; padding: 20px; margin: 16px 0; text-align: center; background: rgba(255, 215, 0, 0.1);';
+            pdfDiv.innerHTML = `
+              <p><strong>📄 PDF Document: ${fileName}</strong></p>
+              <p contenteditable="true">Click here to add notes about this PDF...</p>
+              <small>PDF content cannot be directly edited, but you can add notes above.</small>
+            `;
+            
+            if (editorRef.current) {
+              editorRef.current.appendChild(pdfDiv);
+              saveToUndoStack();
+              showNotification('PDF imported as reference!', 'success');
+            }
+          };
+          reader.readAsDataURL(file);
+        } else if (fileExtension === 'csv' || fileType === 'text/csv') {
+          // Handle CSV files
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const csvContent = event.target.result;
+            const lines = csvContent.split('\n');
+            const table = document.createElement('table');
+            table.style.cssText = 'border-collapse: collapse; width: 100%; margin: 16px 0; border: 1px solid #ddd;';
+            
+            lines.forEach((line, index) => {
+              if (line.trim()) {
+                const row = table.insertRow();
+                const cells = line.split(',');
+                cells.forEach(cell => {
+                  const cellElement = row.insertCell();
+                  cellElement.textContent = cell.trim().replace(/"/g, '');
+                  cellElement.style.cssText = 'border: 1px solid #ddd; padding: 8px; background: var(--bg-secondary);';
+                  cellElement.contentEditable = true;
+                });
+                if (index === 0) {
+                  row.style.fontWeight = 'bold';
+                  row.style.background = 'var(--primary-yellow)';
+                }
+              }
+            });
+            
+            if (editorRef.current) {
+              editorRef.current.appendChild(table);
+              saveToUndoStack();
+              showNotification('CSV imported as editable table!', 'success');
+            }
+          };
+          reader.readAsText(file);
+        } else {
+          // Handle text-based files
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const content = event.target.result;
+            if (editorRef.current) {
+              const div = document.createElement('div');
+              div.innerHTML = content;
+              div.contentEditable = true;
+              div.style.margin = '16px 0';
+              editorRef.current.appendChild(div);
+              saveToUndoStack();
+              showNotification('Document imported successfully!', 'success');
+            }
+          };
+          reader.readAsText(file);
+        }
       }
     };
     input.click();
@@ -1586,7 +1709,7 @@ const DocumentEditor = () => {
             <u>U</u>
           </button>
           <button onClick={() => formatText('strikeThrough')} className="toolbar-btn">
-            <s>S</s>
+            <i class="ri-strikethrough"></i>
           </button>
         </div>
         
@@ -1735,7 +1858,20 @@ const DocumentEditor = () => {
                 className={`editor-page a4-page ${currentPage === page.id ? 'active-page' : ''}`}
               >
                 {headerText && (
-                  <div className={`page-hf-element ${headerAlignment}`}>{headerText}</div>
+                  <div className="page-hf-element top-header" style={{
+                    position: 'absolute',
+                    top: '10mm',
+                    left: '20mm',
+                    right: '20mm',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '12px',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    <span>{headerText.split('|')[0] || ''}</span>
+                    <span>{headerText.split('|')[1] || ''}</span>
+                    <span>{headerText.split('|')[2] || ''}</span>
+                  </div>
                 )}
                 
                 <div
@@ -1752,10 +1888,13 @@ const DocumentEditor = () => {
                   onInput={(e) => handleContentChange(e, page.id)}
                   data-page-id={page.id}
                   style={pageBorder.enabled ? {
-                    border: pageBorder.borderType === 'shadow' ? 'none' : `${pageBorder.width} ${pageBorder.style} ${pageBorder.color}`,
+                    borderTop: (pageBorder.position === 'all' || pageBorder.position === 'top' || pageBorder.position === 'both') && pageBorder.borderType !== 'shadow' ? `${pageBorder.width} ${pageBorder.style} ${pageBorder.color}` : 'none',
+                    borderBottom: (pageBorder.position === 'all' || pageBorder.position === 'bottom' || pageBorder.position === 'both') && pageBorder.borderType !== 'shadow' ? `${pageBorder.width} ${pageBorder.style} ${pageBorder.color}` : 'none',
+                    borderLeft: pageBorder.position === 'all' && pageBorder.borderType !== 'shadow' ? `${pageBorder.width} ${pageBorder.style} ${pageBorder.color}` : 'none',
+                    borderRight: pageBorder.position === 'all' && pageBorder.borderType !== 'shadow' ? `${pageBorder.width} ${pageBorder.style} ${pageBorder.color}` : 'none',
                     margin: pageBorder.padding,
-                    width: `calc(100% - ${parseInt(pageBorder.padding) * 2}px - ${parseInt(pageBorder.width) * 2}px)`,
-                    height: `calc(100% - ${parseInt(pageBorder.padding) * 2}px - ${parseInt(pageBorder.width) * 2}px)`,
+                    width: `calc(100% - ${parseInt(pageBorder.padding) * 2}px)`,
+                    height: `calc(100% - ${parseInt(pageBorder.padding) * 2}px)`,
                     borderRadius: pageBorder.borderType === 'rounded' ? '8px' : '0',
                     boxShadow: pageBorder.borderType === 'shadow' ? `inset 0 0 0 ${pageBorder.width} ${pageBorder.color}` : 'none',
                     position: 'relative',
@@ -1819,7 +1958,20 @@ const DocumentEditor = () => {
                 </div>
                 
                 {footerText && (
-                  <div className={`page-hf-element ${footerAlignment}`}>{footerText}</div>
+                  <div className="page-hf-element bottom-footer" style={{
+                    position: 'absolute',
+                    bottom: '10mm',
+                    left: '20mm',
+                    right: '20mm',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '12px',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    <span>{footerText.split('|')[0] || ''}</span>
+                    <span>{footerText.split('|')[1] || ''}</span>
+                    <span>{footerText.split('|')[2] || ''}</span>
+                  </div>
                 )}
                 
                 {pageNumbering.enabled && (
@@ -2031,28 +2183,86 @@ const DocumentEditor = () => {
                 />
               </div>
               <div className="hf-control-group">
-                <label>Header Position:</label>
-                <select 
-                  value={headerAlignment}
-                  onChange={(e) => setHeaderAlignment(e.target.value)}
-                  className="hf-select"
-                >
-                  <option value="top-left">Top Left</option>
-                  <option value="top-center">Top Center</option>
-                  <option value="top-right">Top Right</option>
-                </select>
+                <label>Header Layout:</label>
+                <div style={{display: 'flex', gap: '8px', flex: 1}}>
+                  <input 
+                    type="text" 
+                    placeholder="Left"
+                    value={headerText.split('|')[0] || ''}
+                    onChange={(e) => {
+                      const parts = headerText.split('|');
+                      parts[0] = e.target.value;
+                      setHeaderText(parts.join('|'));
+                    }}
+                    className="hf-input"
+                    style={{flex: 1}}
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="Center"
+                    value={headerText.split('|')[1] || ''}
+                    onChange={(e) => {
+                      const parts = headerText.split('|');
+                      parts[1] = e.target.value;
+                      setHeaderText(parts.join('|'));
+                    }}
+                    className="hf-input"
+                    style={{flex: 1}}
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="Right"
+                    value={headerText.split('|')[2] || ''}
+                    onChange={(e) => {
+                      const parts = headerText.split('|');
+                      parts[2] = e.target.value;
+                      setHeaderText(parts.join('|'));
+                    }}
+                    className="hf-input"
+                    style={{flex: 1}}
+                  />
+                </div>
               </div>
               <div className="hf-control-group">
-                <label>Footer Position:</label>
-                <select 
-                  value={footerAlignment}
-                  onChange={(e) => setFooterAlignment(e.target.value)}
-                  className="hf-select"
-                >
-                  <option value="bottom-left">Bottom Left</option>
-                  <option value="bottom-center">Bottom Center</option>
-                  <option value="bottom-right">Bottom Right</option>
-                </select>
+                <label>Footer Layout:</label>
+                <div style={{display: 'flex', gap: '8px', flex: 1}}>
+                  <input 
+                    type="text" 
+                    placeholder="Left"
+                    value={footerText.split('|')[0] || ''}
+                    onChange={(e) => {
+                      const parts = footerText.split('|');
+                      parts[0] = e.target.value;
+                      setFooterText(parts.join('|'));
+                    }}
+                    className="hf-input"
+                    style={{flex: 1}}
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="Center"
+                    value={footerText.split('|')[1] || ''}
+                    onChange={(e) => {
+                      const parts = footerText.split('|');
+                      parts[1] = e.target.value;
+                      setFooterText(parts.join('|'));
+                    }}
+                    className="hf-input"
+                    style={{flex: 1}}
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="Right"
+                    value={footerText.split('|')[2] || ''}
+                    onChange={(e) => {
+                      const parts = footerText.split('|');
+                      parts[2] = e.target.value;
+                      setFooterText(parts.join('|'));
+                    }}
+                    className="hf-input"
+                    style={{flex: 1}}
+                  />
+                </div>
               </div>
               <div className="hf-control-group">
                 <label>Page Numbers:</label>
@@ -2100,6 +2310,20 @@ const DocumentEditor = () => {
           {showPageBorderControls && (
             <div className="page-border-controls">
               <h4>Professional Page Border</h4>
+              
+              <div className="border-control-group">
+                <label>Border Position:</label>
+                <select 
+                  value={pageBorder.position}
+                  onChange={(e) => setPageBorder({...pageBorder, position: e.target.value})}
+                  className="border-select"
+                >
+                  <option value="all">All Sides</option>
+                  <option value="top">Top Only</option>
+                  <option value="bottom">Bottom Only</option>
+                  <option value="both">Top & Bottom</option>
+                </select>
+              </div>
               
               <div className="border-control-group">
                 <label>Border Type:</label>

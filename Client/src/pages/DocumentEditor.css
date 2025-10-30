@@ -406,17 +406,72 @@
 }
 
 .color-picker {
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--border-color);
   cursor: pointer;
   background: none;
   padding: 0;
+  position: relative;
+  transition: all 0.2s ease;
 }
 
 .color-picker:hover {
-  border-color: var(--accent-color);
+  border-color: var(--primary-yellow);
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+}
+
+.color-picker:focus {
+  outline: none;
+  border-color: var(--primary-yellow);
+  box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.2);
+}
+
+/* Text Color Picker - Circle with A */
+.color-picker[title="Text Color"] {
+  border-radius: 50%;
+}
+
+.color-picker[title="Text Color"]::after {
+  content: 'A';
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: bold;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+}
+
+/* Background Color Picker - Square with highlight */
+.color-picker[title="Background Color"] {
+  border-radius: 4px;
+}
+
+.color-picker[title="Background Color"]::after {
+  content: '▌';
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: bold;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
 }
 
 /* List Styles Controls */
@@ -624,8 +679,8 @@
 }
 
 .apply-watermark-btn {
-  background: var(--accent-color);
-  color: var(--bg-primary);
+  background: var(--primary-yellow);
+  color: var(--primary-black);
   border: none;
   padding: 10px 16px;
   border-radius: 4px;
@@ -1255,18 +1310,20 @@
 }
 
 .apply-border-btn {
-  background: var(--accent-color);
-  color: var(--bg-primary);
+  background: var(--primary-yellow);
+  color: var(--primary-black);
   border: none;
   padding: 8px 16px;
   border-radius: 4px;
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
+  font-weight: 500;
 }
 
 .apply-border-btn:hover {
   background: #e6c200;
+  transform: translateY(-1px);
 }
 
 .remove-border-btn {
@@ -1498,8 +1555,8 @@
 }
 
 .close-panel-btn {
-  background: var(--accent-color);
-  color: var(--bg-primary);
+  background: var(--primary-yellow);
+  color: var(--primary-black);
   border: none;
   padding: 8px 16px;
   border-radius: 4px;
@@ -1508,10 +1565,12 @@
   transition: all 0.2s ease;
   width: 100%;
   margin-top: 12px;
+  font-weight: 500;
 }
 
 .close-panel-btn:hover {
   background: #e6c200;
+  transform: translateY(-1px);
 }
 
 /* Right Sidebar */

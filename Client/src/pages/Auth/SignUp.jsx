@@ -113,7 +113,7 @@ const SignUp = () => {
           />
 
           <div className="form-group">
-            <div className="checkbox-group">
+            <div className="align-checkbox">
               <input
                 type="checkbox"
                 id="agreeToTerms"
@@ -122,7 +122,7 @@ const SignUp = () => {
                 onChange={handleChange}
                 className="checkbox"
               />
-              <label htmlFor="agreeToTerms" className="form-label" style={{ marginBottom: 0 }}>
+              <label htmlFor="agreeToTerms" className="" style={{ marginBottom: 0 }}>
                 I agree to the{' '}
                 <button
                   type="button"

@@ -85,7 +85,7 @@ const SignIn = () => {
           />
 
           <div className="form-group">
-            <div className="checkbox-group">
+            <div className="align-checkbox">
               <input
                 type="checkbox"
                 id="rememberMe"
@@ -94,7 +94,7 @@ const SignIn = () => {
                 onChange={handleChange}
                 className="checkbox"
               />
-              <label htmlFor="rememberMe" className="form-label" style={{ marginBottom: 0 }}>
+              <label htmlFor="rememberMe" className="" style={{ marginBottom: 0 }}>
                 Remember me
               </label>
             </div>
