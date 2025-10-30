@@ -46,7 +46,21 @@ const Home = () => {
   
   const loadRecentDocuments = () => {
     const recent = JSON.parse(localStorage.getItem('recentDocuments') || '[]');
-    setRecentDocuments(recent.slice(0, 6)); // Show last 6 recent documents
+    const savedDocs = JSON.parse(localStorage.getItem('documents') || '[]');
+    
+    // Merge recent documents with saved documents to get complete data
+    const enrichedRecent = recent.map(recentDoc => {
+      const savedDoc = savedDocs.find(doc => doc.title === recentDoc.title);
+      return {
+        ...recentDoc,
+        id: savedDoc?.id || recentDoc.id || null,
+        isFavorite: savedDoc?.isFavorite || false,
+        content: savedDoc?.content || '',
+        pages: savedDoc?.pages || []
+      };
+    });
+    
+    setRecentDocuments(enrichedRecent.slice(0, 6)); // Show last 6 recent documents
   };
   
   const searchDocuments = async (query) => {
@@ -90,49 +104,40 @@ const Home = () => {
   }, [location.state]);
   
   useEffect(() => {
-    if (selectedSection === 'Collaboration') {
-      fetchCollaborativeDocuments();
-    } else if (selectedSection === 'All Documents') {
+    if (selectedSection === 'All Documents') {
       fetchUserDocuments();
     } else if (selectedSection === 'Favorites') {
       fetchFavoriteDocuments();
-    } else if (selectedSection === 'Trash') {
-      fetchTrashDocuments();
     }
   }, [selectedSection]);
   
-  const fetchUserDocuments = async () => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setUserDocuments(data);
-      }
-    } catch (error) {
-      console.error('Error fetching user documents:', error);
-    }
+  const fetchUserDocuments = () => {
+    // Load only local documents to avoid rate limiting
+    const localDocs = JSON.parse(localStorage.getItem('documents') || '[]');
+    setUserDocuments(localDocs.map(doc => ({
+      _id: doc.id,
+      title: doc.title,
+      content: doc.content,
+      lastModified: doc.lastModified,
+      wordCount: doc.wordCount,
+      isFavorite: doc.isFavorite || false,
+      collaborators: doc.collaborators || []
+    })));
   };
   
-  const fetchFavoriteDocuments = async () => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/favorites`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setFavoriteDocuments(data);
-      }
-    } catch (error) {
-      console.error('Error fetching favorite documents:', error);
-    }
+  const fetchFavoriteDocuments = () => {
+    // Load only local favorite documents to avoid rate limiting
+    const localDocs = JSON.parse(localStorage.getItem('documents') || '[]');
+    const favorites = localDocs.filter(doc => doc.isFavorite).map(doc => ({
+      _id: doc.id,
+      title: doc.title,
+      content: doc.content,
+      lastModified: doc.lastModified,
+      wordCount: doc.wordCount,
+      isFavorite: doc.isFavorite || false,
+      collaborators: doc.collaborators || []
+    }));
+    setFavoriteDocuments(favorites);
   };
   
   const fetchTrashDocuments = async () => {
@@ -152,68 +157,96 @@ const Home = () => {
     }
   };
   
-  const toggleFavorite = async (docId) => {
-    try {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${docId}/favorite`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        }
-      });
+  const toggleFavorite = (docId, event) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    
+    // Handle local documents only to avoid rate limiting
+    const savedDocs = JSON.parse(localStorage.getItem('documents') || '[]');
+    const docIndex = savedDocs.findIndex(d => d.id === docId);
+    
+    if (docIndex >= 0) {
+      savedDocs[docIndex].isFavorite = !savedDocs[docIndex].isFavorite;
+      localStorage.setItem('documents', JSON.stringify(savedDocs));
+      
+      showNotification(
+        savedDocs[docIndex].isFavorite ? 'Added to favorites' : 'Removed from favorites',
+        'success'
+      );
       
       // Refresh current section
       if (selectedSection === 'All Documents') fetchUserDocuments();
       if (selectedSection === 'Favorites') fetchFavoriteDocuments();
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
+      if (selectedSection === 'Quick Access') loadRecentDocuments();
     }
   };
   
   const moveToTrash = async (docId) => {
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${docId}/trash`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${docId}/trash`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
         }
       });
       
-      // Refresh current section
-      if (selectedSection === 'All Documents') fetchUserDocuments();
-      if (selectedSection === 'Favorites') fetchFavoriteDocuments();
+      if (response.ok) {
+        showNotification('Document moved to trash (will be deleted in 1 hour)', 'success');
+        
+        // Refresh current section
+        if (selectedSection === 'All Documents') fetchUserDocuments();
+        if (selectedSection === 'Favorites') fetchFavoriteDocuments();
+        if (selectedSection === 'Quick Access') loadRecentDocuments();
+      } else {
+        showNotification('Failed to move document to trash', 'error');
+      }
     } catch (error) {
       console.error('Error moving to trash:', error);
+      showNotification('Error moving document to trash', 'error');
     }
   };
   
   const restoreFromTrash = async (docId) => {
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${docId}/restore`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${docId}/restore`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
         }
       });
       
-      fetchTrashDocuments();
+      if (response.ok) {
+        showNotification('Document restored successfully', 'success');
+        fetchTrashDocuments();
+      } else {
+        showNotification('Failed to restore document', 'error');
+      }
     } catch (error) {
       console.error('Error restoring from trash:', error);
+      showNotification('Error restoring document', 'error');
     }
   };
   
   const permanentlyDelete = async (docId) => {
     if (window.confirm('Are you sure? This action cannot be undone.')) {
       try {
-        await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${docId}/permanent`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${docId}/permanent`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
           }
         });
         
-        fetchTrashDocuments();
+        if (response.ok) {
+          showNotification('Document permanently deleted', 'success');
+          fetchTrashDocuments();
+        } else {
+          showNotification('Failed to delete document permanently', 'error');
+        }
       } catch (error) {
         console.error('Error permanently deleting:', error);
+        showNotification('Error deleting document permanently', 'error');
       }
     }
   };
@@ -335,16 +368,55 @@ const Home = () => {
                     key={index} 
                     className={`document-card ${animateCards ? 'animate' : ''}`}
                     onClick={() => {
-                      setIsLoading(true);
-                      setTimeout(() => {
+                      // Add to recent documents
+                      const recentDocs = JSON.parse(localStorage.getItem('recentDocuments') || '[]');
+                      const docData = {
+                        title: doc.title,
+                        lastModified: new Date().toISOString(),
+                        preview: doc.preview || doc.content?.replace(/<[^>]*>/g, '').substring(0, 100) || 'No preview available',
+                        wordCount: doc.wordCount || 0,
+                        id: doc.id
+                      };
+                      
+                      const filtered = recentDocs.filter(d => d.title !== doc.title);
+                      filtered.unshift(docData);
+                      localStorage.setItem('recentDocuments', JSON.stringify(filtered.slice(0, 10)));
+                      
+                      if (doc.id && doc.id.length === 24) {
+                        // MongoDB ObjectId - navigate to existing server document
+                        navigate(`/editor/${doc.id}`);
+                      } else {
+                        // Local document or no ID - create new document
                         navigate('/editor');
-                      }, 300);
+                      }
                     }}
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
                     <div className="card-header">
                       <h3>{doc.title}</h3>
                       <div className="card-menu">
+                        {doc.id && (
+                          <button 
+                            className={`favorite-btn ${doc.isFavorite ? 'favorited' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // For local documents, toggle favorite in localStorage
+                              const savedDocs = JSON.parse(localStorage.getItem('documents') || '[]');
+                              const docIndex = savedDocs.findIndex(d => d.id === doc.id);
+                              if (docIndex >= 0) {
+                                savedDocs[docIndex].isFavorite = !savedDocs[docIndex].isFavorite;
+                                localStorage.setItem('documents', JSON.stringify(savedDocs));
+                                loadRecentDocuments();
+                                showNotification(
+                                  savedDocs[docIndex].isFavorite ? 'Added to favorites' : 'Removed from favorites', 
+                                  'success'
+                                );
+                              }
+                            }}
+                          >
+                            <i className={`ri-star-${doc.isFavorite ? 'fill' : 'line'}`}></i>
+                          </button>
+                        )}
                         <button 
                           className="menu-btn"
                           onClick={(e) => e.stopPropagation()}
@@ -474,7 +546,27 @@ const Home = () => {
             ) : (
               <div className="documents-grid">
                 {userDocuments.map((doc) => (
-                  <div key={doc._id} className="document-card" onClick={() => navigate(`/editor/${doc._id}`)}>
+                  <div 
+                    key={doc._id} 
+                    className="document-card" 
+                    onClick={() => {
+                      // Add to recent documents
+                      const recentDocs = JSON.parse(localStorage.getItem('recentDocuments') || '[]');
+                      const docData = {
+                        title: doc.title,
+                        lastModified: new Date().toISOString(),
+                        preview: doc.content?.replace(/<[^>]*>/g, '').substring(0, 100) || 'No content yet',
+                        wordCount: doc.wordCount || 0,
+                        id: doc._id
+                      };
+                      
+                      const filtered = recentDocs.filter(d => d.id !== doc._id);
+                      filtered.unshift(docData);
+                      localStorage.setItem('recentDocuments', JSON.stringify(filtered.slice(0, 10)));
+                      
+                      navigate(`/editor/${doc._id}`);
+                    }}
+                  >
                     <div className="card-header">
                       <h3>{doc.title}</h3>
                       <div className="card-badges">
@@ -507,10 +599,7 @@ const Home = () => {
                       </button>
                       <button 
                         className={`action-btn favorite-btn ${doc.isFavorite ? 'favorited' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleFavorite(doc._id);
-                        }}
+                        onClick={(e) => toggleFavorite(doc._id, e)}
                       >
                         <i className={`ri-star-${doc.isFavorite ? 'fill' : 'line'}`}></i>
                         {doc.isFavorite ? 'Unfavorite' : 'Favorite'}
@@ -567,6 +656,20 @@ const Home = () => {
                           key={doc._id} 
                           className={`document-card ${!canEdit ? 'view-only' : ''}`}
                           onClick={() => {
+                            // Add to recent documents
+                            const recentDocs = JSON.parse(localStorage.getItem('recentDocuments') || '[]');
+                            const docData = {
+                              title: doc.title,
+                              lastModified: new Date().toISOString(),
+                              preview: doc.content?.replace(/<[^>]*>/g, '').substring(0, 100) || 'No preview available',
+                              wordCount: doc.wordCount || 0,
+                              id: doc._id
+                            };
+                            
+                            const filtered = recentDocs.filter(d => d.id !== doc._id);
+                            filtered.unshift(docData);
+                            localStorage.setItem('recentDocuments', JSON.stringify(filtered.slice(0, 10)));
+                            
                             if (canEdit) {
                               navigate(`/editor/${doc._id}`);
                             } else {
@@ -581,6 +684,13 @@ const Home = () => {
                                 {canEdit ? 'Can Edit' : 'Can View'}
                               </span>
                               {!canEdit && <i className="ri-eye-line view-icon"></i>}
+                              <button 
+                                className={`favorite-btn ${doc.isFavorite ? 'favorited' : ''}`}
+                                onClick={(e) => toggleFavorite(doc._id, e)}
+                                title={doc.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                              >
+                                <i className={`ri-star-${doc.isFavorite ? 'fill' : 'line'}`}></i>
+                              </button>
                             </div>
                           </div>
                           <p className="card-preview">
@@ -632,7 +742,27 @@ const Home = () => {
             ) : (
               <div className="documents-grid">
                 {favoriteDocuments.map((doc) => (
-                  <div key={doc._id} className="document-card favorite-card" onClick={() => navigate(`/editor/${doc._id}`)}>
+                  <div 
+                    key={doc._id} 
+                    className="document-card favorite-card" 
+                    onClick={() => {
+                      // Add to recent documents
+                      const recentDocs = JSON.parse(localStorage.getItem('recentDocuments') || '[]');
+                      const docData = {
+                        title: doc.title,
+                        lastModified: new Date().toISOString(),
+                        preview: doc.content?.replace(/<[^>]*>/g, '').substring(0, 100) || 'No content yet',
+                        wordCount: doc.wordCount || 0,
+                        id: doc._id
+                      };
+                      
+                      const filtered = recentDocs.filter(d => d.id !== doc._id);
+                      filtered.unshift(docData);
+                      localStorage.setItem('recentDocuments', JSON.stringify(filtered.slice(0, 10)));
+                      
+                      navigate(`/editor/${doc._id}`);
+                    }}
+                  >
                     <div className="card-header">
                       <h3>{doc.title}</h3>
                       <div className="card-badges">
@@ -662,10 +792,7 @@ const Home = () => {
                       </button>
                       <button 
                         className="action-btn unfavorite-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleFavorite(doc._id);
-                        }}
+                        onClick={(e) => toggleFavorite(doc._id, e)}
                       >
                         <i className="ri-star-fill"></i>
                         Unfavorite

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useContext } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -9,6 +9,7 @@ import { useLogoAnimation } from '../hooks/useLogoAnimation';
 import './DocumentEditor.css';
 import ShareModal from '../components/ShareModal';
 import { useNotification } from '../context/NotificationContext';
+import { ThemeContext } from '../context/ThemeContext';
 import TemplateDemo from '../components/TemplateDemo';
 
 const DocumentEditor = () => {
@@ -75,11 +76,14 @@ const DocumentEditor = () => {
     alignment: 'center' // 'center', 'diagonal', 'straight'
   });
   const [wordCount, setWordCount] = useState(0);
+  const { theme, toggleTheme } = useContext(ThemeContext);
 
   const editorRef = useRef(null);
   const undoTimeoutRef = useRef(null);
 
   // Load template data if available and apply default font
+
+
   React.useEffect(() => {
     const selectedTemplate = localStorage.getItem('selectedTemplate');
     if (selectedTemplate) {
@@ -558,10 +562,21 @@ const DocumentEditor = () => {
   const addNewPage = () => {
     const newPage = {
       id: pages.length + 1,
-      content: '<p><br></p>'
+      content: '<p><br></p>',
+      pageNumber: pages.length + 1,
+      headerText: headerText,
+      footerText: footerText
     };
     setPages([...pages, newPage]);
     setCurrentPage(newPage.id);
+    
+    // Focus on new page
+    setTimeout(() => {
+      const newPageElement = document.querySelector(`[data-page-id="${newPage.id}"]`);
+      if (newPageElement) {
+        newPageElement.focus();
+      }
+    }, 100);
   };
 
   const handleContentChange = (e, pageId) => {
@@ -587,30 +602,76 @@ const DocumentEditor = () => {
       }
       undoTimeoutRef.current = setTimeout(() => {
         saveToUndoStack();
-      }, 1000); // Save to undo stack after 1 second of inactivity
+      }, 1000);
     }
   };
 
   const checkAndCreateNewPage = (element) => {
-    const textContent = element.innerText || element.textContent || '';
-    const lines = textContent.split('\n').length;
+    if (!element) return;
     
-    if (lines >= 38 && pages.length === currentPage) {
+    // Count ALL lines including empty lines and line breaks
+    const textContent = element.innerText || element.textContent || '';
+    const htmlContent = element.innerHTML || '';
+    
+    // Count actual line breaks (including <br> tags and \n)
+    const brTags = (htmlContent.match(/<br\s*\/?>/gi) || []).length;
+    const newLines = (textContent.match(/\n/g) || []).length;
+    const paragraphs = (htmlContent.match(/<p[^>]*>/gi) || []).length;
+    const divs = (htmlContent.match(/<div[^>]*>/gi) || []).length;
+    
+    // Calculate total lines including empty spaces and breaks
+    let totalLines = Math.max(
+      brTags + newLines + paragraphs + divs,
+      textContent.split('\n').length,
+      Math.ceil(textContent.length / 80)
+    );
+    
+    // Add extra lines for spacing elements
+    const spacingElements = element.querySelectorAll('p, div, h1, h2, h3, br');
+    totalLines = Math.max(totalLines, spacingElements.length);
+    
+    // Update line count display
+    const pageElement = element.closest('.editor-page');
+    if (pageElement) {
+      pageElement.setAttribute('data-page-lines', totalLines);
+      element.setAttribute('data-line-count', totalLines);
+    }
+    
+    // Check if we need a new page (35 lines max)
+    if (totalLines >= 35 && pages.length === currentPage) {
+      
       // Create new page
       const newPage = {
         id: pages.length + 1,
-        content: '<p><br></p>'
+        content: '<p><br></p>',
+        pageNumber: pages.length + 1,
+        headerText: headerText,
+        footerText: footerText
       };
+      
       setPages(prev => [...prev, newPage]);
       
-      // Move cursor to new page after a short delay
+      // Move cursor to new page
       setTimeout(() => {
         const newPageElement = document.querySelector(`[data-page-id="${newPage.id}"]`);
         if (newPageElement) {
           newPageElement.focus();
           setCurrentPage(newPage.id);
+          
+          // Place cursor at beginning of new page
+          const range = document.createRange();
+          const selection = window.getSelection();
+          range.setStart(newPageElement, 0);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
         }
       }, 100);
+    } else if (totalLines >= 30) {
+      // Show warning when approaching limit
+      element.classList.add('page-break-needed');
+    } else {
+      element.classList.remove('page-break-needed');
     }
   };
 
@@ -744,7 +805,7 @@ const DocumentEditor = () => {
     input.click();
   };
 
-  const saveDocument = async (isAutoSave = false) => {
+  const saveDocument = async (isAutoSave = false, saveVersion = false) => {
     // Check if user has edit permission
     if (isCollaborative && userPermission !== 'edit') {
       if (!isAutoSave) {
@@ -753,7 +814,10 @@ const DocumentEditor = () => {
       return;
     }
     
-    if (isCollaborative && documentData) {
+    const content = editorRef.current.innerHTML;
+    const currentWordCount = content ? content.replace(/<[^>]*>/g, '').trim().split(/\s+/).length : 0;
+    
+    if (isCollaborative && documentData && documentId && documentId.match(/^[0-9a-fA-F]{24}$/)) {
       // Save to server
       try {
         const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${documentId}`, {
@@ -764,7 +828,15 @@ const DocumentEditor = () => {
           },
           body: JSON.stringify({
             title: documentTitle,
-            content: editorRef.current.innerHTML
+            content: content,
+            pages: pages,
+            formatting: {
+              defaultFont: defaultFont,
+              pageBorder: pageBorder,
+              watermark: watermark,
+              pageNumbering: pageNumbering
+            },
+            saveVersion: saveVersion
           })
         });
         
@@ -787,34 +859,43 @@ const DocumentEditor = () => {
       }
       return;
     }
-    const content = editorRef.current.innerHTML;
+    
+    // Local storage save
     const timestamp = new Date().toISOString();
     const docData = {
       id: Date.now().toString(),
       title: documentTitle,
       content: content,
       lastModified: timestamp,
-      wordCount: editorRef.current.innerText.trim().split(/\s+/).length,
+      wordCount: currentWordCount,
+      pageCount: pages.length,
       collaborators: collaborators,
-      pageBorder: pageBorder,
-      headerText: headerText,
-      footerText: footerText,
       pages: pages,
-      defaultFont: defaultFont
+      formatting: {
+        defaultFont: defaultFont,
+        pageBorder: pageBorder,
+        watermark: watermark,
+        pageNumbering: pageNumbering
+      },
+      headerText: headerText,
+      footerText: footerText
     };
     
-    // Save version to history
-    const newHistory = {
-      id: Date.now().toString(),
-      content: content,
-      timestamp: timestamp,
-      author: localStorage.getItem('userProfile') ? JSON.parse(localStorage.getItem('userProfile')).fullName : 'Anonymous',
-      changes: 'Document updated'
-    };
-    
-    const updatedHistory = [newHistory, ...documentHistory.slice(0, 9)]; // Keep last 10 versions
-    setDocumentHistory(updatedHistory);
-    localStorage.setItem(`history_${documentTitle}`, JSON.stringify(updatedHistory));
+    // Save version to history if requested or significant changes
+    if (saveVersion || documentHistory.length === 0) {
+      const newHistory = {
+        id: Date.now().toString(),
+        content: content,
+        timestamp: timestamp,
+        author: localStorage.getItem('userProfile') ? JSON.parse(localStorage.getItem('userProfile')).fullName : 'Anonymous',
+        changes: 'Document updated',
+        wordCount: currentWordCount
+      };
+      
+      const updatedHistory = [newHistory, ...documentHistory.slice(0, 19)]; // Keep last 20 versions
+      setDocumentHistory(updatedHistory);
+      localStorage.setItem(`history_${documentTitle}`, JSON.stringify(updatedHistory));
+    }
     
     // Save document
     const savedDocs = JSON.parse(localStorage.getItem('documents') || '[]');
@@ -839,7 +920,8 @@ const DocumentEditor = () => {
       title: documentTitle, 
       lastModified: timestamp,
       preview: preview,
-      wordCount: editorRef.current.innerText.trim().split(/\s+/).length
+      wordCount: currentWordCount,
+      pageCount: pages.length
     });
     localStorage.setItem('recentDocuments', JSON.stringify(recentDocs.slice(0, 10)));
     
@@ -871,7 +953,7 @@ const DocumentEditor = () => {
     }
   };
   
-  const generateShareLink = async () => {
+  const generateShareLink = async (permission = 'view') => {
     try {
       if (isCollaborative && documentId) {
         // Generate link for collaborative document
@@ -881,24 +963,23 @@ const DocumentEditor = () => {
             'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ permission: 'view' })
+          body: JSON.stringify({ permission })
         });
         
         if (response.ok) {
           const data = await response.json();
-          const link = `${window.location.origin}/viewer/${documentId}?token=${data.shareToken}`;
+          const link = permission === 'edit' 
+            ? `${window.location.origin}/editor/address/${data.documentAddress}?token=${data.shareToken}`
+            : `${window.location.origin}/viewer/address/${data.documentAddress}?token=${data.shareToken}`;
           setShareLink(link);
           await navigator.clipboard.writeText(link);
-          showNotification('Share link copied to clipboard!', 'success');
+          showNotification(`${permission === 'edit' ? 'Edit' : 'View'} link copied to clipboard!`, 'success');
         } else {
           showNotification('Failed to generate share link', 'error');
         }
       } else {
-        // Generate link for local document
-        const link = `${window.location.origin}/editor/shared/${btoa(documentTitle)}`;
-        setShareLink(link);
-        await navigator.clipboard.writeText(link);
-        showNotification('Share link copied to clipboard!', 'success');
+        // Create collaborative document first
+        await createCollaborativeDocument();
       }
     } catch (error) {
       console.error('Error generating share link:', error);
@@ -906,28 +987,122 @@ const DocumentEditor = () => {
     }
   };
   
-  const addCollaborator = () => {
+  const createCollaborativeDocument = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        },
+        body: JSON.stringify({
+          title: documentTitle,
+          content: editorRef.current.innerHTML,
+          pages: pages,
+          formatting: {
+            defaultFont: defaultFont,
+            pageBorder: pageBorder,
+            watermark: watermark,
+            pageNumbering: pageNumbering
+          }
+        })
+      });
+      
+      if (response.ok) {
+        const newDoc = await response.json();
+        setDocumentData(newDoc);
+        setIsCollaborative(true);
+        setUserPermission('edit');
+        
+        // Update URL to reflect collaborative document
+        window.history.replaceState({}, '', `/editor/${newDoc._id}`);
+        
+        showNotification('Document converted to collaborative mode!', 'success');
+        return newDoc;
+      } else {
+        showNotification('Failed to create collaborative document', 'error');
+      }
+    } catch (error) {
+      console.error('Error creating collaborative document:', error);
+      showNotification('Failed to create collaborative document', 'error');
+    }
+  };
+  
+  const addCollaborator = async () => {
     const email = window.prompt('Enter collaborator email:');
+    const permission = window.confirm('Give edit permission? (Cancel for view-only)') ? 'edit' : 'view';
+    
     if (email && email.includes('@')) {
-      const newCollaborator = {
-        id: Date.now().toString(),
-        email: email,
-        role: 'editor',
-        addedAt: new Date().toISOString()
-      };
-      setCollaborators([...collaborators, newCollaborator]);
-      showNotification(`Collaborator ${email} added successfully!`, 'success');
+      if (isCollaborative && documentId) {
+        // Add to server document
+        try {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${documentId}/collaborators`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+            },
+            body: JSON.stringify({ email, permission })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setCollaborators(data.collaborators);
+            showNotification(`Collaborator ${email} added with ${permission} permission!`, 'success');
+          } else {
+            const error = await response.json();
+            showNotification(error.message || 'Failed to add collaborator', 'error');
+          }
+        } catch (error) {
+          console.error('Error adding collaborator:', error);
+          showNotification('Failed to add collaborator', 'error');
+        }
+      } else {
+        // Local document - convert to collaborative first
+        const doc = await createCollaborativeDocument();
+        if (doc) {
+          // Retry adding collaborator
+          setTimeout(() => addCollaborator(), 1000);
+        }
+      }
     } else if (email) {
       showNotification('Please enter a valid email address', 'error');
     }
   };
   
-  const restoreVersion = (version) => {
+  const restoreVersion = async (version) => {
     if (window.confirm('Restore this version? Current changes will be lost.')) {
-      editorRef.current.innerHTML = version.content;
-      saveDocument();
+      if (isCollaborative && documentId) {
+        // Restore server version
+        try {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${documentId}/restore-version`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+            },
+            body: JSON.stringify({ versionNumber: version.version })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            editorRef.current.innerHTML = data.document.content;
+            setDocumentData(data.document);
+            showNotification('Version restored successfully!', 'success');
+          } else {
+            showNotification('Failed to restore version', 'error');
+          }
+        } catch (error) {
+          console.error('Error restoring version:', error);
+          showNotification('Failed to restore version', 'error');
+        }
+      } else {
+        // Local version restore
+        editorRef.current.innerHTML = version.content;
+        saveDocument(false, true); // Save as new version
+        showNotification('Version restored successfully!', 'success');
+      }
       setShowVersionHistory(false);
-      showNotification('Version restored successfully!', 'success');
     }
   };
   
@@ -935,47 +1110,111 @@ const DocumentEditor = () => {
   const startAutoSave = () => {
     if (autoSaveInterval.current) clearInterval(autoSaveInterval.current);
     autoSaveInterval.current = setInterval(() => {
-      saveDocument(true);
+      if (editorRef.current && editorRef.current.innerHTML.trim()) {
+        saveDocument(true);
+      }
     }, 30000); // Auto-save every 30 seconds
+  };
+  
+  // Load document by address
+  const loadDocumentByAddress = async (address) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/address/${address}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+      
+      if (response.ok) {
+        const doc = await response.json();
+        setDocumentData(doc);
+        setDocumentTitle(doc.title);
+        setIsCollaborative(true);
+        setUserPermission(doc.userPermission);
+        setPages(doc.pages || [{ id: 1, content: doc.content, pageNumber: 1 }]);
+        
+        if (doc.formatting) {
+          setDefaultFont(doc.formatting.defaultFont || defaultFont);
+          setPageBorder(doc.formatting.pageBorder || pageBorder);
+          setWatermark(doc.formatting.watermark || watermark);
+          setPageNumbering(doc.formatting.pageNumbering || pageNumbering);
+        }
+        
+        if (editorRef.current) {
+          editorRef.current.innerHTML = doc.content || '';
+        }
+        
+        showNotification('Document loaded successfully!', 'success');
+        return true;
+      } else {
+        showNotification('Document not found or access denied', 'error');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error loading document by address:', error);
+      showNotification('Failed to load document', 'error');
+      return false;
+    }
   };
   
   // Load document data if collaborative or from localStorage
   React.useEffect(() => {
-    if (documentId) {
-      fetchDocumentData();
-    } else {
-      // Load saved document from localStorage if available
-      const savedDocId = localStorage.getItem('currentDocumentId');
-      if (savedDocId) {
-        const savedDocs = JSON.parse(localStorage.getItem('documents') || '[]');
-        const savedDoc = savedDocs.find(doc => doc.id === savedDocId);
-        if (savedDoc && editorRef.current) {
-          setDocumentTitle(savedDoc.title);
-          editorRef.current.innerHTML = savedDoc.content;
-          setCollaborators(savedDoc.collaborators || []);
-          
-          // Load document-specific settings if available
-          if (savedDoc.pageBorder) setPageBorder(savedDoc.pageBorder);
-          if (savedDoc.headerText) setHeaderText(savedDoc.headerText);
-          if (savedDoc.footerText) setFooterText(savedDoc.footerText);
-          if (savedDoc.pages) setPages(savedDoc.pages);
-          
-          saveToUndoStack();
+    const initializeDocument = async () => {
+      if (documentId) {
+        // Check if it's a valid MongoDB ObjectId (24 hex characters)
+        if (documentId.match(/^[0-9a-fA-F]{24}$/)) {
+          // Load by MongoDB document ID
+          await fetchDocumentData();
+        } else if (documentId.startsWith('doc_')) {
+          // Load by document address
+          await loadDocumentByAddress(documentId);
+        } else {
+          // Invalid document ID format - redirect to home
+          showNotification('Invalid document ID format', 'error');
+          navigate('/');
+          return;
         }
-        localStorage.removeItem('currentDocumentId');
+      } else {
+        // Load saved document from localStorage if available
+        const savedDocId = localStorage.getItem('currentDocumentId');
+        if (savedDocId) {
+          const savedDocs = JSON.parse(localStorage.getItem('documents') || '[]');
+          const savedDoc = savedDocs.find(doc => doc.id === savedDocId);
+          if (savedDoc && editorRef.current) {
+            setDocumentTitle(savedDoc.title);
+            editorRef.current.innerHTML = savedDoc.content;
+            setCollaborators(savedDoc.collaborators || []);
+            setPages(savedDoc.pages || [{ id: 1, content: savedDoc.content, pageNumber: 1 }]);
+            
+            // Load document-specific settings
+            if (savedDoc.formatting) {
+              setDefaultFont(savedDoc.formatting.defaultFont || defaultFont);
+              setPageBorder(savedDoc.formatting.pageBorder || pageBorder);
+              setWatermark(savedDoc.formatting.watermark || watermark);
+              setPageNumbering(savedDoc.formatting.pageNumbering || pageNumbering);
+            }
+            if (savedDoc.headerText) setHeaderText(savedDoc.headerText);
+            if (savedDoc.footerText) setFooterText(savedDoc.footerText);
+            
+            saveToUndoStack();
+          }
+          localStorage.removeItem('currentDocumentId');
+        }
+        
+        // Load local document history
+        const history = JSON.parse(localStorage.getItem(`history_${documentTitle}`) || '[]');
+        setDocumentHistory(history);
+        startAutoSave();
       }
-      
-      // Load local document history
-      const history = JSON.parse(localStorage.getItem(`history_${documentTitle}`) || '[]');
-      setDocumentHistory(history);
-      startAutoSave();
-    }
+    };
+    
+    initializeDocument();
     
     return () => {
       if (autoSaveInterval.current) clearInterval(autoSaveInterval.current);
       if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
     };
-  }, [documentId, documentTitle]);
+  }, [documentId]);
   
   // Set content for each page
   React.useEffect(() => {
@@ -991,6 +1230,13 @@ const DocumentEditor = () => {
   
   const fetchDocumentData = async () => {
     try {
+      // Validate document ID format before making request
+      if (!documentId || !documentId.match(/^[0-9a-fA-F]{24}$/)) {
+        showNotification('Invalid document ID format', 'error');
+        navigate('/');
+        return;
+      }
+      
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${documentId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
@@ -1002,14 +1248,30 @@ const DocumentEditor = () => {
         setDocumentData(data);
         setDocumentTitle(data.title);
         setIsCollaborative(true);
+        setCollaborators(data.collaborators || []);
         
-        // Set content
+        // Set content and pages
         if (editorRef.current) {
           editorRef.current.innerHTML = data.content || '<p>Start writing...</p>';
         }
+        setPages(data.pages || [{ id: 1, content: data.content || '<p>Start writing...</p>', pageNumber: 1 }]);
+        
+        // Load document formatting
+        if (data.formatting) {
+          setDefaultFont(data.formatting.defaultFont || defaultFont);
+          setPageBorder(data.formatting.pageBorder || pageBorder);
+          setWatermark(data.formatting.watermark || watermark);
+          setPageNumbering(data.formatting.pageNumbering || pageNumbering);
+        }
+        
+        // Set word count
+        const textContent = data.content ? data.content.replace(/<[^>]*>/g, '').trim() : '';
+        const words = textContent.split(/\s+/).filter(word => word.length > 0);
+        setWordCount(words.length);
         
         // Check user permission
-        const userId = JSON.parse(localStorage.getItem('userProfile') || '{}')._id;
+        const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+        const userId = userProfile._id || localStorage.getItem('userId');
         const isOwner = data.owner._id === userId;
         const collaborator = data.collaborators.find(c => c.user._id === userId);
         
@@ -1028,13 +1290,42 @@ const DocumentEditor = () => {
           navigate(`/viewer/${documentId}`);
           return;
         }
+        
+        // Load version history
+        await fetchVersionHistory();
+        
+        // Start auto-save for collaborative documents
+        startAutoSave();
+        
+        showNotification('Document loaded successfully!', 'success');
       } else {
         console.error('Failed to fetch document');
+        showNotification('Failed to load document', 'error');
         navigate('/');
       }
     } catch (error) {
       console.error('Error fetching document:', error);
+      showNotification('Error loading document', 'error');
       navigate('/');
+    }
+  };
+  
+  const fetchVersionHistory = async () => {
+    if (!documentId || !isCollaborative) return;
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${documentId}/versions`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+      
+      if (response.ok) {
+        const versions = await response.json();
+        setDocumentHistory(versions);
+      }
+    } catch (error) {
+      console.error('Error fetching version history:', error);
     }
   };
 
@@ -1174,104 +1465,351 @@ const DocumentEditor = () => {
   };
 
   const exportToPDF = async () => {
-    // Force focus out to ensure all content is saved
-    editorRef.current.blur();
-    
-    // Wait a moment for any pending updates
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    const element = editorRef.current;
-    
-    // Create a temporary container with better styling for PDF
-    const tempContainer = document.createElement('div');
-    tempContainer.style.cssText = `
-      position: absolute;
-      top: -9999px;
-      left: -9999px;
-      width: 800px;
-      background: white;
-      padding: 40px;
-      font-family: Georgia, serif;
-      font-size: 16px;
-      line-height: 1.6;
-      color: black;
-    `;
-    
-    // Clone the editor content
-    tempContainer.innerHTML = element.innerHTML;
-    
-    // Preserve text alignment and colors from original elements
-    const originalElements = element.querySelectorAll('*');
-    const tempElements = tempContainer.querySelectorAll('*');
-    
-    originalElements.forEach((originalEl, index) => {
-      if (tempElements[index]) {
-        const computedStyle = window.getComputedStyle(originalEl);
-        const tempEl = tempElements[index];
-        
-        // Copy alignment
-        if (computedStyle.textAlign && computedStyle.textAlign !== 'start') {
-          tempEl.style.textAlign = computedStyle.textAlign;
-        }
-        
-        // Copy colors
-        if (computedStyle.color && computedStyle.color !== 'rgb(0, 0, 0)') {
-          tempEl.style.color = computedStyle.color;
-        }
-        
-        if (computedStyle.backgroundColor && computedStyle.backgroundColor !== 'rgba(0, 0, 0, 0)') {
-          tempEl.style.backgroundColor = computedStyle.backgroundColor;
-        }
-      }
-    });
-    
-    // Ensure images are properly sized and aligned
-    const images = tempContainer.querySelectorAll('img');
-    images.forEach(img => {
-      const parentStyle = window.getComputedStyle(img.parentElement);
-      img.style.maxWidth = '100%';
-      img.style.height = 'auto';
-      img.style.display = 'block';
-      img.style.margin = '10px 0';
-      if (parentStyle.textAlign) {
-        img.style.marginLeft = parentStyle.textAlign === 'center' ? 'auto' : '0';
-        img.style.marginRight = parentStyle.textAlign === 'center' ? 'auto' : '0';
-      }
-    });
-    
-    document.body.appendChild(tempContainer);
-    
     try {
-      const canvas = await html2canvas(tempContainer, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        width: 800,
-        height: tempContainer.scrollHeight
-      });
+      showNotification('Generating PDF...', 'info');
       
-      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210;
-      const pageHeight = 295;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 20;
+      const contentWidth = pageWidth - (2 * margin);
+      const contentHeight = pageHeight - (2 * margin);
       
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      // Helper function to convert hex to RGB
+      const hexToRgb = (hex) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        } : { r: 0, g: 0, b: 0 };
+      };
       
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+      // Process each page
+      for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+        const page = pages[pageIndex];
+        
+        if (pageIndex > 0) {
+          pdf.addPage();
+        }
+        
+        let yPosition = margin;
+        
+        // Add header if exists
+        if (headerText) {
+          const headerParts = headerText.split('|');
+          pdf.setFontSize(10);
+          pdf.setTextColor(100, 100, 100);
+          
+          if (headerParts[0]) pdf.text(headerParts[0].trim(), margin, yPosition);
+          if (headerParts[1]) pdf.text(headerParts[1].trim(), pageWidth / 2, yPosition, { align: 'center' });
+          if (headerParts[2]) pdf.text(headerParts[2].trim(), pageWidth - margin, yPosition, { align: 'right' });
+          
+          yPosition += 10;
+          pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 5;
+        }
+        
+        // Add page border if enabled
+        if (pageBorder.enabled) {
+          const borderWidth = parseFloat(pageBorder.width) || 1;
+          pdf.setLineWidth(borderWidth * 0.35);
+          
+          const borderColor = hexToRgb(pageBorder.color);
+          pdf.setDrawColor(borderColor.r, borderColor.g, borderColor.b);
+          
+          if (pageBorder.position === 'all') {
+            pdf.rect(margin, margin, contentWidth, contentHeight);
+          } else if (pageBorder.position === 'top') {
+            pdf.line(margin, margin, pageWidth - margin, margin);
+          } else if (pageBorder.position === 'bottom') {
+            pdf.line(margin, pageHeight - margin, pageWidth - margin, pageHeight - margin);
+          } else if (pageBorder.position === 'both') {
+            pdf.line(margin, margin, pageWidth - margin, margin);
+            pdf.line(margin, pageHeight - margin, pageWidth - margin, pageHeight - margin);
+          }
+        }
+        
+        // Create temporary container for this page
+        const tempContainer = document.createElement('div');
+        tempContainer.style.cssText = `
+          position: absolute;
+          top: -9999px;
+          left: -9999px;
+          width: ${contentWidth * 3.78}px;
+          background: white;
+          padding: 0;
+          font-family: ${defaultFont.family};
+          font-size: ${defaultFont.size};
+          line-height: ${defaultFont.lineHeight};
+          color: ${defaultFont.color};
+        `;
+        
+        // Get page content
+        const pageElement = document.querySelector(`[data-page-id="${page.id}"]`);
+        if (pageElement) {
+          tempContainer.innerHTML = pageElement.innerHTML;
+          
+          // Preserve all styling including alignment and formatting
+          const originalElements = pageElement.querySelectorAll('*');
+          const tempElements = tempContainer.querySelectorAll('*');
+          
+          originalElements.forEach((originalEl, index) => {
+            if (tempElements[index]) {
+              const computedStyle = window.getComputedStyle(originalEl);
+              const tempEl = tempElements[index];
+              
+              // Copy all visual styles
+              tempEl.style.textAlign = computedStyle.textAlign;
+              tempEl.style.color = computedStyle.color;
+              tempEl.style.backgroundColor = computedStyle.backgroundColor;
+              tempEl.style.fontWeight = computedStyle.fontWeight;
+              tempEl.style.fontStyle = computedStyle.fontStyle;
+              tempEl.style.textDecoration = computedStyle.textDecoration;
+              tempEl.style.fontSize = computedStyle.fontSize;
+              tempEl.style.fontFamily = computedStyle.fontFamily;
+              tempEl.style.lineHeight = computedStyle.lineHeight;
+              tempEl.style.margin = computedStyle.margin;
+              tempEl.style.padding = computedStyle.padding;
+              tempEl.style.display = computedStyle.display;
+              tempEl.style.float = computedStyle.float;
+              tempEl.style.width = computedStyle.width;
+              tempEl.style.height = computedStyle.height;
+              
+              // Handle list styles
+              if (originalEl.tagName === 'UL' || originalEl.tagName === 'OL') {
+                tempEl.style.listStyleType = computedStyle.listStyleType;
+                tempEl.style.listStylePosition = computedStyle.listStylePosition;
+                tempEl.style.paddingLeft = computedStyle.paddingLeft;
+                
+                // Handle custom list icons
+                if (originalEl.classList.contains('custom-list')) {
+                  const icon = originalEl.getAttribute('data-icon');
+                  tempEl.classList.add('custom-list');
+                  tempEl.setAttribute('data-icon', icon);
+                  
+                  // Apply custom list styles
+                  const listItems = tempEl.querySelectorAll('li');
+                  listItems.forEach(li => {
+                    li.setAttribute('data-icon', icon);
+                    li.style.position = 'relative';
+                    li.style.paddingLeft = '20px';
+                    li.style.listStyleType = 'none';
+                  });
+                }
+              }
+            }
+          });
+          
+          // Handle images with proper alignment
+          const images = tempContainer.querySelectorAll('img');
+          const originalImages = pageElement.querySelectorAll('img');
+          
+          images.forEach((img, index) => {
+            const originalImg = originalImages[index];
+            if (originalImg) {
+              const computedStyle = window.getComputedStyle(originalImg);
+              const parentStyle = window.getComputedStyle(originalImg.parentElement);
+              
+              // Preserve image dimensions and alignment
+              img.style.maxWidth = computedStyle.maxWidth || '100%';
+              img.style.width = computedStyle.width || 'auto';
+              img.style.height = computedStyle.height || 'auto';
+              img.style.display = computedStyle.display || 'block';
+              img.style.margin = computedStyle.margin;
+              img.style.padding = computedStyle.padding;
+              img.style.border = computedStyle.border;
+              img.style.borderRadius = computedStyle.borderRadius;
+              img.style.float = computedStyle.float;
+              
+              // Handle text alignment for images
+              if (parentStyle.textAlign === 'center') {
+                img.style.marginLeft = 'auto';
+                img.style.marginRight = 'auto';
+                img.style.display = 'block';
+              } else if (parentStyle.textAlign === 'right') {
+                img.style.marginLeft = 'auto';
+                img.style.marginRight = '0';
+                img.style.display = 'block';
+              } else if (parentStyle.textAlign === 'left') {
+                img.style.marginLeft = '0';
+                img.style.marginRight = 'auto';
+                img.style.display = 'block';
+              }
+            }
+          });
+          
+          // Handle custom list styling for PDF
+          const customLists = tempContainer.querySelectorAll('.custom-list');
+          customLists.forEach(list => {
+            const icon = list.getAttribute('data-icon');
+            const listItems = list.querySelectorAll('li');
+            
+            listItems.forEach(li => {
+              li.style.position = 'relative';
+              li.style.paddingLeft = '20px';
+              li.style.listStyleType = 'none';
+              
+              // Add icon as text content
+              const iconSpan = document.createElement('span');
+              iconSpan.textContent = icon;
+              iconSpan.style.position = 'absolute';
+              iconSpan.style.left = '0';
+              iconSpan.style.top = '0';
+              iconSpan.style.color = '#FFD700';
+              iconSpan.style.fontWeight = 'bold';
+              iconSpan.style.fontSize = '14px';
+              
+              li.insertBefore(iconSpan, li.firstChild);
+            });
+          });
+          
+          document.body.appendChild(tempContainer);
+          
+          try {
+            const canvas = await html2canvas(tempContainer, {
+              scale: 2,
+              useCORS: true,
+              allowTaint: true,
+              backgroundColor: '#ffffff',
+              width: contentWidth * 3.78,
+              logging: false
+            });
+            
+            const imgData = canvas.toDataURL('image/png');
+            const imgWidth = contentWidth;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            
+            let contentY = yPosition;
+            if (headerText) contentY += 10;
+            
+            const availableHeight = pageHeight - contentY - (footerText ? 15 : margin);
+            
+            if (imgHeight <= availableHeight) {
+              pdf.addImage(imgData, 'PNG', margin, contentY, imgWidth, imgHeight);
+            } else {
+              // Split content across pages
+              let remainingHeight = imgHeight;
+              let sourceY = 0;
+              
+              while (remainingHeight > 0) {
+                const currentPageHeight = Math.min(remainingHeight, availableHeight);
+                
+                const croppedCanvas = document.createElement('canvas');
+                const croppedCtx = croppedCanvas.getContext('2d');
+                croppedCanvas.width = canvas.width;
+                croppedCanvas.height = (currentPageHeight / imgHeight) * canvas.height;
+                
+                croppedCtx.drawImage(
+                  canvas,
+                  0, sourceY * canvas.height / imgHeight,
+                  canvas.width, croppedCanvas.height,
+                  0, 0,
+                  canvas.width, croppedCanvas.height
+                );
+                
+                const croppedImgData = croppedCanvas.toDataURL('image/png');
+                pdf.addImage(croppedImgData, 'PNG', margin, contentY, imgWidth, currentPageHeight);
+                
+                remainingHeight -= currentPageHeight;
+                sourceY += currentPageHeight;
+                
+                if (remainingHeight > 0) {
+                  pdf.addPage();
+                  contentY = margin + (headerText ? 15 : 0);
+                }
+              }
+            }
+          } finally {
+            document.body.removeChild(tempContainer);
+          }
+        }
+        
+        // Add watermark if enabled
+        if (watermark.enabled) {
+          pdf.saveGraphicsState();
+          pdf.setGState(new pdf.GState({ opacity: watermark.opacity }));
+          
+          if (watermark.type === 'text') {
+            pdf.setFontSize(watermark.size * 0.35);
+            const watermarkColor = hexToRgb(watermark.color);
+            pdf.setTextColor(watermarkColor.r, watermarkColor.g, watermarkColor.b);
+            
+            const centerX = pageWidth / 2;
+            const centerY = pageHeight / 2;
+            
+            pdf.text(watermark.text, centerX, centerY, {
+              angle: watermark.rotation,
+              align: 'center'
+            });
+          } else if (watermark.type === 'image' && watermark.image) {
+            // Add image watermark
+            const imgWidth = watermark.size * 0.35;
+            const imgHeight = watermark.size * 0.35;
+            const centerX = (pageWidth - imgWidth) / 2;
+            const centerY = (pageHeight - imgHeight) / 2;
+            
+            pdf.addImage(watermark.image, 'PNG', centerX, centerY, imgWidth, imgHeight);
+            
+            // Add text next to image
+            pdf.setFontSize((watermark.size * 0.6) * 0.35);
+            const watermarkColor = hexToRgb(watermark.color);
+            pdf.setTextColor(watermarkColor.r, watermarkColor.g, watermarkColor.b);
+            
+            pdf.text('Watermark', centerX + imgWidth + 5, centerY + (imgHeight / 2), {
+              angle: watermark.rotation,
+              align: 'left'
+            });
+          }
+          
+          pdf.restoreGraphicsState();
+        }
+        
+        // Add footer if exists
+        if (footerText || pageNumbering.enabled) {
+          const footerY = pageHeight - margin + 5;
+          pdf.setFontSize(10);
+          pdf.setTextColor(100, 100, 100);
+          
+          if (footerText) {
+            const footerParts = footerText.split('|');
+            if (footerParts[0]) pdf.text(footerParts[0].trim(), margin, footerY);
+            if (footerParts[1]) pdf.text(footerParts[1].trim(), pageWidth / 2, footerY, { align: 'center' });
+            if (footerParts[2]) pdf.text(footerParts[2].trim(), pageWidth - margin, footerY, { align: 'right' });
+          }
+          
+          if (pageNumbering.enabled) {
+            let pageNum = pageIndex + 1;
+            if (pageNumbering.format === 'i') {
+              const romanNumerals = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x'];
+              pageNum = romanNumerals[pageIndex] || (pageIndex + 1);
+            } else if (pageNumbering.format === 'a') {
+              pageNum = String.fromCharCode(97 + pageIndex);
+            }
+            
+            const positions = {
+              'bottom-left': [margin, footerY],
+              'bottom-center': [pageWidth / 2, footerY, { align: 'center' }],
+              'bottom-right': [pageWidth - margin, footerY, { align: 'right' }],
+              'top-left': [margin, margin - 5],
+              'top-center': [pageWidth / 2, margin - 5, { align: 'center' }],
+              'top-right': [pageWidth - margin, margin - 5, { align: 'right' }]
+            };
+            
+            const [x, y, options] = positions[pageNumbering.position] || positions['bottom-right'];
+            pdf.text(String(pageNum), x, y, options);
+          }
+          
+          pdf.line(margin, footerY - 3, pageWidth - margin, footerY - 3);
+        }
       }
       
       pdf.save(`${documentTitle}.pdf`);
-    } finally {
-      document.body.removeChild(tempContainer);
+      showNotification('PDF exported successfully!', 'success');
+      
+    } catch (error) {
+      console.error('PDF export error:', error);
+      showNotification('Failed to export PDF. Please try again.', 'error');
     }
   };
 
@@ -1610,7 +2148,14 @@ const DocumentEditor = () => {
           )}
         </div>
         <div className="navbar-right">
-          <button className="nav-btn" onClick={() => saveDocument()}><i class="ri-save-line"></i> Save</button>
+          <button className="nav-btn" onClick={() => saveDocument(false, true)}><i className="ri-save-line"></i> Save</button>
+          <button 
+            className="nav-btn" 
+            onClick={toggleTheme}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            <i className={`ri-${theme === 'dark' ? 'sun' : 'moon'}-line`}></i>
+          </button>
           <button 
             className="nav-btn" 
             onClick={() => setShowShareModal(true)}
@@ -1618,6 +2163,11 @@ const DocumentEditor = () => {
           >
             <i class="ri-share-fill"></i> Share
           </button>
+          {isCollaborative && (
+            <span className="collaboration-indicator">
+              <i className="ri-team-line"></i> {collaborators.length + 1}
+            </span>
+          )}
           <button 
             className="nav-btn" 
             onClick={deleteDocument}
@@ -1967,31 +2517,41 @@ const DocumentEditor = () => {
                         color: watermark.color,
                         fontWeight: 'bold',
                         userSelect: 'none',
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px'
                       }}
                     >
                       {watermark.type === 'text' ? (
                         watermark.text
                       ) : watermark.image ? (
-                        <img 
-                          src={watermark.image} 
-                          alt="Watermark" 
-                          style={{
-                            width: `${watermark.size}px`,
-                            height: 'auto',
-                            maxWidth: '300px',
-                            maxHeight: '300px'
-                          }}
-                        />
+                        <>
+                          <img 
+                            src={watermark.image} 
+                            alt="Watermark" 
+                            style={{
+                              width: `${watermark.size}px`,
+                              height: 'auto',
+                              maxWidth: '300px',
+                              maxHeight: '300px'
+                            }}
+                          />
+                          <span style={{
+                            fontSize: `${watermark.size * 0.6}px`,
+                            color: watermark.color,
+                            fontWeight: 'bold'
+                          }}>Watermark</span>
+                        </>
                       ) : null}
-                    </div>
+                    </div> 
                   )}
                 </div>
                 
                 {(footerText || pageNumbering.enabled && (pageNumbering.position.startsWith('bottom'))) && (
                   <div className="page-hf-element bottom-footer" style={{
                     position: 'absolute',
-                    bottom: '5mm',
+                    bottom: '10mm',
                     left: '20mm',
                     right: '20mm',
                     display: 'flex',
@@ -2624,8 +3184,10 @@ const DocumentEditor = () => {
       <ShareModal
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
-        documentId={documentId || 'temp-doc-id'}
+        documentId={documentId || documentData?._id}
         documentTitle={documentTitle}
+        documentData={documentData}
+        isCollaborative={isCollaborative}
       />
       
       {/* Template Demo */}

@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 import { useLogoAnimation } from '../hooks/useLogoAnimation';
+import { ThemeContext } from '../context/ThemeContext';
 import './Navbar.css';
 
 const Navbar = () => {
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('theme') || 'dark';
-  });
+  const { theme, toggleTheme } = useContext(ThemeContext);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -21,17 +20,7 @@ const Navbar = () => {
   const navigate = useNavigate();
   const isLogoAnimating = useLogoAnimation();
   
-  const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-    document.body.className = newTheme;
-  };
-  
-  useEffect(() => {
-    document.body.className = theme;
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+
   
   useEffect(() => {
     const token = localStorage.getItem('accessToken');

@@ -1,104 +1,163 @@
-import React, { useState } from 'react';
-import './ShareModal.css';
+import React, { useState, useEffect } from 'react';
 import { useNotification } from '../context/NotificationContext';
+import './ShareModal.css';
 
-const ShareModal = ({ isOpen, onClose, documentId, documentTitle }) => {
+const ShareModal = ({ isOpen, onClose, documentId, documentTitle, documentData, isCollaborative }) => {
   const { showNotification } = useNotification();
-  const [activeTab, setActiveTab] = useState('collaborate');
-  const [email, setEmail] = useState('');
-  const [permission, setPermission] = useState('edit');
-  const [message, setMessage] = useState('');
-  const [shareLink, setShareLink] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [shareLinks, setShareLinks] = useState({
+    view: '',
+    edit: ''
+  });
+  const [collaborators, setCollaborators] = useState([]);
+  const [newCollaboratorEmail, setNewCollaboratorEmail] = useState('');
+  const [newCollaboratorPermission, setNewCollaboratorPermission] = useState('view');
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [isAddingCollaborator, setIsAddingCollaborator] = useState(false);
+  const [activeTab, setActiveTab] = useState('share');
 
-  const sendCollaborationRequest = async () => {
-    if (!email.trim()) {
-      showNotification('Please enter an email address', 'warning');
-      return;
-    }
-    
-    console.log('Sending collaboration request:', {
-      documentId,
-      documentTitle,
-      email: email.trim(),
-      permission,
-      message: message.trim()
-    });
-    
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        showNotification('Please log in to send collaboration requests', 'error');
-        return;
+  useEffect(() => {
+    if (isOpen && documentData) {
+      setCollaborators(documentData.collaborators || []);
+      if (documentData.shareSettings?.shareLink) {
+        const baseUrl = `${window.location.origin}`;
+        const viewLink = `${baseUrl}/viewer/address/${documentData.documentAddress}?token=${documentData.shareSettings.shareLink}`;
+        const editLink = `${baseUrl}/editor/address/${documentData.documentAddress}?token=${documentData.shareSettings.shareLink}`;
+        
+        setShareLinks({
+          view: viewLink,
+          edit: documentData.shareSettings.linkPermission === 'edit' ? editLink : ''
+        });
       }
-      
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/collaboration/request`, {
+    }
+  }, [isOpen, documentData]);
+
+  const generateShareLink = async (permission) => {
+    setIsGeneratingLink(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${documentId}/share`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          documentId,
-          documentTitle,
-          email: email.trim(),
-          permission,
-          message: message.trim()
-        })
-      });
-
-      console.log('Response status:', response.status);
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Success:', result);
-        showNotification('Collaboration request sent successfully!', 'success');
-        setEmail('');
-        setMessage('');
-        onClose();
-      } else {
-        const error = await response.json();
-        console.error('Server error:', error);
-        showNotification(error.message || `Failed to send collaboration request (${response.status})`, 'error');
-      }
-    } catch (error) {
-      console.error('Network error:', error);
-      showNotification('Network error: Failed to send collaboration request', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const generateShareLink = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/collaboration/share-link`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        },
-        body: JSON.stringify({
-          documentId,
-          permission
-        })
+        body: JSON.stringify({ permission })
       });
 
       if (response.ok) {
         const data = await response.json();
-        setShareLink(data.shareLink);
-        navigator.clipboard.writeText(data.shareLink);
-        showNotification('Share link copied to clipboard!', 'success');
+        const baseUrl = `${window.location.origin}`;
+        const link = permission === 'edit' 
+          ? `${baseUrl}/editor/address/${data.documentAddress}?token=${data.shareToken}`
+          : `${baseUrl}/viewer/address/${data.documentAddress}?token=${data.shareToken}`;
+        
+        setShareLinks(prev => ({
+          ...prev,
+          [permission]: link
+        }));
+        
+        showNotification(`${permission === 'edit' ? 'Edit' : 'View'} link generated successfully!`, 'success');
       } else {
-        const error = await response.json();
-        showNotification(error.message || 'Failed to generate share link', 'error');
+        showNotification('Failed to generate share link', 'error');
       }
     } catch (error) {
       console.error('Error generating share link:', error);
       showNotification('Failed to generate share link', 'error');
     } finally {
-      setLoading(false);
+      setIsGeneratingLink(false);
+    }
+  };
+
+  const copyToClipboard = async (text, type) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showNotification(`${type} link copied to clipboard!`, 'success');
+    } catch (error) {
+      showNotification('Failed to copy to clipboard', 'error');
+    }
+  };
+
+  const addCollaborator = async () => {
+    if (!newCollaboratorEmail || !newCollaboratorEmail.includes('@')) {
+      showNotification('Please enter a valid email address', 'error');
+      return;
+    }
+
+    setIsAddingCollaborator(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${documentId}/collaborators`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        },
+        body: JSON.stringify({ 
+          email: newCollaboratorEmail, 
+          permission: newCollaboratorPermission 
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCollaborators(data.collaborators);
+        setNewCollaboratorEmail('');
+        showNotification(`Collaborator added with ${newCollaboratorPermission} permission!`, 'success');
+      } else {
+        const error = await response.json();
+        showNotification(error.message || 'Failed to add collaborator', 'error');
+      }
+    } catch (error) {
+      console.error('Error adding collaborator:', error);
+      showNotification('Failed to add collaborator', 'error');
+    } finally {
+      setIsAddingCollaborator(false);
+    }
+  };
+
+  const removeCollaborator = async (collaboratorId) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${documentId}/collaborators/${collaboratorId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+
+      if (response.ok) {
+        setCollaborators(prev => prev.filter(c => c.user._id !== collaboratorId));
+        showNotification('Collaborator removed successfully', 'success');
+      } else {
+        showNotification('Failed to remove collaborator', 'error');
+      }
+    } catch (error) {
+      console.error('Error removing collaborator:', error);
+      showNotification('Failed to remove collaborator', 'error');
+    }
+  };
+
+  const updateCollaboratorPermission = async (collaboratorId, newPermission) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${documentId}/collaborators`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        },
+        body: JSON.stringify({ 
+          email: collaborators.find(c => c.user._id === collaboratorId)?.user.email,
+          permission: newPermission 
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCollaborators(data.collaborators);
+        showNotification('Permission updated successfully', 'success');
+      } else {
+        showNotification('Failed to update permission', 'error');
+      }
+    } catch (error) {
+      console.error('Error updating permission:', error);
+      showNotification('Failed to update permission', 'error');
     }
   };
 
@@ -108,138 +167,210 @@ const ShareModal = ({ isOpen, onClose, documentId, documentTitle }) => {
     <div className="modal-overlay" onClick={onClose}>
       <div className="share-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Share "{documentTitle}"</h3>
+          <h2>Share "{documentTitle}"</h2>
           <button className="close-btn" onClick={onClose}>
             <i className="ri-close-line"></i>
           </button>
         </div>
 
-        <div className="share-tabs">
+        <div className="modal-tabs">
           <button 
-            className={`tab-btn ${activeTab === 'collaborate' ? 'active' : ''}`}
-            onClick={() => setActiveTab('collaborate')}
+            className={`tab-btn ${activeTab === 'share' ? 'active' : ''}`}
+            onClick={() => setActiveTab('share')}
           >
-            <i className="ri-user-add-line"></i>
-            Collaborate
+            <i className="ri-share-line"></i> Share Links
           </button>
           <button 
-            className={`tab-btn ${activeTab === 'link' ? 'active' : ''}`}
-            onClick={() => setActiveTab('link')}
+            className={`tab-btn ${activeTab === 'collaborators' ? 'active' : ''}`}
+            onClick={() => setActiveTab('collaborators')}
           >
-            <i className="ri-link"></i>
-            Share Link
+            <i className="ri-team-line"></i> Collaborators ({collaborators.length})
           </button>
         </div>
 
         <div className="modal-content">
-          {activeTab === 'collaborate' && (
-            <div className="collaborate-section">
-              <div className="form-group">
-                <label>Email Address</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter collaborator's email"
-                  className="form-input"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Permission</label>
-                <select
-                  value={permission}
-                  onChange={(e) => setPermission(e.target.value)}
-                  className="form-select"
-                >
-                  <option value="view">Can View</option>
-                  <option value="edit">Can Edit</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Message (Optional)</label>
-                <textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Add a personal message..."
-                  className="form-textarea"
-                  rows="3"
-                />
-              </div>
-
-              <div className="button-group">
-                <button
-                  onClick={sendCollaborationRequest}
-                  disabled={loading || !email.trim()}
-                  className="btn btn-primary"
-                >
-                  {loading ? 'Sending...' : 'Send Invitation'}
-                </button>
-                <button
-                  onClick={onClose}
-                  className="btn btn-cancel"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'link' && (
-            <div className="link-section">
-              <div className="form-group">
-                <label>Link Permission</label>
-                <select
-                  value={permission}
-                  onChange={(e) => setPermission(e.target.value)}
-                  className="form-select"
-                >
-                  <option value="view">Anyone with link can view</option>
-                  <option value="edit">Anyone with link can edit</option>
-                </select>
-              </div>
-
-              <div className="button-group">
-                <button
-                  onClick={generateShareLink}
-                  disabled={loading}
-                  className="btn btn-primary"
-                >
-                  {loading ? 'Generating...' : 'Generate Share Link'}
-                </button>
-                <button
-                  onClick={onClose}
-                  className="btn btn-cancel"
-                >
-                  Cancel
-                </button>
-              </div>
-
-              {shareLink && (
-                <div className="share-link-result">
-                  <label>Share Link</label>
-                  <div className="link-container">
-                    <input
-                      type="text"
-                      value={shareLink}
-                      readOnly
-                      className="form-input"
-                    />
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(shareLink);
-                        showNotification('Link copied!', 'success');
-                      }}
-                      className="copy-btn"
-                    >
-                      <i className="ri-file-copy-line"></i>
-                    </button>
+          {activeTab === 'share' && (
+            <div className="share-tab">
+              <div className="share-section">
+                <h3><i className="ri-eye-line"></i> View-Only Access</h3>
+                <p>Anyone with this link can view the document but cannot edit it.</p>
+                <div className="link-container">
+                  <input 
+                    type="text" 
+                    value={shareLinks.view} 
+                    readOnly 
+                    placeholder="Generate a view-only link"
+                    className="link-input"
+                  />
+                  <div className="link-actions">
+                    {shareLinks.view ? (
+                      <button 
+                        onClick={() => copyToClipboard(shareLinks.view, 'View')}
+                        className="copy-btn"
+                      >
+                        <i className="ri-file-copy-line"></i> Copy
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => generateShareLink('view')}
+                        disabled={isGeneratingLink}
+                        className="generate-btn"
+                      >
+                        {isGeneratingLink ? (
+                          <><i className="ri-loader-4-line spinning"></i> Generating...</>
+                        ) : (
+                          <><i className="ri-link"></i> Generate</>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
-              )}
+              </div>
+
+              <div className="share-section">
+                <h3><i className="ri-edit-line"></i> Edit Access</h3>
+                <p>Anyone with this link can view and edit the document.</p>
+                <div className="link-container">
+                  <input 
+                    type="text" 
+                    value={shareLinks.edit} 
+                    readOnly 
+                    placeholder="Generate an edit link"
+                    className="link-input"
+                  />
+                  <div className="link-actions">
+                    {shareLinks.edit ? (
+                      <button 
+                        onClick={() => copyToClipboard(shareLinks.edit, 'Edit')}
+                        className="copy-btn"
+                      >
+                        <i className="ri-file-copy-line"></i> Copy
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => generateShareLink('edit')}
+                        disabled={isGeneratingLink}
+                        className="generate-btn"
+                      >
+                        {isGeneratingLink ? (
+                          <><i className="ri-loader-4-line spinning"></i> Generating...</>
+                        ) : (
+                          <><i className="ri-link"></i> Generate</>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="share-info">
+                <div className="info-item">
+                  <i className="ri-information-line"></i>
+                  <span>Links are valid until you revoke access or delete the document.</span>
+                </div>
+                <div className="info-item">
+                  <i className="ri-shield-check-line"></i>
+                  <span>Only people with the link can access your document.</span>
+                </div>
+              </div>
             </div>
           )}
+
+          {activeTab === 'collaborators' && (
+            <div className="collaborators-tab">
+              <div className="add-collaborator-section">
+                <h3><i className="ri-user-add-line"></i> Add Collaborator</h3>
+                <div className="add-collaborator-form">
+                  <input
+                    type="email"
+                    placeholder="Enter email address"
+                    value={newCollaboratorEmail}
+                    onChange={(e) => setNewCollaboratorEmail(e.target.value)}
+                    className="email-input"
+                  />
+                  <select
+                    value={newCollaboratorPermission}
+                    onChange={(e) => setNewCollaboratorPermission(e.target.value)}
+                    className="permission-select"
+                  >
+                    <option value="view">View Only</option>
+                    <option value="edit">Can Edit</option>
+                  </select>
+                  <button
+                    onClick={addCollaborator}
+                    disabled={isAddingCollaborator || !newCollaboratorEmail}
+                    className="add-btn"
+                  >
+                    {isAddingCollaborator ? (
+                      <><i className="ri-loader-4-line spinning"></i> Adding...</>
+                    ) : (
+                      <><i className="ri-add-line"></i> Add</>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="collaborators-list">
+                <h3><i className="ri-team-line"></i> Current Collaborators</h3>
+                {collaborators.length === 0 ? (
+                  <div className="empty-state">
+                    <i className="ri-team-line"></i>
+                    <p>No collaborators yet</p>
+                    <span>Add people to collaborate on this document</span>
+                  </div>
+                ) : (
+                  <div className="collaborator-items">
+                    {collaborators.map((collaborator) => (
+                      <div key={collaborator.user._id} className="collaborator-item">
+                        <div className="collaborator-info">
+                          <div className="collaborator-avatar">
+                            {collaborator.user.fullName?.charAt(0).toUpperCase() || 
+                             collaborator.user.email.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="collaborator-details">
+                            <span className="collaborator-name">
+                              {collaborator.user.fullName || collaborator.user.email}
+                            </span>
+                            <span className="collaborator-email">{collaborator.user.email}</span>
+                            <span className="collaborator-added">
+                              Added {new Date(collaborator.addedAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="collaborator-actions">
+                          <select
+                            value={collaborator.permission}
+                            onChange={(e) => updateCollaboratorPermission(collaborator.user._id, e.target.value)}
+                            className="permission-select small"
+                          >
+                            <option value="view">View Only</option>
+                            <option value="edit">Can Edit</option>
+                          </select>
+                          <button
+                            onClick={() => removeCollaborator(collaborator.user._id)}
+                            className="remove-btn"
+                            title="Remove collaborator"
+                          >
+                            <i className="ri-delete-bin-line"></i>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="modal-footer">
+          <div className="document-info">
+            <i className="ri-file-text-line"></i>
+            <span>Document ID: {documentData?.documentAddress || 'Local Document'}</span>
+          </div>
+          <button onClick={onClose} className="close-modal-btn">
+            Done
+          </button>
         </div>
       </div>
     </div>

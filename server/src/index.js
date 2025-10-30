@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { createServer } from 'http';
 import connectDB from './config/db.js';
 // import { initializeSocket } from './services/realtime.service.js';
+import { startTrashCleanup } from './services/cleanup.service.js';
 import authRoutes from './routes/auth.routes.js';
 import collaborationRoutes from './routes/collaboration.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
@@ -108,4 +109,7 @@ server.listen(PORT, () => {
     JWT_SECRET: process.env.JWT_SECRET ? 'Set' : 'Missing',
     EMAIL_USER: process.env.EMAIL_USER ? 'Set' : 'Missing'
   });
+  
+  // Start cleanup service
+  startTrashCleanup();
 });

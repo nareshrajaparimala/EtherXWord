@@ -5,6 +5,7 @@ import LoadingPage from './components/LoadingPage';
 import NotificationContainer from './components/NotificationContainer';
 import ProtectedRoute from './components/ProtectedRoute';
 import { NotificationProvider } from './context/NotificationContext';
+import { ThemeProvider } from './context/ThemeContext';
 import Home from './pages/Home';
 import Templates from './pages/Templates';
 import DocumentEditor from './pages/DocumentEditor';
@@ -33,7 +34,10 @@ function AppContent() {
         <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
         <Route path="/editor" element={<ProtectedRoute><DocumentEditor /></ProtectedRoute>} />
         <Route path="/editor/:id" element={<ProtectedRoute><DocumentEditor /></ProtectedRoute>} />
+        <Route path="/editor/address/:documentAddress" element={<DocumentEditor />} />
         <Route path="/viewer/:documentId" element={<ProtectedRoute><DocumentViewer /></ProtectedRoute>} />
+        <Route path="/viewer/address/:documentAddress" element={<DocumentViewer />} />
+        <Route path="/viewer/shared/:token" element={<DocumentViewer />} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/signup" element={<SignUp />} />
@@ -48,15 +52,7 @@ function AppContent() {
 }
 
 function App() {
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('theme') || 'dark';
-  });
   const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }, [theme]);
 
   useEffect(() => {
     // Simulate app initialization
@@ -72,11 +68,13 @@ function App() {
   }
 
   return (
-    <NotificationProvider>
-      <Router>
-        <AppContent />
-      </Router>
-    </NotificationProvider>
+    <ThemeProvider>
+      <NotificationProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </NotificationProvider>
+    </ThemeProvider>
   );
 }
 

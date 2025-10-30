@@ -129,6 +129,34 @@
   transform: translateY(-1px);
 }
 
+/* Theme toggle button styling */
+.nav-btn[title*="mode"] {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.nav-btn[title*="mode"]:hover {
+  background: var(--hover-bg);
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+  transform: translateY(-1px);
+}
+
+/* Ensure hover background is defined */
+:root {
+  --hover-bg: rgba(255, 215, 0, 0.1);
+  --accent-color: var(--primary-yellow);
+}
+
+[data-theme="light"] {
+  --hover-bg: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] {
+  --hover-bg: rgba(255, 255, 255, 0.05);
+}
+
 .nav-icon {
   background: none;
   border: none;
@@ -733,6 +761,23 @@
   -ms-user-select: none;
 }
 
+/* Collaboration Indicator */
+.collaboration-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 215, 0, 0.1);
+  border: 1px solid var(--primary-yellow);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--primary-yellow);
+}
+
+.collaboration-indicator i {
+  font-size: 14px;
+}
+
 /* Editor Layout */
 .editor-layout {
   display: flex;
@@ -834,11 +879,37 @@
   font-family: Georgia, serif !important;
   font-size: 12pt !important;
   line-height: 1.5 !important;
-  color: #333 !important;
+  color: #333333 !important;
+  background: white !important;
 }
 
+/* Always keep editor content with dark text on white background */
 [data-theme="dark"] .editor-content {
-  color: #ffffff !important;
+  color: #333333 !important;
+  background: white !important;
+}
+
+/* Ensure all text elements in editor content are dark */
+.editor-content p,
+.editor-content div,
+.editor-content span,
+.editor-content h1,
+.editor-content h2,
+.editor-content h3,
+.editor-content h4,
+.editor-content h5,
+.editor-content h6,
+.editor-content li {
+  color: #333333 !important;
+}
+
+/* Override any inherited colors */
+.editor-page .editor-content * {
+  color: inherit !important;
+}
+
+.a4-page .a4-content * {
+  color: #333333 !important;
 }
 
 .editor-content p, .editor-content div {
@@ -904,7 +975,7 @@
   min-height: 297mm;
   max-width: 210mm;
   max-height: 297mm;
-  background: white;
+  background: white !important; /* Always white regardless of theme */
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   border-radius: 0;
   overflow: hidden;
@@ -954,10 +1025,12 @@
   max-height: 297mm;
   flex-shrink: 0;
   flex-grow: 0;
+  background: white !important; /* Always white regardless of theme */
 }
 
 .active-page {
   box-shadow: 0 0 0 2px white, 0 4px 20px rgba(0, 0, 0, 0.1);
+  background: white !important; /* Always white regardless of theme */
 }
 
 .page-number {
@@ -1014,18 +1087,18 @@
 
 /* Bottom positions */
 .page-hf-element.bottom-left {
-  bottom: 10mm;
+  bottom: 15mm;
   left: 20mm;
 }
 
 .page-hf-element.bottom-center {
-  bottom: 10mm;
+  bottom: 15mm;
   left: 50%;
   transform: translateX(-50%);
 }
 
 .page-hf-element.bottom-right {
-  bottom: 10mm;
+  bottom: 15mm;
   right: 20mm;
 }
 
@@ -1035,9 +1108,16 @@
   background: var(--surface);
 }
 
-[data-theme="dark"] .editor-page {
-  background: #1a1a1a;
-  color: #ffffff;
+/* Remove dark theme override for editor page - keep it white */
+.editor-page {
+  background: white !important;
+  color: #333333 !important;
+}
+
+/* Ensure editor content is always readable on white background */
+.editor-content {
+  background: white !important;
+  color: #333333 !important;
 }
 
 [data-theme="dark"] .page-number {
@@ -1047,8 +1127,8 @@
 
 .editor-content {
   padding: 0;
-  height: 110%;
-  width: 110%;
+  height: 100%;
+  width: 100%;
   font-family: 'Georgia', serif;
   font-size: 12pt;
   line-height: 1.5;
@@ -1056,9 +1136,60 @@
   outline: none;
   box-sizing: border-box;
   cursor: text;
-  overflow: visible;
+  overflow: hidden;
   white-space: pre-wrap;
   word-wrap: break-word;
+  position: relative;
+  max-height: calc(297mm - 60mm);
+}
+
+/* Line-based page management */
+.editor-content[data-line-count] {
+  position: relative;
+}
+
+.editor-content[data-height-usage]:after {
+  content: "Height: " attr(data-height-usage) " used";
+  position: absolute;
+  bottom: -25px;
+  right: 0;
+  font-size: 10px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border-color);
+}
+
+.page-break-needed {
+  border-bottom: 2px dashed #ff6b6b !important;
+}
+
+.page-break-needed:before {
+  content: "Near page limit - next line will create new page";
+  position: absolute;
+  bottom: -20px;
+  right: 0;
+  font-size: 9px;
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.1);
+  padding: 2px 6px;
+  border-radius: 3px;
+  z-index: 10;
+}
+
+.line-limit-warning {
+  position: absolute;
+  bottom: 35mm;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 107, 107, 0.9);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  z-index: 15;
 }
 
 @media (max-width: 1024px) {
@@ -1091,13 +1222,27 @@
 
 .a4-content {
   padding: 20mm;
-  height: 110%;
-  width: 110%;
+  height: 100%;
+  width: 100%;
   cursor: text;
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+}
+
+.a4-content {
+  --max-lines: 35;
+}
+
+/* Editor content should always be dark text on white background */
+.editor-content {
+  color: #333333 !important;
+  background: white !important;
 }
 
 [data-theme="dark"] .editor-content {
-  color: #ffffff;
+  color: #333333 !important;
+  background: white !important;
 }
 
 .editor-content p {
@@ -1180,19 +1325,55 @@
   top: 50%;
   right: 20px;
   transform: translateY(-50%);
-  background: rgba(26, 26, 26, 0.8);
+  background: rgba(26, 26, 26, 0.95);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   z-index: 1000;
-  min-width: 200px;
+  min-width: 220px;
+  max-width: 300px;
 }
 
 [data-theme="light"] .image-controls {
-  background: rgba(248, 250, 252, 0.8);
+  background: rgba(248, 250, 252, 0.95);
+}
+
+.image-controls h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
+.image-controls .control-group {
+  margin-bottom: 16px;
+}
+
+.image-controls .control-group:last-child {
+  margin-bottom: 0;
+}
+
+.image-controls button {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin: 2px;
+}
+
+.image-controls button:hover {
+  background: var(--hover-bg);
+  border-color: var(--primary-yellow);
+  color: var(--primary-yellow);
 }
 
 .image-controls h4 {
