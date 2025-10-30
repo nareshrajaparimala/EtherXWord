@@ -1087,18 +1087,18 @@
 
 /* Bottom positions */
 .page-hf-element.bottom-left {
-  bottom: 15mm;
+  bottom: 5mm;
   left: 20mm;
 }
 
 .page-hf-element.bottom-center {
-  bottom: 15mm;
+  bottom: 5mm;
   left: 50%;
   transform: translateX(-50%);
 }
 
 .page-hf-element.bottom-right {
-  bottom: 15mm;
+  bottom: 5mm;
   right: 20mm;
 }
 

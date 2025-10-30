@@ -2551,7 +2551,7 @@ const DocumentEditor = () => {
                 {(footerText || pageNumbering.enabled && (pageNumbering.position.startsWith('bottom'))) && (
                   <div className="page-hf-element bottom-footer" style={{
                     position: 'absolute',
-                    bottom: '10mm',
+                    bottom: (footerText || pageNumbering.enabled && pageNumbering.position.startsWith('bottom')) ? '15mm' : '20mm',
                     left: '20mm',
                     right: '20mm',
                     display: 'flex',
