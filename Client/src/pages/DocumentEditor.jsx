@@ -74,6 +74,7 @@ const DocumentEditor = () => {
     rotation: 45, // degrees
     alignment: 'center' // 'center', 'diagonal', 'straight'
   });
+  const [wordCount, setWordCount] = useState(0);
 
   const editorRef = useRef(null);
   const undoTimeoutRef = useRef(null);
@@ -120,6 +121,15 @@ const DocumentEditor = () => {
       editorRef.current.style.color = defaultFont.color;
     }
   }, [defaultFont]);
+  
+  // Update word count on initial load
+  React.useEffect(() => {
+    if (editorRef.current) {
+      const textContent = editorRef.current.innerText || editorRef.current.textContent || '';
+      const words = textContent.trim().split(/\s+/).filter(word => word.length > 0);
+      setWordCount(words.length);
+    }
+  }, [editorRef.current?.innerHTML]);
 
   // Keyboard shortcuts for undo/redo and find/replace
   React.useEffect(() => {
@@ -561,6 +571,11 @@ const DocumentEditor = () => {
         page.id === pageId ? { ...page, content } : page
       )
     );
+    
+    // Update word count
+    const textContent = e.target.innerText || e.target.textContent || '';
+    const words = textContent.trim().split(/\s+/).filter(word => word.length > 0);
+    setWordCount(words.length);
     
     // Check line count and create new page if needed
     checkAndCreateNewPage(e.target);
@@ -1781,7 +1796,7 @@ const DocumentEditor = () => {
         </div>
       </div>
 
-      <div className="editor-layout">
+      <div className="editor-layout" style={{marginBottom: '32px'}}>
         {/* Left Sidebar */}
         <aside className={`left-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
           <div className="sidebar-section">
@@ -1857,20 +1872,24 @@ const DocumentEditor = () => {
                 key={page.id}
                 className={`editor-page a4-page ${currentPage === page.id ? 'active-page' : ''}`}
               >
-                {headerText && (
+                {(headerText || pageNumbering.enabled && (pageNumbering.position.startsWith('top'))) && (
                   <div className="page-hf-element top-header" style={{
                     position: 'absolute',
-                    top: '10mm',
+                    top: '5mm',
                     left: '20mm',
                     right: '20mm',
                     display: 'flex',
                     justifyContent: 'space-between',
-                    fontSize: '12px',
-                    color: 'var(--text-secondary)'
+                    alignItems: 'center',
+                    fontSize: '11px',
+                    color: 'var(--text-secondary)',
+                    borderBottom: '1px solid var(--border-color)',
+                    paddingBottom: '2mm',
+                    zIndex: 10
                   }}>
-                    <span>{headerText.split('|')[0] || ''}</span>
-                    <span>{headerText.split('|')[1] || ''}</span>
-                    <span>{headerText.split('|')[2] || ''}</span>
+                    <span>{headerText.split('|')[0] || (pageNumbering.enabled && pageNumbering.position === 'top-left' ? (pageNumbering.format === '1' ? index + 1 : pageNumbering.format === 'i' ? ['i', 'ii', 'iii', 'iv', 'v'][index] || (index + 1) : String.fromCharCode(97 + index)) : '')}</span>
+                    <span>{headerText.split('|')[1] || (pageNumbering.enabled && pageNumbering.position === 'top-center' ? (pageNumbering.format === '1' ? index + 1 : pageNumbering.format === 'i' ? ['i', 'ii', 'iii', 'iv', 'v'][index] || (index + 1) : String.fromCharCode(97 + index)) : '')}</span>
+                    <span>{headerText.split('|')[2] || (pageNumbering.enabled && pageNumbering.position === 'top-right' ? (pageNumbering.format === '1' ? index + 1 : pageNumbering.format === 'i' ? ['i', 'ii', 'iii', 'iv', 'v'][index] || (index + 1) : String.fromCharCode(97 + index)) : '')}</span>
                   </div>
                 )}
                 
@@ -1892,14 +1911,26 @@ const DocumentEditor = () => {
                     borderBottom: (pageBorder.position === 'all' || pageBorder.position === 'bottom' || pageBorder.position === 'both') && pageBorder.borderType !== 'shadow' ? `${pageBorder.width} ${pageBorder.style} ${pageBorder.color}` : 'none',
                     borderLeft: pageBorder.position === 'all' && pageBorder.borderType !== 'shadow' ? `${pageBorder.width} ${pageBorder.style} ${pageBorder.color}` : 'none',
                     borderRight: pageBorder.position === 'all' && pageBorder.borderType !== 'shadow' ? `${pageBorder.width} ${pageBorder.style} ${pageBorder.color}` : 'none',
-                    margin: pageBorder.padding,
-                    width: `calc(100% - ${parseInt(pageBorder.padding) * 2}px)`,
-                    height: `calc(100% - ${parseInt(pageBorder.padding) * 2}px)`,
+                    marginTop: (headerText || pageNumbering.enabled && pageNumbering.position.startsWith('top')) ? '15mm' : '20mm',
+                    marginBottom: (footerText || pageNumbering.enabled && pageNumbering.position.startsWith('bottom')) ? '15mm' : '20mm',
+                    marginLeft: '20mm',
+                    marginRight: '20mm',
+                    width: `calc(100% - 40mm)`,
+                    height: `calc(100% - ${(headerText || pageNumbering.enabled && pageNumbering.position.startsWith('top')) ? '35mm' : '40mm'} - ${(footerText || pageNumbering.enabled && pageNumbering.position.startsWith('bottom')) ? '15mm' : '20mm'})`,
                     borderRadius: pageBorder.borderType === 'rounded' ? '8px' : '0',
                     boxShadow: pageBorder.borderType === 'shadow' ? `inset 0 0 0 ${pageBorder.width} ${pageBorder.color}` : 'none',
                     position: 'relative',
                     boxSizing: 'border-box'
-                  } : {}}
+                  } : {
+                    marginTop: (headerText || pageNumbering.enabled && pageNumbering.position.startsWith('top')) ? '15mm' : '20mm',
+                    marginBottom: (footerText || pageNumbering.enabled && pageNumbering.position.startsWith('bottom')) ? '15mm' : '20mm',
+                    marginLeft: '20mm',
+                    marginRight: '20mm',
+                    width: `calc(100% - 40mm)`,
+                    height: `calc(100% - ${(headerText || pageNumbering.enabled && pageNumbering.position.startsWith('top')) ? '35mm' : '40mm'} - ${(footerText || pageNumbering.enabled && pageNumbering.position.startsWith('bottom')) ? '15mm' : '20mm'})`,
+                    position: 'relative',
+                    boxSizing: 'border-box'
+                  }}
                 >
                   {page.id === 1 && page.content === '<p>Start writing your document here...</p>' ? (
                     'Start writing your document here...'
@@ -1957,30 +1988,28 @@ const DocumentEditor = () => {
                   )}
                 </div>
                 
-                {footerText && (
+                {(footerText || pageNumbering.enabled && (pageNumbering.position.startsWith('bottom'))) && (
                   <div className="page-hf-element bottom-footer" style={{
                     position: 'absolute',
-                    bottom: '10mm',
+                    bottom: '5mm',
                     left: '20mm',
                     right: '20mm',
                     display: 'flex',
                     justifyContent: 'space-between',
-                    fontSize: '12px',
-                    color: 'var(--text-secondary)'
+                    alignItems: 'center',
+                    fontSize: '11px',
+                    color: 'var(--text-secondary)',
+                    borderTop: '1px solid var(--border-color)',
+                    paddingTop: '2mm',
+                    zIndex: 10
                   }}>
-                    <span>{footerText.split('|')[0] || ''}</span>
-                    <span>{footerText.split('|')[1] || ''}</span>
-                    <span>{footerText.split('|')[2] || ''}</span>
+                    <span>{footerText.split('|')[0] || (pageNumbering.enabled && pageNumbering.position === 'bottom-left' ? (pageNumbering.format === '1' ? index + 1 : pageNumbering.format === 'i' ? ['i', 'ii', 'iii', 'iv', 'v'][index] || (index + 1) : String.fromCharCode(97 + index)) : '')}</span>
+                    <span>{footerText.split('|')[1] || (pageNumbering.enabled && pageNumbering.position === 'bottom-center' ? (pageNumbering.format === '1' ? index + 1 : pageNumbering.format === 'i' ? ['i', 'ii', 'iii', 'iv', 'v'][index] || (index + 1) : String.fromCharCode(97 + index)) : '')}</span>
+                    <span>{footerText.split('|')[2] || (pageNumbering.enabled && pageNumbering.position === 'bottom-right' ? (pageNumbering.format === '1' ? index + 1 : pageNumbering.format === 'i' ? ['i', 'ii', 'iii', 'iv', 'v'][index] || (index + 1) : String.fromCharCode(97 + index)) : '')}</span>
                   </div>
                 )}
                 
-                {pageNumbering.enabled && (
-                  <div className={`page-number ${pageNumbering.position}`}>
-                    {pageNumbering.format === '1' ? index + 1 : 
-                     pageNumbering.format === 'i' ? ['i', 'ii', 'iii', 'iv', 'v'][index] || (index + 1) :
-                     pageNumbering.format === 'a' ? String.fromCharCode(97 + index) : index + 1}
-                  </div>
-                )}
+
               </div>
             ))}
           </div>
@@ -2265,14 +2294,14 @@ const DocumentEditor = () => {
                 </div>
               </div>
               <div className="hf-control-group">
-                <label>Page Numbers:</label>
+                <label>Page Numbers in H/F:</label>
                 <select 
                   value={pageNumbering.enabled}
                   onChange={(e) => updatePageNumbering(e.target.value === 'true', pageNumbering.position, pageNumbering.format)}
                   className="hf-select"
                 >
-                  <option value="true">Enabled</option>
-                  <option value="false">Disabled</option>
+                  <option value="true">Show in Header/Footer</option>
+                  <option value="false">Hide from Header/Footer</option>
                 </select>
               </div>
               <div className="hf-control-group">
@@ -2603,6 +2632,25 @@ const DocumentEditor = () => {
       {showTemplateDemo && (
         <TemplateDemo onHide={() => setShowTemplateDemo(false)} />
       )}
+      
+      {/* Bottom Status Bar */}
+      <div className="bottom-status-bar">
+        <div className="status-left">
+          <span className="word-count">
+            <i className="ri-file-text-line"></i> {wordCount} words
+          </span>
+        </div>
+        <div className="status-center">
+          <span className="page-info">
+            Page {currentPage} of {pages.length}
+          </span>
+        </div>
+        <div className="status-right">
+          <span className="zoom-level">
+            <i className="ri-zoom-in-line"></i> 100%
+          </span>
+        </div>
+      </div>
     </div>
   );
 };
