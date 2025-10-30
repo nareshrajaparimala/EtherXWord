@@ -5,7 +5,7 @@
 }
 
 :root {
-  --primary-yellow: #ffd700;
+  --primary-yellow: #ffcf40;
   --primary-black: #000000;
   --dark-bg: #0a0a0a;
   --dark-surface: #1a1a1a;
@@ -75,9 +75,9 @@ body {
 }
 
 .btn-primary:hover {
-  background: #e6c200;
+  background: #e6b800;
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(255, 215, 0, 0.3);
+  box-shadow: 0 8px 25px rgba(255, 207, 64, 0.3);
 }
 
 .btn-secondary {
@@ -143,7 +143,7 @@ body {
   width: 2px;
   /* height: 1.2rem; */
   background-color: #10b981;
-  accent-color: var(--primary-yellow);
+  accent-color: #ffcf40;
 }
 
 .error-message {

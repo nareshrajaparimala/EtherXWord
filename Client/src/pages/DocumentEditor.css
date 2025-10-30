@@ -125,7 +125,7 @@
 }
 
 .nav-btn:hover {
-  background: #e6c200;
+  background: #e6b800;
   transform: translateY(-1px);
 }
 
@@ -447,13 +447,13 @@
 .color-picker:hover {
   border-color: var(--primary-yellow);
   transform: scale(1.05);
-  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(255, 207, 64, 0.3);
 }
 
 .color-picker:focus {
   outline: none;
   border-color: var(--primary-yellow);
-  box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.2);
+  box-shadow: 0 0 0 3px rgba(255, 207, 64, 0.2);
 }
 
 /* Text Color Picker - Circle with A */
