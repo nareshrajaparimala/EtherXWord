@@ -76,6 +76,7 @@ const DocumentEditor = () => {
     alignment: 'center' // 'center', 'diagonal', 'straight'
   });
   const [wordCount, setWordCount] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState(100);
   const { theme, toggleTheme } = useContext(ThemeContext);
 
   const editorRef = useRef(null);
@@ -2415,7 +2416,7 @@ const DocumentEditor = () => {
         </aside>
 
         {/* Editor */}
-        <div className="editor-wrapper">
+        <div className="editor-wrapper" style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}>
           <div className="pages-container">
             {pages.map((page, index) => (
               <div 
@@ -3208,9 +3209,23 @@ const DocumentEditor = () => {
           </span>
         </div>
         <div className="status-right">
-          <span className="zoom-level">
-            <i className="ri-zoom-in-line"></i> 100%
-          </span>
+          <div className="zoom-controls">
+            <button 
+              className="zoom-btn" 
+              onClick={() => setZoomLevel(prev => Math.max(50, prev - 10))}
+              disabled={zoomLevel <= 50}
+            >
+              <i className="ri-zoom-out-line"></i>
+            </button>
+            <span className="zoom-level">{zoomLevel}%</span>
+            <button 
+              className="zoom-btn" 
+              onClick={() => setZoomLevel(prev => Math.min(200, prev + 10))}
+              disabled={zoomLevel >= 200}
+            >
+              <i className="ri-zoom-in-line"></i>
+            </button>
+          </div>
         </div>
       </div>
     </div>

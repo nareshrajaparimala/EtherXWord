@@ -267,19 +267,16 @@ const Templates = () => {
       {/* Templates Header - Similar to Home Header */}
       <div className="templates-header">
         <div className="header-left">
-          <div className="logo-section">
-            <Logo size={32} className={isLogoAnimating ? 'animate' : ''} />
-            <span className="brand-text">EtherXWord</span>
-          </div>
+          {/* Logo removed to avoid duplication */}
         </div>
         <div className="header-center">
           <h1>Document Templates</h1>
           <p>Choose from our professionally designed templates to get started quickly</p>
         </div>
         <div className="header-right">
-          <button className="back-btn" onClick={() => navigate('/home')}>
+          <button className="back-btn modern-back" onClick={() => navigate('/home')}>
             <i className="ri-arrow-left-line"></i>
-            Back
+            <span>Back to Home</span>
           </button>
         </div>
       </div>
