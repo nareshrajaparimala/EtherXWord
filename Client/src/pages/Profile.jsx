@@ -13,6 +13,9 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ fullName: '', email: '' });
   const [loading, setLoading] = useState(true);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [saveMessage, setSaveMessage] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -71,6 +74,27 @@ const Profile = () => {
 
   const handleSaveProfile = async () => {
     try {
+      let updatedUser = { ...user, ...editForm };
+      
+      // Handle avatar upload if there's a new file
+      if (avatarFile) {
+        const formData = new FormData();
+        formData.append('avatar', avatarFile);
+        
+        const avatarResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/avatar`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+          },
+          body: formData
+        });
+        
+        if (avatarResponse.ok) {
+          const avatarData = await avatarResponse.json();
+          updatedUser.avatar = avatarData.avatarUrl;
+        }
+      }
+      
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/profile`, {
         method: 'PUT',
         headers: {
@@ -81,13 +105,20 @@ const Profile = () => {
       });
       
       if (response.ok) {
-        const updatedUser = await response.json();
+        const profileData = await response.json();
+        updatedUser = { ...updatedUser, ...profileData };
         setUser(updatedUser);
         setIsEditing(false);
+        setAvatarFile(null);
+        setAvatarPreview(null);
         localStorage.setItem('userProfile', JSON.stringify(updatedUser));
+        setSaveMessage('Profile updated successfully!');
+        setTimeout(() => setSaveMessage(''), 3000);
       }
     } catch (error) {
       console.error('Error updating profile:', error);
+      setSaveMessage('Error updating profile');
+      setTimeout(() => setSaveMessage(''), 3000);
     }
   };
 
@@ -118,12 +149,12 @@ const Profile = () => {
     <div className="profile-container">
       {/* Navigation */}
       <div className="profile-nav">
-        <button onClick={() => navigate(-1)} className="nav-btn back-btn">
-          <i className="ri-arrow-left-line"></i>
-          Back
+        <button onClick={() => navigate(-1)} className="modern-back-btn">
+          <i className="ri-arrow-left-s-line"></i>
+          <span>Back</span>
         </button>
         <button onClick={() => navigate('/')} className="nav-btn home-btn">
-          <i className="ri-home-line"></i>
+          <i className="ri-home-2-line"></i>
           Home
         </button>
       </div>
@@ -131,9 +162,31 @@ const Profile = () => {
       {/* Profile Header */}
       <div className="profile-header">
         <div className="profile-banner">
-          <div className="profile-avatar">
-            <span>{user.fullName?.charAt(0).toUpperCase()}</span>
+          <div className="profile-avatar" onClick={() => document.getElementById('avatar-upload').click()}>
+            {avatarPreview || user.avatar ? (
+              <img src={avatarPreview || user.avatar} alt="Profile" />
+            ) : (
+              <span>{user.fullName?.charAt(0).toUpperCase()}</span>
+            )}
+            <div className="avatar-overlay">
+              <i className="ri-camera-line"></i>
+            </div>
           </div>
+          <input
+            id="avatar-upload"
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.target.files[0];
+              if (file) {
+                setAvatarFile(file);
+                const reader = new FileReader();
+                reader.onload = (event) => setAvatarPreview(event.target.result);
+                reader.readAsDataURL(file);
+              }
+            }}
+          />
         </div>
         
         <div className="profile-info">
@@ -157,6 +210,7 @@ const Profile = () => {
                 <button onClick={handleSaveProfile} className="btn btn-primary">Save</button>
                 <button onClick={() => setIsEditing(false)} className="btn btn-secondary">Cancel</button>
               </div>
+              {saveMessage && <div className="save-message">{saveMessage}</div>}
             </div>
           ) : (
             <>
@@ -164,11 +218,11 @@ const Profile = () => {
               <p className="user-email">{user.email}</p>
               <div className="user-meta">
                 <span className="join-date">
-                  <i className="ri-calendar-line"></i>
+                  <i className="ri-calendar-2-line"></i>
                   Joined {new Date(user.createdAt).toLocaleDateString()}
                 </span>
                 <span className="user-status">
-                  <i className="ri-shield-check-line"></i>
+                  <i className="ri-checkbox-circle-line"></i>
                   {user.isVerified ? 'Verified' : 'Unverified'}
                 </span>
               </div>
@@ -181,7 +235,7 @@ const Profile = () => {
             onClick={() => setIsEditing(true)} 
             className="edit-profile-btn"
           >
-            <i className="ri-edit-line"></i>
+            <i className="ri-pencil-line"></i>
             Edit Profile
           </button>
         )}
@@ -191,7 +245,7 @@ const Profile = () => {
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-icon">
-            <i className="ri-file-text-line"></i>
+            <i className="ri-file-list-2-line"></i>
           </div>
           <div className="stat-content">
             <h3>{stats.documentsCreated}</h3>
@@ -201,7 +255,7 @@ const Profile = () => {
         
         <div className="stat-card">
           <div className="stat-icon">
-            <i className="ri-group-line"></i>
+            <i className="ri-team-line"></i>
           </div>
           <div className="stat-content">
             <h3>{stats.collaborations}</h3>
@@ -211,7 +265,7 @@ const Profile = () => {
         
         <div className="stat-card">
           <div className="stat-icon">
-            <i className="ri-text"></i>
+            <i className="ri-font-size-2"></i>
           </div>
           <div className="stat-content">
             <h3>{stats.totalWords.toLocaleString()}</h3>
@@ -221,7 +275,7 @@ const Profile = () => {
         
         <div className="stat-card">
           <div className="stat-icon">
-            <i className="ri-time-line"></i>
+            <i className="ri-history-line"></i>
           </div>
           <div className="stat-content">
             <h3>{stats.recentActivity.length}</h3>
@@ -235,7 +289,7 @@ const Profile = () => {
         <h2>Recent Activity</h2>
         {stats.recentActivity.length === 0 ? (
           <div className="empty-activity">
-            <i className="ri-history-line"></i>
+            <i className="ri-time-line"></i>
             <p>No recent activity</p>
           </div>
         ) : (
@@ -243,7 +297,7 @@ const Profile = () => {
             {stats.recentActivity.map((item, index) => (
               <div key={index} className="activity-item">
                 <div className="activity-icon">
-                  <i className={item.owner ? "ri-file-text-line" : "ri-share-line"}></i>
+                  <i className={item.owner ? "ri-file-list-line" : "ri-share-forward-line"}></i>
                 </div>
                 <div className="activity-content">
                   <h4>{item.title}</h4>
@@ -256,7 +310,7 @@ const Profile = () => {
                   onClick={() => navigate(item.owner ? `/editor/${item._id}` : `/viewer/${item._id}`)}
                   className="activity-action"
                 >
-                  <i className="ri-arrow-right-line"></i>
+                  <i className="ri-arrow-right-s-line"></i>
                 </button>
               </div>
             ))}
@@ -269,19 +323,19 @@ const Profile = () => {
         <h2>Quick Actions</h2>
         <div className="actions-grid">
           <button onClick={() => navigate('/editor')} className="action-card">
-            <i className="ri-add-line"></i>
+            <i className="ri-add-circle-line"></i>
             <span>New Document</span>
           </button>
           <button onClick={() => navigate('/', { state: { activeSection: 'All Documents' } })} className="action-card">
-            <i className="ri-folder-line"></i>
+            <i className="ri-folder-2-line"></i>
             <span>My Documents</span>
           </button>
           <button onClick={() => navigate('/', { state: { activeSection: 'Collaboration' } })} className="action-card">
-            <i className="ri-group-line"></i>
+            <i className="ri-team-line"></i>
             <span>Collaborations</span>
           </button>
           <button onClick={() => navigate('/settings')} className="action-card">
-            <i className="ri-settings-line"></i>
+            <i className="ri-settings-2-line"></i>
             <span>Settings</span>
           </button>
         </div>

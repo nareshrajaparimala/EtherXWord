@@ -27,7 +27,7 @@ const Home = () => {
     { icon: 'ri-folder-line', label: 'All Documents', mobileVisible: true },
     { icon: 'ri-team-line', label: 'Collaboration', mobileVisible: true },
     { icon: 'ri-star-line', label: 'Favorites', mobileVisible: true },
-    { icon: 'ri-delete-bin-line', label: 'Trash', mobileVisible: true },
+    { icon: 'ri-delete-bin-line', label: 'Recycle Bin', mobileVisible: true },
     { icon: 'ri-settings-3-line', label: 'Settings', mobileVisible: true, action: () => navigate('/settings') }
   ];
 
@@ -296,6 +296,7 @@ const Home = () => {
             <button
               key={index}
               className={`sidebar-item ${selectedSection === item.label ? 'active' : ''} ${item.mobileVisible ? 'mobile-visible' : ''}`}
+              data-tooltip={item.label}
               onClick={() => {
                 if (item.action) {
                   item.action();

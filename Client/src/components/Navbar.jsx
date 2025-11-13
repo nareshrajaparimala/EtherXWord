@@ -242,7 +242,7 @@ const Navbar = () => {
               aria-label="Notifications"
               onClick={() => setShowNotifications(!showNotifications)}
             >
-              <i className="ri-notification-3-line"></i>
+              <i className="ri-notification-2-line"></i>
               {unreadCount > 0 && (
                 <span className="notification-badge">{unreadCount}</span>
               )}
@@ -309,7 +309,7 @@ const Navbar = () => {
             onClick={toggleSidebar}
             aria-label="Profile"
           >
-            <i className="ri-user-line"></i>
+            <i className="ri-user-2-line"></i>
           </button>
         </div>
       </nav>
@@ -341,7 +341,9 @@ const Navbar = () => {
               </>
             ) : (
               <>
-                <div className="profile-avatar">👤</div>
+                <div className="profile-avatar">
+                  <i className="ri-user-2-line"></i>
+                </div>
                 <div className="profile-info">
                   <h4>Guest User</h4>
                   <p>Please sign in</p>
@@ -354,23 +356,23 @@ const Navbar = () => {
           
           <div className="sidebar-menu">
             <button className="sidebar-item" onClick={() => { navigate('/profile'); setShowSidebar(false); }}>
-              <span className="item-icon">👤</span>
+              <span className="item-icon"><i className="ri-user-2-line"></i></span>
               <span>Profile</span>
             </button>
             <button className="sidebar-item" onClick={() => { navigate('/settings'); setShowSidebar(false); }}>
-              <span className="item-icon">⚙️</span>
+              <span className="item-icon"><i className="ri-settings-2-line"></i></span>
               <span>Settings</span>
             </button>
             <button className="sidebar-item" onClick={() => { navigate('/home'); setShowSidebar(false); }}>
-              <span className="item-icon">📊</span>
+              <span className="item-icon"><i className="ri-dashboard-2-line"></i></span>
               <span>Dashboard</span>
             </button>
             <button className="sidebar-item" onClick={() => { navigate('/templates'); setShowSidebar(false); }}>
-              <span className="item-icon">📄</span>
+              <span className="item-icon"><i className="ri-file-list-2-line"></i></span>
               <span>Templates</span>
             </button>
             <button className="sidebar-item" onClick={() => { navigate('/home'); setShowSidebar(false); }}>
-              <span className="item-icon">📝</span>
+              <span className="item-icon"><i className="ri-folder-2-line"></i></span>
               <span>My Documents</span>
             </button>
             <button className="sidebar-item">
@@ -378,7 +380,7 @@ const Navbar = () => {
               <span>Notifications</span>
             </button>
             <button className="sidebar-item logout" onClick={handleLogout}>
-              <span className="item-icon">🚪</span>
+              <span className="item-icon"><i className="ri-logout-box-line"></i></span>
               <span>Logout</span>
             </button>
           </div>

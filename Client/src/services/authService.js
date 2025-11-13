@@ -11,9 +11,22 @@ export const authService = {
   signin: async (credentials) => {
     const response = await api.post('/auth/signin', credentials);
     if (response.data.accessToken) {
+      const storage = credentials.rememberMe ? localStorage : sessionStorage;
+      storage.setItem('accessToken', response.data.accessToken);
+      storage.setItem('refreshToken', response.data.refreshToken);
+      storage.setItem('userProfile', JSON.stringify(response.data.user));
+      
+      // Also save to localStorage for compatibility
       localStorage.setItem('accessToken', response.data.accessToken);
       localStorage.setItem('refreshToken', response.data.refreshToken);
       localStorage.setItem('userProfile', JSON.stringify(response.data.user));
+      
+      if (credentials.rememberMe) {
+        localStorage.setItem('rememberMe', 'true');
+      } else {
+        localStorage.removeItem('rememberMe');
+      }
+      
       window.dispatchEvent(new Event('storage'));
     }
     return response.data;
