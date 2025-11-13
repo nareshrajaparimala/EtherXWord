@@ -8,6 +8,7 @@ import connectDB from './config/db.js';
 // import { initializeSocket } from './services/realtime.service.js';
 import { startTrashCleanup } from './services/cleanup.service.js';
 import authRoutes from './routes/auth.routes.js';
+import userRoutes from './routes/user.routes.js';
 import collaborationRoutes from './routes/collaboration.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import activityRoutes from './routes/activity.routes.js';
@@ -61,6 +62,11 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/auth', authRoutes);
+<<<<<<< HEAD
+=======
+app.use('/api/user', userRoutes);
+app.use('/api/documents', documentRoutes);
+>>>>>>> 1b031517a80c90a907abb8c6e8328073575257f2
 app.use('/api/collaboration', collaborationRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/activities', activityRoutes);
