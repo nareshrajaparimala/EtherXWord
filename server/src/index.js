@@ -10,8 +10,9 @@ import { startTrashCleanup } from './services/cleanup.service.js';
 import authRoutes from './routes/auth.routes.js';
 import collaborationRoutes from './routes/collaboration.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
-import documentRoutes from './routes/document.routes.js';
 import activityRoutes from './routes/activity.routes.js';
+import exportDocxRoute from './routes/exportDocx.js';
+
 
 dotenv.config();
 // console.log('Environment loaded:', {
@@ -60,16 +61,15 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/documents', documentRoutes);
 app.use('/api/collaboration', collaborationRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/activities', activityRoutes);
+app.use('/api/export', exportDocxRoute);
 
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
-
 // Root route
 app.get('/', (req, res) => {
   res.json({ 
