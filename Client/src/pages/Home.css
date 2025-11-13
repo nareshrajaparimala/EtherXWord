@@ -17,6 +17,7 @@
   border-right: 1px solid var(--border-color);
   padding: 80px 0 20px 0;
   overflow-y: auto;
+  overflow-x: hidden;
   transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   animation: slideInLeft 0.6s ease-out;
   position: relative;
@@ -35,12 +36,20 @@
 
 .home-sidebar.collapsed {
   width: 70px;
+  min-width: 70px;
 }
 
 .sidebar-content {
   padding: 0 10px;
   position: relative;
   z-index: 2;
+}
+
+.home-sidebar.collapsed .sidebar-content {
+  padding: 0 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .sidebar-item {
@@ -60,6 +69,7 @@
   margin-bottom: 8px;
   position: relative;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .sidebar-item::before {
@@ -118,11 +128,55 @@
 .home-sidebar.collapsed .sidebar-label {
   opacity: 0;
   transform: translateX(-20px);
+  width: 0;
+  overflow: hidden;
 }
 
 .home-sidebar.collapsed .sidebar-item {
   justify-content: center;
-  padding: 16px 10px;
+  padding: 16px 8px;
+  margin: 8px 6px;
+  width: calc(100% - 12px);
+  min-height: 48px;
+  gap: 0;
+}
+
+.home-sidebar.collapsed .sidebar-icon {
+  min-width: 24px;
+  width: 24px;
+  text-align: center;
+  margin: 0;
+}
+
+.home-sidebar.collapsed .sidebar-item {
+  position: relative;
+}
+
+.home-sidebar.collapsed .sidebar-item::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  margin-left: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border-color);
+}
+
+.home-sidebar.collapsed .sidebar-item:hover::after {
+  opacity: 1;
+  visibility: visible;
 }
 
 /* Workspace */
@@ -1002,6 +1056,14 @@
   }
   
   .home-sidebar:not(.collapsed) {
+    left: 0;
+  }
+  
+  .home-sidebar.collapsed {
+    left: -70px;
+  }
+  
+  .home-sidebar.collapsed:not(.mobile-hidden) {
     left: 0;
   }
   

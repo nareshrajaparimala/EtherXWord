@@ -20,6 +20,18 @@ const SignIn = () => {
     if (location.state?.message) {
       setSuccessMessage(location.state.message);
     }
+    
+    // Load saved credentials if Remember Me was checked
+    const rememberMe = localStorage.getItem('rememberMe') === 'true';
+    const savedEmail = localStorage.getItem('savedEmail');
+    
+    if (rememberMe && savedEmail) {
+      setFormData(prev => ({
+        ...prev,
+        email: savedEmail,
+        rememberMe: true
+      }));
+    }
   }, [location]);
 
   const handleChange = (e) => {
@@ -40,6 +52,14 @@ const SignIn = () => {
 
     try {
       await authService.signin(formData);
+      
+      // Save email if Remember Me is checked
+      if (formData.rememberMe) {
+        localStorage.setItem('savedEmail', formData.email);
+      } else {
+        localStorage.removeItem('savedEmail');
+      }
+      
       navigate('/');
     } catch (error) {
       setErrors({ submit: error.response?.data?.message || 'Sign in failed' });
