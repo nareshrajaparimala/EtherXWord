@@ -60,18 +60,47 @@ const Settings = () => {
     loadUserData();
   }, []);
 
-  const loadUserData = () => {
-    const profile = JSON.parse(localStorage.getItem('userProfile') || '{}');
-    setUserProfile(profile);
-    
-    const savedPrefs = JSON.parse(localStorage.getItem('userPreferences') || '{}');
-    setPreferences(prev => ({ ...prev, ...savedPrefs }));
-    
-    const savedPrivacy = JSON.parse(localStorage.getItem('userPrivacy') || '{}');
-    setPrivacy(prev => ({ ...prev, ...savedPrivacy }));
-    
-    const savedSecurity = JSON.parse(localStorage.getItem('userSecurity') || '{}');
-    setSecurity(prev => ({ ...prev, ...savedSecurity }));
+  const loadUserData = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/user/settings`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUserProfile(data.profile || {});
+        setPreferences(data.preferences || {});
+        setPrivacy(data.privacy || {});
+        setSecurity(data.security || {});
+        // Update localStorage with server data
+        localStorage.setItem('userProfile', JSON.stringify(data.profile || {}));
+        localStorage.setItem('userPreferences', JSON.stringify(data.preferences || {}));
+        localStorage.setItem('userPrivacy', JSON.stringify(data.privacy || {}));
+        localStorage.setItem('userSecurity', JSON.stringify(data.security || {}));
+      } else {
+        // Fallback to localStorage
+        const profile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+        setUserProfile(profile);
+        const savedPrefs = JSON.parse(localStorage.getItem('userPreferences') || '{}');
+        setPreferences(prev => ({ ...prev, ...savedPrefs }));
+        const savedPrivacy = JSON.parse(localStorage.getItem('userPrivacy') || '{}');
+        setPrivacy(prev => ({ ...prev, ...savedPrivacy }));
+        const savedSecurity = JSON.parse(localStorage.getItem('userSecurity') || '{}');
+        setSecurity(prev => ({ ...prev, ...savedSecurity }));
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      // Fallback to localStorage
+      const profile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+      setUserProfile(profile);
+      const savedPrefs = JSON.parse(localStorage.getItem('userPreferences') || '{}');
+      setPreferences(prev => ({ ...prev, ...savedPrefs }));
+      const savedPrivacy = JSON.parse(localStorage.getItem('userPrivacy') || '{}');
+      setPrivacy(prev => ({ ...prev, ...savedPrivacy }));
+      const savedSecurity = JSON.parse(localStorage.getItem('userSecurity') || '{}');
+      setSecurity(prev => ({ ...prev, ...savedSecurity }));
+    }
   };
 
   const saveSettings = async (section, data) => {
@@ -90,17 +119,36 @@ const Settings = () => {
       
       if (response.ok) {
         showNotification('Settings saved successfully!', 'success');
+        return true;
+      } else {
+        showNotification('Failed to save settings on server', 'error');
+        return false;
       }
     } catch (error) {
       console.error('Error saving settings:', error);
       showNotification('Failed to save settings', 'error');
+      return false;
     }
   };
 
+  // Update local profile state only. Persist when user clicks Save.
   const handleProfileUpdate = (field, value) => {
     const updated = { ...userProfile, [field]: value };
     setUserProfile(updated);
-    saveSettings('profile', updated);
+  };
+
+  const submitProfileChanges = async () => {
+    setIsLoading(true);
+    const ok = await saveSettings('profile', userProfile);
+    setIsLoading(false);
+    return ok;
+  };
+
+  const cancelProfileChanges = () => {
+    // reload profile from localStorage
+    const profile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+    setUserProfile(profile);
+    showNotification('Changes reverted', 'info');
   };
 
   const handlePreferenceUpdate = (field, value) => {
@@ -276,7 +324,27 @@ const Settings = () => {
                     />
                   </div>
                 </div>
-              </div>
+                
+                  <div className="action-buttons" style={{ marginTop: '16px' }}>
+                    <button
+                      className="btn btn-primary"
+                      onClick={submitProfileChanges}
+                      disabled={isLoading}
+                    >
+                      <i className={`ri-save-2-line ${isLoading ? 'ri-loader-4-line animate-spin' : ''}`}></i>
+                      {isLoading ? 'Saving...' : 'Save Changes'}
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={cancelProfileChanges}
+                      disabled={isLoading}
+                      style={{ marginLeft: '8px' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+
+                </div>
             </div>
           )}
 
