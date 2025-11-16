@@ -1,6 +1,8 @@
 import Document from '../models/document.model.js';
 import User from '../models/user.model.js';
 import crypto from 'crypto';
+import mammoth from 'mammoth';
+import sanitizeHtml from 'sanitize-html';
 // import { logActivity } from './activity.controller.js';
 
 // Create document
@@ -394,16 +396,27 @@ export const generateShareLink = async (req, res) => {
   }
 };
 
-// Get document by address
+// Get document by address or ID
 export const getDocumentByAddress = async (req, res) => {
   try {
     const { documentAddress } = req.params;
     const userId = req.user?.id;
 
-    const document = await Document.findOne({ documentAddress })
-      .populate('owner', 'fullName email')
-      .populate('collaborators.user', 'fullName email')
-      .populate('versionHistory.author', 'fullName email');
+    // Try to find by document address first, then by MongoDB ObjectId
+    let document;
+    if (documentAddress.match(/^[0-9a-fA-F]{24}$/)) {
+      // MongoDB ObjectId format
+      document = await Document.findById(documentAddress)
+        .populate('owner', 'fullName email')
+        .populate('collaborators.user', 'fullName email')
+        .populate('versionHistory.author', 'fullName email');
+    } else {
+      // Document address format
+      document = await Document.findOne({ documentAddress })
+        .populate('owner', 'fullName email')
+        .populate('collaborators.user', 'fullName email')
+        .populate('versionHistory.author', 'fullName email');
+    }
 
     if (!document) {
       return res.status(404).json({ message: 'Document not found' });
@@ -429,9 +442,14 @@ export const getDocumentByAddress = async (req, res) => {
       userPermission = document.shareSettings.linkPermission;
     }
 
+    // Log document access for analytics
+    console.log(`Document accessed: ${document.title} by user: ${userId || 'anonymous'}`);
+
     res.json({
       ...document.toObject(),
-      userPermission
+      userPermission,
+      isOwner,
+      accessType: isOwner ? 'owner' : isCollaborator ? 'collaborator' : 'public'
     });
   } catch (error) {
     console.error('Get document by address error:', error);
@@ -610,31 +628,146 @@ export const restoreVersion = async (req, res) => {
 // Search documents
 export const searchDocuments = async (req, res) => {
   try {
-    const { q } = req.query;
+    const { q, type = 'all' } = req.query;
     const userId = req.user.id;
 
     if (!q || q.trim().length === 0) {
       return res.json([]);
     }
 
-    const searchQuery = {
-      owner: userId,
-      isDeleted: false,
-      $or: [
-        { title: { $regex: q, $options: 'i' } },
-        { content: { $regex: q, $options: 'i' } }
-      ]
-    };
+    let searchQuery;
+    
+    // Check if searching by document address
+    if (q.startsWith('doc_') || q.includes('-')) {
+      searchQuery = {
+        $or: [
+          { owner: userId },
+          { 'collaborators.user': userId }
+        ],
+        isDeleted: false,
+        documentAddress: { $regex: q, $options: 'i' }
+      };
+    } else {
+      // Text search with MongoDB text index
+      searchQuery = {
+        $or: [
+          { owner: userId },
+          { 'collaborators.user': userId }
+        ],
+        isDeleted: false,
+        $text: { $search: q }
+      };
+    }
 
-    const documents = await Document.find(searchQuery)
+    // Filter by type if specified
+    if (type === 'favorites') {
+      searchQuery.isFavorite = true;
+    } else if (type === 'shared') {
+      searchQuery.owner = { $ne: userId };
+      searchQuery['collaborators.user'] = userId;
+    }
+
+    const documents = await Document.find(searchQuery, {
+      score: { $meta: 'textScore' }
+    })
+      .populate('owner', 'fullName email')
       .populate('collaborators.user', 'fullName email')
-      .sort({ lastModified: -1 })
-      .limit(20);
+      .sort({ score: { $meta: 'textScore' }, lastModified: -1 })
+      .limit(50);
 
-    res.json(documents);
+    // Add search relevance and user permissions
+    const enrichedDocuments = documents.map(doc => {
+      const isOwner = doc.owner._id.toString() === userId;
+      const collaborator = doc.collaborators.find(c => c.user._id.toString() === userId);
+      const userPermission = isOwner ? 'edit' : (collaborator?.permission || 'view');
+      
+      return {
+        ...doc.toObject(),
+        userPermission,
+        isOwner,
+        searchScore: doc.score || 0
+      };
+    });
+
+    res.json(enrichedDocuments);
   } catch (error) {
     console.error('Search documents error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Import DOCX file
+export const importDocx = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Style map for better conversion
+    const styleMap = [
+      'p[style-name="Heading 1"] => h1:fresh',
+      'p[style-name="Heading 2"] => h2:fresh',
+      'p[style-name="Heading 3"] => h3:fresh',
+      'p[style-name="Title"] => h1.doc-title:fresh',
+      'p[alignment="center"] => p.doc-center:fresh',
+      'p[alignment="right"] => p.doc-right:fresh',
+      'p[alignment="both"] => p.doc-justify:fresh',
+      'r[style-name="Strong"] => strong',
+      'r[style-name="Emphasis"] => em'
+    ].join('\n');
+
+    // Image handling - convert to data URIs
+    const imageOptions = {
+      convertImage: mammoth.images.imgElement(async (image) => {
+        const buffer = await image.read('base64');
+        const contentType = image.contentType || 'image/png';
+        return { src: `data:${contentType};base64,${buffer}` };
+      })
+    };
+
+    const options = {
+      styleMap,
+      ...imageOptions
+    };
+
+    // Convert DOCX to HTML
+    const result = await mammoth.convertToHtml({ buffer: req.file.buffer }, options);
+    let html = result.value;
+    const messages = result.messages;
+
+    // Sanitize HTML
+    html = sanitizeHtml(html, {
+      allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+        'img', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tr', 'td', 'th'
+      ]),
+      allowedAttributes: {
+        ...sanitizeHtml.defaults.allowedAttributes,
+        img: ['src', 'alt', 'style', 'width', 'height'],
+        p: ['class', 'style'],
+        h1: ['class', 'style'],
+        h2: ['class', 'style'],
+        h3: ['class', 'style'],
+        td: ['colspan', 'rowspan', 'style'],
+        th: ['colspan', 'rowspan', 'style'],
+        table: ['style', 'class']
+      }
+    });
+
+    // Wrap in document page container
+    html = `<div class="docx-page">${html}</div>`;
+
+    res.json({ 
+      html, 
+      messages,
+      success: true,
+      filename: req.file.originalname
+    });
+  } catch (error) {
+    console.error('DOCX import error:', error);
+    res.status(500).json({ 
+      error: 'Conversion failed', 
+      details: error.message 
+    });
   }
 };
 

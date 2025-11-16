@@ -157,7 +157,7 @@ const DocumentEditor = () => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [undoStack, redoStack, showFindReplace]);
   const navigate = useNavigate();
-  const { id: documentId } = useParams();
+  const { id: documentId, documentAddress } = useParams();
   const autoSaveInterval = useRef(null);
   const isLogoAnimating = useLogoAnimation();
 
@@ -1161,19 +1161,16 @@ const DocumentEditor = () => {
   // Load document data if collaborative or from localStorage
   React.useEffect(() => {
     const initializeDocument = async () => {
-      if (documentId) {
+      const identifier = documentAddress || documentId;
+      
+      if (identifier) {
         // Check if it's a valid MongoDB ObjectId (24 hex characters)
-        if (documentId.match(/^[0-9a-fA-F]{24}$/)) {
+        if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
           // Load by MongoDB document ID
-          await fetchDocumentData();
-        } else if (documentId.startsWith('doc_')) {
-          // Load by document address
-          await loadDocumentByAddress(documentId);
+          await fetchDocumentData(identifier);
         } else {
-          // Invalid document ID format - redirect to home
-          showNotification('Invalid document ID format', 'error');
-          navigate('/');
-          return;
+          // Load by document address
+          await loadDocumentByAddress(identifier);
         }
       } else {
         // Load saved document from localStorage if available
@@ -1215,7 +1212,7 @@ const DocumentEditor = () => {
       if (autoSaveInterval.current) clearInterval(autoSaveInterval.current);
       if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
     };
-  }, [documentId]);
+  }, [documentId, documentAddress]);
   
   // Set content for each page
   React.useEffect(() => {
@@ -1229,16 +1226,16 @@ const DocumentEditor = () => {
     });
   }, [pages]);
   
-  const fetchDocumentData = async () => {
+  const fetchDocumentData = async (id = documentId) => {
     try {
       // Validate document ID format before making request
-      if (!documentId || !documentId.match(/^[0-9a-fA-F]{24}$/)) {
+      if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
         showNotification('Invalid document ID format', 'error');
         navigate('/');
         return;
       }
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${documentId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${id}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
         }
@@ -2162,7 +2159,7 @@ const DocumentEditor = () => {
             onClick={() => setShowShareModal(true)}
             disabled={isCollaborative && userPermission !== 'edit'}
           >
-            <i class="ri-share-fill"></i> Share
+            <i className="ri-share-fill"></i> Share
           </button>
           {isCollaborative && (
             <span className="collaboration-indicator">
@@ -2174,7 +2171,7 @@ const DocumentEditor = () => {
             onClick={deleteDocument}
             disabled={isCollaborative && userPermission !== 'edit'}
           >
-            <i class="ri-delete-bin-6-line"></i> Delete
+            <i className="ri-delete-bin-6-line"></i> Delete
           </button>
           <div className="notification-dropdown">
             <button 
@@ -2275,7 +2272,7 @@ const DocumentEditor = () => {
             <u>U</u>
           </button>
           <button onClick={() => formatText('strikeThrough')} className="toolbar-btn">
-            <i class="ri-strikethrough"></i>
+            <i className="ri-strikethrough"></i>
           </button>
         </div>
         

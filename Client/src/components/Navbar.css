@@ -5,7 +5,7 @@
   left: 0;
   right: 0;
   width: 100%;
-  z-index: 50;
+  z-index: 1100;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -105,7 +105,7 @@
   border: 1px solid var(--border-color);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
+  z-index: 1300;
   min-width: 120px;
   margin-top: 4px;
 }
@@ -237,7 +237,7 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 60;
+  z-index: 1150;
   animation: fadeIn 0.3s ease;
 }
 
@@ -254,7 +254,7 @@
   width: 400px;
   min-width: 400px;
   height: 100vh;
-  z-index: 70;
+  z-index: 1200;
   transition: right 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   box-shadow: -10px 0 30px rgba(0, 0, 0, 0.3);
   flex-shrink: 0;

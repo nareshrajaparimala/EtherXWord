@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { saveAs } from 'file-saver';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
 import Logo from '../components/Logo';
 import { useLogoAnimation } from '../hooks/useLogoAnimation';
 import { useNotification } from '../context/NotificationContext';
@@ -17,16 +19,44 @@ const DocumentViewer = () => {
   const [documentData, setDocumentData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [content, setContent] = useState('');
+  const [pages, setPages] = useState([{ id: 1, content: '', header: '', footer: '' }]);
   const [currentPage, setCurrentPage] = useState(1);
   const [zoomLevel, setZoomLevel] = useState(100);
+  const [wordCount, setWordCount] = useState(0);
+  const [charCount, setCharCount] = useState(0);
+  const [lineCount, setLineCount] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState(null);
+  const [fontSize, setFontSize] = useState(12);
+  const [fontFamily, setFontFamily] = useState('Times New Roman');
+  const [textAlign, setTextAlign] = useState('left');
+  const [headerText, setHeaderText] = useState('');
+  const [footerText, setFooterText] = useState('');
+  const [showRuler, setShowRuler] = useState(true);
   const [showPageNumbers, setShowPageNumbers] = useState(true);
   
-  const viewerRef = useRef(null);
+  const editorRef = useRef(null);
+  const saveTimeoutRef = useRef(null);
+  const pageRefs = useRef([]);
   const token = searchParams.get('token');
+
+  const MAX_LINES_PER_PAGE = 45;
+  const PAGE_HEIGHT = 297; // A4 height in mm
+  const PAGE_WIDTH = 210; // A4 width in mm
 
   useEffect(() => {
     loadDocument();
   }, [documentId, documentAddress, token]);
+
+  useEffect(() => {
+    if (content) {
+      updateStats();
+      handleAutoPageBreak();
+      autoSave();
+    }
+  }, [content]);
 
   const loadDocument = async () => {
     setLoading(true);
@@ -36,57 +66,250 @@ const DocumentViewer = () => {
       let url;
       const headers = {};
       
-      if (documentAddress) {
-        // Load by document address
-        url = `${import.meta.env.VITE_API_URL}/api/documents/address/${documentAddress}`;
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        } else if (localStorage.getItem('accessToken')) {
+      // Determine the correct endpoint and identifier
+      const identifier = documentAddress || documentId;
+      
+      if (token) {
+        // Shared document with token
+        url = `${import.meta.env.VITE_API_URL}/api/documents/shared/${token}`;
+      } else if (identifier) {
+        // Document by ID or address
+        if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
+          // MongoDB ObjectId
+          url = `${import.meta.env.VITE_API_URL}/api/documents/${identifier}`;
+        } else {
+          // Document address
+          url = `${import.meta.env.VITE_API_URL}/api/documents/address/${identifier}`;
+        }
+        
+        // Add auth header if available
+        if (localStorage.getItem('accessToken')) {
           headers['Authorization'] = `Bearer ${localStorage.getItem('accessToken')}`;
         }
-      } else if (token) {
-        // Load by share token
-        url = `${import.meta.env.VITE_API_URL}/api/documents/shared/${token}`;
-      } else if (documentId) {
-        // Load by document ID (authenticated)
-        url = `${import.meta.env.VITE_API_URL}/api/documents/${documentId}`;
-        headers['Authorization'] = `Bearer ${localStorage.getItem('accessToken')}`;
       } else {
         throw new Error('No document identifier provided');
       }
 
+      console.log('Loading document from:', url);
       const response = await fetch(url, { headers });
       
       if (response.ok) {
         const data = await response.json();
-        setDocumentData(data);
+        console.log('Document loaded:', data);
         
-        // If user has edit permission, offer to switch to editor
-        if (data.userPermission === 'edit' || data.permission === 'edit') {
-          const switchToEditor = window.confirm(
-            'You have edit permission for this document. Would you like to open it in the editor instead?'
-          );
-          if (switchToEditor) {
-            if (documentAddress) {
-              navigate(`/editor/address/${documentAddress}${token ? `?token=${token}` : ''}`);
-            } else {
-              navigate(`/editor/${documentId}`);
-            }
-            return;
-          }
-        }
+        setDocumentData(data);
+        setContent(data.content || '');
+        setPages(data.pages || [{ id: 1, content: data.content || '', header: '', footer: '' }]);
+        setIsEditing(data.userPermission === 'edit' || data.permission === 'edit');
+        setHeaderText(data.formatting?.headerText || '');
+        setFooterText(data.formatting?.footerText || '');
+        setFontSize(parseInt(data.formatting?.defaultFont?.size?.replace('pt', '')) || 12);
+        setFontFamily(data.formatting?.defaultFont?.family || 'Times New Roman');
+        
+        // Add to recent documents
+        const recentDocs = JSON.parse(localStorage.getItem('recentDocuments') || '[]');
+        const docData = {
+          title: data.title,
+          lastModified: new Date().toISOString(),
+          preview: data.content?.replace(/<[^>]*>/g, '').substring(0, 100) || 'No preview available',
+          wordCount: data.wordCount || 0,
+          id: data._id,
+          documentAddress: data.documentAddress
+        };
+        
+        const filtered = recentDocs.filter(d => d.id !== data._id && d.documentAddress !== data.documentAddress);
+        filtered.unshift(docData);
+        localStorage.setItem('recentDocuments', JSON.stringify(filtered.slice(0, 10)));
+        
       } else if (response.status === 404) {
-        setError('Document not found or you don\'t have permission to view it.');
+        setError('Document not found or you do not have permission to view it.');
       } else if (response.status === 403) {
-        setError('Access denied. You don\'t have permission to view this document.');
+        setError('Access denied. You do not have permission to view this document.');
       } else {
-        setError('Failed to load document. Please try again.');
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData.message || 'Failed to load document. Please try again.');
       }
     } catch (error) {
       console.error('Error loading document:', error);
       setError('Failed to load document. Please check your connection and try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateStats = useCallback(() => {
+    const allText = pages.map(page => {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = page.content;
+      return tempDiv.innerText || '';
+    }).join(' ');
+    
+    const words = allText.trim().split(/\s+/).filter(word => word.length > 0);
+    const lines = allText.split('\n').length;
+    
+    setWordCount(words.length);
+    setCharCount(allText.length);
+    setLineCount(lines);
+  }, [pages]);
+
+  const handleAutoPageBreak = useCallback(() => {
+    if (!isEditing) return;
+    
+    const updatedPages = [...pages];
+    let needsNewPage = false;
+    
+    updatedPages.forEach((page, index) => {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = page.content;
+      const textLines = (tempDiv.innerText || '').split('\n');
+      
+      if (textLines.length > MAX_LINES_PER_PAGE) {
+        const overflowLines = textLines.slice(MAX_LINES_PER_PAGE);
+        const remainingContent = overflowLines.join('\n');
+        
+        // Truncate current page
+        updatedPages[index].content = textLines.slice(0, MAX_LINES_PER_PAGE).join('\n');
+        
+        // Create new page or add to next page
+        if (index + 1 < updatedPages.length) {
+          updatedPages[index + 1].content = remainingContent + '\n' + updatedPages[index + 1].content;
+        } else {
+          updatedPages.push({
+            id: updatedPages.length + 1,
+            content: remainingContent,
+            header: headerText,
+            footer: footerText
+          });
+          needsNewPage = true;
+        }
+      }
+    });
+    
+    if (needsNewPage || updatedPages.length !== pages.length) {
+      setPages(updatedPages);
+    }
+  }, [pages, isEditing, headerText, footerText]);
+
+  const autoSave = useCallback(() => {
+    if (!isEditing || !documentData) return;
+    
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    saveTimeoutRef.current = setTimeout(async () => {
+      await saveDocument();
+    }, 2000);
+  }, [pages, isEditing, documentData]);
+
+  const saveDocument = async () => {
+    if (!documentData || !isEditing) return;
+    
+    setIsSaving(true);
+    try {
+      const allContent = pages.map(page => page.content).join('\n\n');
+      const url = token ? 
+        `${import.meta.env.VITE_API_URL}/api/documents/shared/${token}` :
+        `${import.meta.env.VITE_API_URL}/api/documents/${documentData._id}`;
+      
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        },
+        body: JSON.stringify({ 
+          content: allContent,
+          pages,
+          formatting: {
+            ...documentData.formatting,
+            headerText,
+            footerText,
+            defaultFont: { family: fontFamily, size: `${fontSize}pt`, lineHeight: '1.5' }
+          }
+        })
+      });
+      
+      if (response.ok) {
+        setLastSaved(new Date());
+        showNotification('Document saved successfully', 'success');
+      } else {
+        throw new Error('Save failed');
+      }
+    } catch (error) {
+      console.error('Error saving document:', error);
+      showNotification('Failed to save document', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handlePageContentChange = (pageIndex, newContent) => {
+    if (!isEditing) return;
+    
+    const updatedPages = [...pages];
+    updatedPages[pageIndex].content = newContent;
+    setPages(updatedPages);
+    
+    const allContent = updatedPages.map(page => page.content).join('\n\n');
+    setContent(allContent);
+  };
+
+  const handleFileImport = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      await importDocx(file);
+    } else {
+      showNotification('Please select a DOCX file', 'error');
+    }
+  };
+
+  const importDocx = async (file) => {
+    try {
+      showNotification('Importing DOCX file...', 'info');
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/import-docx`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        },
+        body: formData
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const importedContent = data.html;
+        
+        // Split content into pages based on line count
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = importedContent;
+        const textLines = (tempDiv.innerText || '').split('\n');
+        
+        const newPages = [];
+        for (let i = 0; i < textLines.length; i += MAX_LINES_PER_PAGE) {
+          const pageLines = textLines.slice(i, i + MAX_LINES_PER_PAGE);
+          newPages.push({
+            id: newPages.length + 1,
+            content: pageLines.join('\n'),
+            header: headerText,
+            footer: footerText
+          });
+        }
+        
+        setPages(newPages.length > 0 ? newPages : [{ id: 1, content: importedContent, header: '', footer: '' }]);
+        setContent(importedContent);
+        showNotification('DOCX imported successfully', 'success');
+      } else {
+        throw new Error('Import failed');
+      }
+    } catch (error) {
+      console.error('Error importing DOCX:', error);
+      showNotification('Failed to import DOCX file', 'error');
     }
   };
 
@@ -97,392 +320,411 @@ const DocumentViewer = () => {
       showNotification('Generating PDF...', 'info');
       
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = 210;
-      const pageHeight = 297;
-      const margin = 20;
-      const contentWidth = pageWidth - (2 * margin);
       
-      // Helper function to convert hex to RGB
-      const hexToRgb = (hex) => {
-        const result = /^#?([a-f\\d]{2})([a-f\\d]{2})([a-f\\d]{2})$/i.exec(hex);
-        return result ? {
-          r: parseInt(result[1], 16),
-          g: parseInt(result[2], 16),
-          b: parseInt(result[3], 16)
-        } : { r: 0, g: 0, b: 0 };
-      };
-      
-      const pages = documentData.pages || [{ id: 1, content: documentData.content }];
-      
-      for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
-        const page = pages[pageIndex];
+      for (let i = 0; i < pages.length; i++) {
+        if (i > 0) pdf.addPage();
         
-        if (pageIndex > 0) {
-          pdf.addPage();
-        }
-        
-        let yPosition = margin;
-        
-        // Add header if exists
-        if (documentData.formatting?.headerText) {
-          const headerParts = documentData.formatting.headerText.split('|');
-          pdf.setFontSize(10);
-          pdf.setTextColor(100, 100, 100);
-          
-          if (headerParts[0]) pdf.text(headerParts[0].trim(), margin, yPosition);
-          if (headerParts[1]) pdf.text(headerParts[1].trim(), pageWidth / 2, yPosition, { align: 'center' });
-          if (headerParts[2]) pdf.text(headerParts[2].trim(), pageWidth - margin, yPosition, { align: 'right' });
-          
-          yPosition += 10;
-          pdf.line(margin, yPosition, pageWidth - margin, yPosition);
-          yPosition += 5;
-        }
-        
-        // Add page border if enabled
-        const pageBorder = documentData.formatting?.pageBorder;
-        if (pageBorder?.enabled) {
-          const borderWidth = parseFloat(pageBorder.width) || 1;
-          pdf.setLineWidth(borderWidth * 0.35);
-          
-          const borderColor = hexToRgb(pageBorder.color);
-          pdf.setDrawColor(borderColor.r, borderColor.g, borderColor.b);
-          
-          if (pageBorder.position === 'all') {
-            pdf.rect(margin, margin, contentWidth, pageHeight - (2 * margin));
-          }
-        }
-        
-        // Create temporary container for page content
-        const tempContainer = document.createElement('div');
-        tempContainer.style.cssText = `
-          position: absolute;
-          top: -9999px;
-          left: -9999px;
-          width: ${contentWidth * 3.78}px;
-          background: white;
-          padding: 0;
-          font-family: ${documentData.formatting?.defaultFont?.family || 'Georgia'};
-          font-size: ${documentData.formatting?.defaultFont?.size || '12pt'};
-          line-height: ${documentData.formatting?.defaultFont?.lineHeight || '1.5'};
-          color: ${documentData.formatting?.defaultFont?.color || '#333'};
-        `;
-        
-        tempContainer.innerHTML = page.content || '';
-        document.body.appendChild(tempContainer);
-        
-        try {
-          const canvas = await html2canvas(tempContainer, {
+        const pageElement = pageRefs.current[i];
+        if (pageElement) {
+          const canvas = await html2canvas(pageElement, {
             scale: 2,
             useCORS: true,
             allowTaint: true,
-            backgroundColor: '#ffffff',
-            logging: false
+            backgroundColor: '#ffffff'
           });
           
           const imgData = canvas.toDataURL('image/png');
-          const imgWidth = contentWidth;
+          const imgWidth = PAGE_WIDTH - 20; // margins
           const imgHeight = (canvas.height * imgWidth) / canvas.width;
           
-          let contentY = yPosition;
-          if (documentData.formatting?.headerText) contentY += 10;
-          
-          pdf.addImage(imgData, 'PNG', margin, contentY, imgWidth, imgHeight);
-        } finally {
-          document.body.removeChild(tempContainer);
-        }
-        
-        // Add watermark if enabled
-        const watermark = documentData.formatting?.watermark;
-        if (watermark?.enabled && watermark.type === 'text') {
-          pdf.saveGraphicsState();
-          pdf.setGState(new pdf.GState({ opacity: watermark.opacity }));
-          pdf.setFontSize(watermark.size * 0.35);
-          
-          const watermarkColor = hexToRgb(watermark.color);
-          pdf.setTextColor(watermarkColor.r, watermarkColor.g, watermarkColor.b);
-          
-          pdf.text(watermark.text, pageWidth / 2, pageHeight / 2, {
-            angle: watermark.rotation,
-            align: 'center'
-          });
-          
-          pdf.restoreGraphicsState();
-        }
-        
-        // Add footer and page numbers
-        const pageNumbering = documentData.formatting?.pageNumbering;
-        if (documentData.formatting?.footerText || pageNumbering?.enabled) {
-          const footerY = pageHeight - margin + 5;
-          pdf.setFontSize(10);
-          pdf.setTextColor(100, 100, 100);
-          
-          if (documentData.formatting?.footerText) {
-            const footerParts = documentData.formatting.footerText.split('|');
-            if (footerParts[0]) pdf.text(footerParts[0].trim(), margin, footerY);
-            if (footerParts[1]) pdf.text(footerParts[1].trim(), pageWidth / 2, footerY, { align: 'center' });
-            if (footerParts[2]) pdf.text(footerParts[2].trim(), pageWidth - margin, footerY, { align: 'right' });
-          }
-          
-          if (pageNumbering?.enabled) {
-            let pageNum = pageIndex + 1;
-            if (pageNumbering.format === 'i') {
-              const romanNumerals = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x'];
-              pageNum = romanNumerals[pageIndex] || (pageIndex + 1);
-            } else if (pageNumbering.format === 'a') {
-              pageNum = String.fromCharCode(97 + pageIndex);
-            }
-            
-            const positions = {
-              'bottom-left': [margin, footerY],
-              'bottom-center': [pageWidth / 2, footerY, { align: 'center' }],
-              'bottom-right': [pageWidth - margin, footerY, { align: 'right' }],
-              'top-left': [margin, margin - 5],
-              'top-center': [pageWidth / 2, margin - 5, { align: 'center' }],
-              'top-right': [pageWidth - margin, margin - 5, { align: 'right' }]
-            };
-            
-            const [x, y, options] = positions[pageNumbering.position] || positions['bottom-right'];
-            pdf.text(String(pageNum), x, y, options);
-          }
-          
-          pdf.line(margin, footerY - 3, pageWidth - margin, footerY - 3);
+          pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
         }
       }
       
-      pdf.save(`${documentData.title}.pdf`);
-      showNotification('PDF exported successfully!', 'success');
-      
+      pdf.save(`${documentData.title || 'document'}.pdf`);
+      showNotification('PDF exported successfully', 'success');
     } catch (error) {
-      console.error('PDF export error:', error);
-      showNotification('Failed to export PDF. Please try again.', 'error');
+      console.error('Error exporting PDF:', error);
+      showNotification('Failed to export PDF', 'error');
     }
   };
 
-  const handleZoomChange = (newZoom) => {
-    setZoomLevel(newZoom);
+  const exportToDocx = async () => {
+    try {
+      showNotification('Generating DOCX...', 'info');
+      
+      const children = [];
+      
+      // Add header if exists
+      if (headerText) {
+        children.push(
+          new Paragraph({
+            children: [new TextRun({ text: headerText, bold: true })],
+            heading: HeadingLevel.HEADING_1
+          })
+        );
+      }
+      
+      // Add content from all pages
+      pages.forEach((page, index) => {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = page.content;
+        const textContent = tempDiv.innerText || '';
+        
+        if (textContent.trim()) {
+          const lines = textContent.split('\n').filter(line => line.trim());
+          lines.forEach(line => {
+            children.push(
+              new Paragraph({
+                children: [new TextRun({ text: line })]
+              })
+            );
+          });
+        }
+        
+        // Add page break except for last page
+        if (index < pages.length - 1) {
+          children.push(
+            new Paragraph({
+              children: [new TextRun({ text: '', break: 1 })],
+              pageBreakBefore: true
+            })
+          );
+        }
+      });
+      
+      // Add footer if exists
+      if (footerText) {
+        children.push(
+          new Paragraph({
+            children: [new TextRun({ text: footerText, italics: true })]
+          })
+        );
+      }
+      
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children
+        }]
+      });
+      
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, `${documentData?.title || 'document'}.docx`);
+      
+      showNotification('DOCX exported successfully', 'success');
+    } catch (error) {
+      console.error('Error exporting DOCX:', error);
+      showNotification('Failed to export DOCX', 'error');
+    }
   };
 
-  const goToPage = (pageNumber) => {
-    setCurrentPage(pageNumber);
-    const pageElement = document.querySelector(`[data-page-id="${pageNumber}"]`);
-    if (pageElement) {
-      pageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const formatText = (command, value = null) => {
+    if (!isEditing) return;
+    document.execCommand(command, false, value);
+    
+    // Update current page content
+    const activeElement = document.activeElement;
+    const pageIndex = pageRefs.current.findIndex(ref => ref && ref.contains(activeElement));
+    if (pageIndex !== -1) {
+      const pageContent = pageRefs.current[pageIndex].querySelector('.page-content');
+      if (pageContent) {
+        handlePageContentChange(pageIndex, pageContent.innerHTML);
+      }
+    }
+  };
+
+  const insertPageBreak = () => {
+    if (!isEditing) return;
+    
+    const newPage = {
+      id: pages.length + 1,
+      content: '',
+      header: headerText,
+      footer: footerText
+    };
+    
+    setPages([...pages, newPage]);
+    setCurrentPage(pages.length + 1);
+  };
+
+  const addNewPage = () => {
+    const newPage = {
+      id: pages.length + 1,
+      content: '',
+      header: headerText,
+      footer: footerText
+    };
+    setPages([...pages, newPage]);
+  };
+
+  const generateShareLink = async () => {
+    if (!documentData || !isEditing) return;
+    
+    try {
+      const permission = window.confirm('Allow editing? Click OK for edit access, Cancel for view-only') ? 'edit' : 'view';
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${documentData._id}/share`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        },
+        body: JSON.stringify({ permission })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const shareUrl = `${window.location.origin}/viewer/${data.documentAddress || documentData.documentAddress}?token=${data.shareToken}`;
+        
+        // Copy to clipboard
+        await navigator.clipboard.writeText(shareUrl);
+        showNotification(`Share link copied to clipboard! Permission: ${permission}`, 'success');
+        
+        // Show share dialog
+        const shareDialog = window.confirm(
+          `Share link generated with ${permission} permission:\n\n${shareUrl}\n\nLink has been copied to clipboard. Click OK to open in new tab.`
+        );
+        
+        if (shareDialog) {
+          window.open(shareUrl, '_blank');
+        }
+      } else {
+        throw new Error('Failed to generate share link');
+      }
+    } catch (error) {
+      console.error('Error generating share link:', error);
+      showNotification('Failed to generate share link', 'error');
     }
   };
 
   if (loading) {
     return (
-      <div className="viewer-container">
-        <div className="loading-state">
-          <div className="loading-spinner"></div>
-          <p>Loading document...</p>
-        </div>
+      <div className="document-viewer loading">
+        <Logo animate={isLogoAnimating} />
+        <p>Loading document...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="viewer-container">
-        <div className="error-state">
-          <i className="ri-error-warning-line"></i>
-          <h2>Unable to Load Document</h2>
+      <div className="document-viewer error">
+        <Logo animate={isLogoAnimating} />
+        <div className="error-message">
+          <h2>Error</h2>
           <p>{error}</p>
-          <div className="error-actions">
-            <button onClick={() => navigate('/')} className="home-btn">
-              <i className="ri-home-line"></i> Go Home
-            </button>
-            <button onClick={loadDocument} className="retry-btn">
-              <i className="ri-refresh-line"></i> Try Again
-            </button>
-          </div>
+          <button onClick={() => navigate('/')} className="btn-primary">
+            Go Back to Dashboard
+          </button>
         </div>
       </div>
     );
   }
 
-  const pages = documentData.pages || [{ id: 1, content: documentData.content }];
-
   return (
-    <div className="viewer-container">
-      {/* Viewer Navbar */}
-      <nav className="viewer-navbar">
-        <div className="navbar-left">
-          <button className="nav-btn" onClick={() => navigate('/')}>
-            <i className="ri-arrow-left-line"></i> Back
-          </button>
-          <div className="logo">
-            <Logo size={24} className={isLogoAnimating ? 'animate' : ''} />
-            <span>EtherXWord Viewer</span>
+    <div className="document-viewer">
+      <header className="viewer-header">
+        <div className="header-left">
+          <Logo animate={isLogoAnimating} />
+          <div className="document-info">
+            <h1>{documentData?.title || 'Untitled Document'}</h1>
+            <div className="document-meta">
+              <span>Address: {documentData?.documentAddress || documentData?._id}</span>
+              <span>Role: {documentData?.userPermission || documentData?.permission || 'viewer'}</span>
+              <span>Created: {new Date(documentData?.createdAt).toLocaleDateString()}</span>
+              <span>Words: {documentData?.wordCount || 0}</span>
+              {documentData?.isFavorite && <span className="favorite">★ Favorite</span>}
+              {documentData?.collaborators?.length > 0 && (
+                <span>👥 {documentData.collaborators.length} collaborators</span>
+              )}
+            </div>
           </div>
         </div>
         
-        <div className="navbar-center">
-          <h1 className="document-title">{documentData.title}</h1>
-          <div className="document-meta">
-            <span><i className="ri-file-text-line"></i> {documentData.wordCount || 0} words</span>
-            <span><i className="ri-file-copy-line"></i> {pages.length} pages</span>
-            <span><i className="ri-time-line"></i> {new Date(documentData.lastModified).toLocaleDateString()}</span>
-          </div>
-        </div>
-        
-        <div className="navbar-right">
-          <div className="zoom-controls">
-            <button 
-              onClick={() => handleZoomChange(Math.max(50, zoomLevel - 10))}
-              className="zoom-btn"
-              disabled={zoomLevel <= 50}
-            >
-              <i className="ri-subtract-line"></i>
-            </button>
-            <span className="zoom-level">{zoomLevel}%</span>
-            <button 
-              onClick={() => handleZoomChange(Math.min(200, zoomLevel + 10))}
-              className="zoom-btn"
-              disabled={zoomLevel >= 200}
-            >
-              <i className="ri-add-line"></i>
-            </button>
-          </div>
-          
-          <button onClick={exportToPDF} className="export-btn">
-            <i className="ri-download-line"></i> Export PDF
-          </button>
-          
-          {localStorage.getItem('accessToken') && (
-            <button 
-              onClick={() => {
-                if (documentAddress) {
-                  navigate(`/editor/address/${documentAddress}${token ? `?token=${token}` : ''}`);
-                } else {
-                  navigate(`/editor/${documentId}`);
-                }
-              }}
-              className="edit-btn"
-            >
-              <i className="ri-edit-line"></i> Edit
-            </button>
+        <div className="header-actions">
+          {isEditing && (
+            <>
+              <input
+                type="file"
+                accept=".docx"
+                onChange={handleFileImport}
+                style={{ display: 'none' }}
+                id="docx-import"
+              />
+              <button onClick={() => document.getElementById('docx-import').click()}>
+                Import DOCX
+              </button>
+              <button onClick={generateShareLink}>
+                Share Document
+              </button>
+            </>
           )}
+          <button onClick={exportToPDF}>Export PDF</button>
+          <button onClick={exportToDocx}>Export DOCX</button>
+          <div className="zoom-controls">
+            <button onClick={() => setZoomLevel(Math.max(50, zoomLevel - 10))}>-</button>
+            <span>{zoomLevel}%</span>
+            <button onClick={() => setZoomLevel(Math.min(200, zoomLevel + 10))}>+</button>
+          </div>
         </div>
-      </nav>
+      </header>
 
-      {/* Document Content */}
-      <div className="viewer-content" style={{ transform: `scale(${zoomLevel / 100})` }}>
-        <div className="pages-container">
+      {isEditing && (
+        <>
+          <div className="toolbar">
+            <div className="toolbar-group">
+              <button onClick={() => formatText('bold')} title="Bold"><strong>B</strong></button>
+              <button onClick={() => formatText('italic')} title="Italic"><em>I</em></button>
+              <button onClick={() => formatText('underline')} title="Underline"><u>U</u></button>
+            </div>
+            <div className="toolbar-group">
+              <button onClick={() => formatText('justifyLeft')} title="Align Left">⬅</button>
+              <button onClick={() => formatText('justifyCenter')} title="Center">↔</button>
+              <button onClick={() => formatText('justifyRight')} title="Align Right">➡</button>
+              <button onClick={() => formatText('justifyFull')} title="Justify">⬌</button>
+            </div>
+            <div className="toolbar-group">
+              <select value={fontSize} onChange={(e) => {
+                setFontSize(parseInt(e.target.value));
+                formatText('fontSize', Math.ceil(parseInt(e.target.value) / 3));
+              }}>
+                <option value="8">8pt</option>
+                <option value="10">10pt</option>
+                <option value="12">12pt</option>
+                <option value="14">14pt</option>
+                <option value="16">16pt</option>
+                <option value="18">18pt</option>
+                <option value="24">24pt</option>
+                <option value="36">36pt</option>
+              </select>
+              <select value={fontFamily} onChange={(e) => {
+                setFontFamily(e.target.value);
+                formatText('fontName', e.target.value);
+              }}>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Arial">Arial</option>
+                <option value="Calibri">Calibri</option>
+                <option value="Georgia">Georgia</option>
+                <option value="Verdana">Verdana</option>
+              </select>
+            </div>
+            <div className="toolbar-group">
+              <button onClick={insertPageBreak} title="Insert Page Break">📄</button>
+              <button onClick={() => formatText('undo')} title="Undo">↶</button>
+              <button onClick={() => formatText('redo')} title="Redo">↷</button>
+            </div>
+            <div className="toolbar-group">
+              <button onClick={() => setShowRuler(!showRuler)} title="Toggle Ruler">📏</button>
+              <button onClick={() => setShowPageNumbers(!showPageNumbers)} title="Toggle Page Numbers">🔢</button>
+            </div>
+          </div>
+
+          <div className="header-footer-controls">
+            <div className="control-group">
+              <label>Header:</label>
+              <input
+                type="text"
+                value={headerText}
+                onChange={(e) => setHeaderText(e.target.value)}
+                placeholder="Enter header text"
+              />
+            </div>
+            <div className="control-group">
+              <label>Footer:</label>
+              <input
+                type="text"
+                value={footerText}
+                onChange={(e) => setFooterText(e.target.value)}
+                placeholder="Enter footer text"
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      {showRuler && (
+        <div className="ruler">
+          <div className="ruler-marks">
+            {Array.from({ length: 21 }, (_, i) => (
+              <div key={i} className="ruler-mark" style={{ left: `${i * 10}mm` }}>
+                {i}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="document-container" style={{ zoom: `${zoomLevel}%` }}>
+        <div className="document-pages">
           {pages.map((page, index) => (
-            <div 
-              key={page.id || index}
-              className="viewer-page"
-              data-page-id={page.id || index + 1}
+            <div
+              key={page.id}
+              ref={el => pageRefs.current[index] = el}
+              className="document-page"
+              style={{
+                fontFamily,
+                fontSize: `${fontSize}pt`,
+                textAlign
+              }}
             >
-              {/* Header */}
-              {documentData.formatting?.headerText && (
+              {headerText && (
                 <div className="page-header">
-                  {documentData.formatting.headerText.split('|').map((part, i) => (
-                    <span key={i} className={`header-${['left', 'center', 'right'][i]}`}>
-                      {part.trim()}
-                    </span>
-                  ))}
+                  <div className="header-content">{headerText}</div>
                 </div>
               )}
               
-              {/* Page Border */}
-              {documentData.formatting?.pageBorder?.enabled && (
-                <div 
-                  className="page-border"
-                  style={{
-                    borderColor: documentData.formatting.pageBorder.color,
-                    borderWidth: documentData.formatting.pageBorder.width,
-                    borderStyle: documentData.formatting.pageBorder.style
-                  }}
-                />
-              )}
-              
-              {/* Content */}
-              <div 
+              <div
                 className="page-content"
-                dangerouslySetInnerHTML={{ __html: page.content || '' }}
+                contentEditable={isEditing}
+                onInput={(e) => handlePageContentChange(index, e.target.innerHTML)}
+                dangerouslySetInnerHTML={{ __html: page.content }}
                 style={{
-                  fontFamily: documentData.formatting?.defaultFont?.family || 'Georgia',
-                  fontSize: documentData.formatting?.defaultFont?.size || '12pt',
-                  lineHeight: documentData.formatting?.defaultFont?.lineHeight || '1.5',
-                  color: documentData.formatting?.defaultFont?.color || '#333'
+                  minHeight: `${PAGE_HEIGHT - 80}mm`,
+                  maxHeight: `${PAGE_HEIGHT - 80}mm`,
+                  overflow: 'hidden'
                 }}
               />
               
-              {/* Watermark */}
-              {documentData.formatting?.watermark?.enabled && (
-                <div 
-                  className="page-watermark"
-                  style={{
-                    opacity: documentData.formatting.watermark.opacity,
-                    fontSize: `${documentData.formatting.watermark.size}px`,
-                    color: documentData.formatting.watermark.color,
-                    transform: `rotate(${documentData.formatting.watermark.rotation}deg)`
-                  }}
-                >
-                  {documentData.formatting.watermark.type === 'text' 
-                    ? documentData.formatting.watermark.text 
-                    : null}
-                </div>
-              )}
-              
-              {/* Footer */}
-              {documentData.formatting?.footerText && (
+              {(footerText || showPageNumbers) && (
                 <div className="page-footer">
-                  {documentData.formatting.footerText.split('|').map((part, i) => (
-                    <span key={i} className={`footer-${['left', 'center', 'right'][i]}`}>
-                      {part.trim()}
-                    </span>
-                  ))}
-                </div>
-              )}
-              
-              {/* Page Number */}
-              {showPageNumbers && (
-                <div className="page-number">
-                  Page {index + 1} of {pages.length}
+                  <div className="footer-left">{footerText}</div>
+                  {showPageNumbers && (
+                    <div className="footer-right">Page {index + 1} of {pages.length}</div>
+                  )}
                 </div>
               )}
             </div>
           ))}
+          
+          {isEditing && (
+            <button className="add-page-btn" onClick={addNewPage}>
+              + Add New Page
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Page Navigation */}
-      {pages.length > 1 && (
-        <div className="page-navigation">
-          <button 
-            onClick={() => goToPage(Math.max(1, currentPage - 1))}
-            disabled={currentPage <= 1}
-            className="nav-page-btn"
-          >
-            <i className="ri-arrow-up-line"></i>
-          </button>
-          
-          <div className="page-selector">
-            <select 
-              value={currentPage} 
-              onChange={(e) => goToPage(parseInt(e.target.value))}
-              className="page-select"
-            >
-              {pages.map((_, index) => (
-                <option key={index} value={index + 1}>
-                  Page {index + 1}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <button 
-            onClick={() => goToPage(Math.min(pages.length, currentPage + 1))}
-            disabled={currentPage >= pages.length}
-            className="nav-page-btn"
-          >
-            <i className="ri-arrow-down-line"></i>
-          </button>
+      <footer className="viewer-footer">
+        <div className="footer-left">
+          <span>Pages: {pages.length}</span>
+          <span>Words: {wordCount}</span>
+          <span>Characters: {charCount}</span>
+          <span>Lines: {lineCount}</span>
         </div>
-      )}
+        <div className="footer-right">
+          {isEditing && (
+            <>
+              {isSaving && <span className="saving">Saving...</span>}
+              {lastSaved && (
+                <span className="last-saved">
+                  Last saved: {lastSaved.toLocaleTimeString()}
+                </span>
+              )}
+            </>
+          )}
+        </div>
+      </footer>
     </div>
   );
 };

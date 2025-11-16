@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import CollaborationRequests from '../components/CollaborationRequests';
+import QuickSearch from '../components/QuickSearch';
 import { useNotification } from '../context/NotificationContext';
 import './Home.css';
 
@@ -15,7 +16,6 @@ const Home = () => {
   const [userDocuments, setUserDocuments] = useState([]);
   const [favoriteDocuments, setFavoriteDocuments] = useState([]);
   const [trashDocuments, setTrashDocuments] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [recentDocuments, setRecentDocuments] = useState([]);
   const navigate = useNavigate();
   const location = useLocation();
@@ -63,38 +63,7 @@ const Home = () => {
     setRecentDocuments(enrichedRecent.slice(0, 6)); // Show last 6 recent documents
   };
   
-  const searchDocuments = async (query) => {
-    if (!query.trim()) {
-      if (selectedSection === 'All Documents') fetchUserDocuments();
-      return;
-    }
-    
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/search?q=${encodeURIComponent(query)}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setUserDocuments(data);
-      }
-    } catch (error) {
-      console.error('Error searching documents:', error);
-    }
-  };
-  
-  const handleSearch = (e) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-    
-    // Debounce search
-    clearTimeout(window.searchTimeout);
-    window.searchTimeout = setTimeout(() => {
-      searchDocuments(query);
-    }, 300);
-  };
+
   
   useEffect(() => {
     // Check if navigated from notification
@@ -108,36 +77,84 @@ const Home = () => {
       fetchUserDocuments();
     } else if (selectedSection === 'Favorites') {
       fetchFavoriteDocuments();
+    } else if (selectedSection === 'Collaboration') {
+      fetchCollaborativeDocuments();
+    } else if (selectedSection === 'Recycle Bin') {
+      fetchTrashDocuments();
     }
   }, [selectedSection]);
   
-  const fetchUserDocuments = () => {
-    // Load only local documents to avoid rate limiting
-    const localDocs = JSON.parse(localStorage.getItem('documents') || '[]');
-    setUserDocuments(localDocs.map(doc => ({
-      _id: doc.id,
-      title: doc.title,
-      content: doc.content,
-      lastModified: doc.lastModified,
-      wordCount: doc.wordCount,
-      isFavorite: doc.isFavorite || false,
-      collaborators: doc.collaborators || []
-    })));
+  const fetchUserDocuments = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setUserDocuments(data);
+      } else {
+        // Fallback to local documents
+        const localDocs = JSON.parse(localStorage.getItem('documents') || '[]');
+        setUserDocuments(localDocs.map(doc => ({
+          _id: doc.id,
+          title: doc.title,
+          content: doc.content,
+          lastModified: doc.lastModified,
+          wordCount: doc.wordCount,
+          isFavorite: doc.isFavorite || false,
+          collaborators: doc.collaborators || [],
+          documentAddress: doc.documentAddress || doc.id
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+      // Fallback to local documents
+      const localDocs = JSON.parse(localStorage.getItem('documents') || '[]');
+      setUserDocuments(localDocs.map(doc => ({
+        _id: doc.id,
+        title: doc.title,
+        content: doc.content,
+        lastModified: doc.lastModified,
+        wordCount: doc.wordCount,
+        isFavorite: doc.isFavorite || false,
+        collaborators: doc.collaborators || [],
+        documentAddress: doc.documentAddress || doc.id
+      })));
+    }
   };
   
-  const fetchFavoriteDocuments = () => {
-    // Load only local favorite documents to avoid rate limiting
-    const localDocs = JSON.parse(localStorage.getItem('documents') || '[]');
-    const favorites = localDocs.filter(doc => doc.isFavorite).map(doc => ({
-      _id: doc.id,
-      title: doc.title,
-      content: doc.content,
-      lastModified: doc.lastModified,
-      wordCount: doc.wordCount,
-      isFavorite: doc.isFavorite || false,
-      collaborators: doc.collaborators || []
-    }));
-    setFavoriteDocuments(favorites);
+  const fetchFavoriteDocuments = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/favorites`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setFavoriteDocuments(data);
+      } else {
+        // Fallback to local favorites
+        const localDocs = JSON.parse(localStorage.getItem('documents') || '[]');
+        const favorites = localDocs.filter(doc => doc.isFavorite).map(doc => ({
+          _id: doc.id,
+          title: doc.title,
+          content: doc.content,
+          lastModified: doc.lastModified,
+          wordCount: doc.wordCount,
+          isFavorite: doc.isFavorite || false,
+          collaborators: doc.collaborators || [],
+          documentAddress: doc.documentAddress || doc.id
+        }));
+        setFavoriteDocuments(favorites);
+      }
+    } catch (error) {
+      console.error('Error fetching favorite documents:', error);
+    }
   };
   
   const fetchTrashDocuments = async () => {
@@ -279,9 +296,13 @@ const Home = () => {
       if (response.ok) {
         const data = await response.json();
         setCollaborativeDocuments(data);
+      } else {
+        console.error('Failed to fetch collaborative documents');
+        setCollaborativeDocuments([]);
       }
     } catch (error) {
       console.error('Error fetching collaborative documents:', error);
+      setCollaborativeDocuments([]);
     }
   };
 
@@ -342,16 +363,29 @@ const Home = () => {
               </div>
             </div>
 
-            {/* Search Bar */}
+            {/* Quick Search */}
             <div className="search-container">
-              <input 
-                type="text" 
-                placeholder="Search by title, content, or date" 
-                className="search-input"
-                value={searchQuery}
-                onChange={handleSearch}
+              <QuickSearch 
+                placeholder="Search by title, content, document address, or keywords..."
+                onResults={(results) => {
+                  // Update recent documents with search results for quick access
+                  if (results.length > 0) {
+                    const searchResults = results.slice(0, 6).map(doc => ({
+                      title: doc.title,
+                      lastModified: doc.lastModified,
+                      preview: doc.content?.replace(/<[^>]*>/g, '').substring(0, 100) || 'No preview available',
+                      wordCount: doc.wordCount || 0,
+                      id: doc._id,
+                      documentAddress: doc.documentAddress,
+                      isFavorite: doc.isFavorite,
+                      searchScore: doc.searchScore
+                    }));
+                    setRecentDocuments(searchResults);
+                  } else if (searchQuery === '') {
+                    loadRecentDocuments();
+                  }
+                }}
               />
-              <i className="ri-search-line search-icon"></i>
             </div>
 
             {/* Recent Documents Grid */}
@@ -383,12 +417,13 @@ const Home = () => {
                       filtered.unshift(docData);
                       localStorage.setItem('recentDocuments', JSON.stringify(filtered.slice(0, 10)));
                       
-                      if (doc.id && doc.id.length === 24) {
-                        // MongoDB ObjectId - navigate to existing server document
-                        navigate(`/editor/${doc.id}`);
-                      } else {
-                        // Local document or no ID - create new document
+                      if (doc.id) {
+                        // Store document ID for editor to load
+                        localStorage.setItem('currentDocumentId', doc.id);
                         navigate('/editor');
+                      } else {
+                        // No ID - create new document with this title
+                        navigate('/editor', { state: { title: doc.title, content: doc.content } });
                       }
                     }}
                     style={{ animationDelay: `${index * 0.1}s` }}
@@ -525,16 +560,12 @@ const Home = () => {
               </div>
             </div>
             
-            {/* Search Bar */}
+            {/* Quick Search */}
             <div className="search-container">
-              <input 
-                type="text" 
-                placeholder="Search documents..." 
-                className="search-input"
-                value={searchQuery}
-                onChange={handleSearch}
+              <QuickSearch 
+                placeholder="Search your documents..."
+                onResults={(results) => setUserDocuments(results)}
               />
-              <i className="ri-search-line search-icon"></i>
             </div>
             
             {userDocuments.length === 0 ? (

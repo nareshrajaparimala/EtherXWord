@@ -1,4 +1,5 @@
 import express from 'express';
+import multer from 'multer';
 import {
   createDocument,
   getUserDocuments,
@@ -20,9 +21,25 @@ import {
   getVersionHistory,
   restoreVersion,
   exportDocumentPDF,
-  searchDocuments
+  searchDocuments,
+  importDocx
 } from '../controllers/document.controller.js';
 import { authenticateToken } from '../middleware/auth.middleware.js';
+
+// Configure multer for file uploads
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only DOCX files are allowed'), false);
+    }
+  }
+});
 
 const router = express.Router();
 
@@ -49,7 +66,8 @@ router.delete('/:documentId/collaborators/:collaboratorId', authenticateToken, r
 router.get('/:documentId/versions', authenticateToken, getVersionHistory);
 router.post('/:documentId/restore-version', authenticateToken, restoreVersion);
 
-// Export routes
+// Import/Export routes
+router.post('/import-docx', authenticateToken, upload.single('file'), importDocx);
 router.get('/:documentId/export/pdf', authenticateToken, exportDocumentPDF);
 
 // Document access by address (with optional auth)
@@ -61,6 +79,29 @@ router.get('/address/:documentAddress', (req, res, next) => {
   }
   next();
 }, getDocumentByAddress);
+
+// Quick document access by any identifier (ID or address)
+router.get('/quick/:identifier', (req, res, next) => {
+  // Optional authentication
+  const token = req.headers.authorization?.split(' ')[1];
+  if (token) {
+    return authenticateToken(req, res, next);
+  }
+  next();
+}, async (req, res) => {
+  // Redirect to appropriate endpoint based on identifier format
+  const { identifier } = req.params;
+  
+  if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
+    // MongoDB ObjectId - redirect to document by ID
+    req.params.documentId = identifier;
+    return getDocument(req, res);
+  } else {
+    // Document address - redirect to document by address
+    req.params.documentAddress = identifier;
+    return getDocumentByAddress(req, res);
+  }
+});
 
 // Public shared document routes
 router.get('/shared/:shareToken', getSharedDocument);
