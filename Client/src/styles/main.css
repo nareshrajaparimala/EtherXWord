@@ -101,17 +101,23 @@ body {
   transform: translateY(-2px);
 }
 
-.form-group {
+.form-group label{
+  display: flex;
   margin-bottom: 1.5rem;
 }
 
 .form-label {
   display: block;
+  /* width: 200px; */
   margin-bottom: 0.5rem;
   font-weight: 500;
+  /* background-color: #10b981; */
+  /* width: 70%; */
   color: var(--text-secondary);
 }
-
+label.form-label{
+  width: 70%;
+}
 .form-input {
   width: 100%;
   padding: 0.875rem 1rem;

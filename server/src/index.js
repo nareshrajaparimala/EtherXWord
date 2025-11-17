@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import { createServer } from 'http';
 import connectDB from './config/db.js';
 // import { initializeSocket } from './services/realtime.service.js';
-import { startTrashCleanup } from './services/cleanup.service.js';
+
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 import collaborationRoutes from './routes/collaboration.routes.js';
@@ -105,13 +105,4 @@ app.use('*', (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log('Environment:', {
-    NODE_ENV: process.env.NODE_ENV,
-    MONGODB_URI: process.env.MONGODB_URI ? 'Set' : 'Missing',
-    JWT_SECRET: process.env.JWT_SECRET ? 'Set' : 'Missing',
-    EMAIL_USER: process.env.EMAIL_USER ? 'Set' : 'Missing'
-  });
-  
-  // Start cleanup service
-  startTrashCleanup();
 });

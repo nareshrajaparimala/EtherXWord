@@ -5,13 +5,13 @@ import { hashPassword, comparePassword, hashOtp, compareOtp } from '../utils/has
 import { generateOtp, getOtpExpiry } from '../utils/otp.util.js';
 import { sendOtpEmail, sendWelcomeEmail } from '../utils/email.util.js';
 
-const generateTokens = (userId) => {
+const generateTokens = (userId, rememberMe = false) => {
   const accessToken = jwt.sign({ userId }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_ACCESS_TTL || '15m'
   });
   
   const refreshToken = jwt.sign({ userId }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_TTL || '7d'
+    expiresIn: rememberMe ? '30d' : (process.env.JWT_REFRESH_TTL || '7d')
   });
 
   return { accessToken, refreshToken };
@@ -60,20 +60,27 @@ export const signup = async (req, res) => {
 
 export const signin = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    console.log('Signin request:', req.body);
+    const { email, password, rememberMe } = req.body;
 
+    console.log('Looking for user with email:', email);
     const user = await User.findOne({ email });
     if (!user) {
+      console.log('User not found for email:', email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    console.log('User found, verifying password');
     const isValidPassword = await comparePassword(password, user.passwordHash);
     if (!isValidPassword) {
+      console.log('Invalid password for user:', email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const { accessToken, refreshToken } = generateTokens(user._id);
+    console.log('Password valid, generating tokens');
+    const { accessToken, refreshToken } = generateTokens(user._id, rememberMe);
 
+    console.log('Signin successful for user:', email);
     res.json({
       accessToken,
       refreshToken,
@@ -84,7 +91,15 @@ export const signin = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Signin error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    res.status(500).json({ 
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
 };
 
@@ -118,6 +133,9 @@ export const forgotPassword = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
       console.log('User not found for email:', email);
+      if (process.env.NODE_ENV === 'development') {
+        return res.status(404).json({ message: 'User not found' });
+      }
       return res.json({ message: 'If email exists, OTP sent' });
     }
 

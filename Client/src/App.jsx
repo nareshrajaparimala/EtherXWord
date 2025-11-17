@@ -23,7 +23,7 @@ import './styles/auth.css';
 function AppContent() {
   const location = useLocation();
   const hideNavbar = location.pathname.startsWith('/editor') || location.pathname.startsWith('/viewer');
-  const token = localStorage.getItem('accessToken');
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
 
   return (
     <div className="App">

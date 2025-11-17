@@ -51,7 +51,9 @@ const SignIn = () => {
     setErrors({});
 
     try {
-      await authService.signin(formData);
+      console.log('Attempting signin with:', formData);
+      const response = await authService.signin(formData);
+      console.log('Signin response:', response);
       
       // Save email if Remember Me is checked
       if (formData.rememberMe) {
@@ -60,8 +62,10 @@ const SignIn = () => {
         localStorage.removeItem('savedEmail');
       }
       
+      console.log('Navigating to home page');
       navigate('/');
     } catch (error) {
+      console.error('Signin error:', error);
       setErrors({ submit: error.response?.data?.message || 'Sign in failed' });
     } finally {
       setLoading(false);

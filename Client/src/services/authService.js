@@ -11,20 +11,22 @@ export const authService = {
   signin: async (credentials) => {
     const response = await api.post('/auth/signin', credentials);
     if (response.data.accessToken) {
-      const storage = credentials.rememberMe ? localStorage : sessionStorage;
-      storage.setItem('accessToken', response.data.accessToken);
-      storage.setItem('refreshToken', response.data.refreshToken);
-      storage.setItem('userProfile', JSON.stringify(response.data.user));
-      
-      // Also save to localStorage for compatibility
-      localStorage.setItem('accessToken', response.data.accessToken);
-      localStorage.setItem('refreshToken', response.data.refreshToken);
-      localStorage.setItem('userProfile', JSON.stringify(response.data.user));
-      
       if (credentials.rememberMe) {
+        // Store in localStorage for persistent login
+        localStorage.setItem('accessToken', response.data.accessToken);
+        localStorage.setItem('refreshToken', response.data.refreshToken);
+        localStorage.setItem('userProfile', JSON.stringify(response.data.user));
         localStorage.setItem('rememberMe', 'true');
       } else {
+        // Store in sessionStorage for session-only login
+        sessionStorage.setItem('accessToken', response.data.accessToken);
+        sessionStorage.setItem('refreshToken', response.data.refreshToken);
+        sessionStorage.setItem('userProfile', JSON.stringify(response.data.user));
         localStorage.removeItem('rememberMe');
+        // Clear any existing localStorage tokens
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('userProfile');
       }
       
       window.dispatchEvent(new Event('storage'));
@@ -53,9 +55,28 @@ export const authService = {
   logout: () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    localStorage.removeItem('userProfile');
+    localStorage.removeItem('rememberMe');
+    localStorage.removeItem('savedEmail');
+    sessionStorage.removeItem('accessToken');
+    sessionStorage.removeItem('refreshToken');
+    sessionStorage.removeItem('userProfile');
   },
 
   isAuthenticated: () => {
-    return !!localStorage.getItem('accessToken');
+    return !!localStorage.getItem('accessToken') || !!sessionStorage.getItem('accessToken');
+  },
+
+  getToken: () => {
+    return localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+  },
+
+  getRefreshToken: () => {
+    return localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken');
+  },
+
+  getUserProfile: () => {
+    const profile = localStorage.getItem('userProfile') || sessionStorage.getItem('userProfile');
+    return profile ? JSON.parse(profile) : null;
   }
 };
