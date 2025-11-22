@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import CollaborationRequests from '../components/CollaborationRequests';
+import ProfileBox from '../components/ProfileBox';
 import { useNotification } from '../context/NotificationContext';
 import './Home.css';
 
@@ -27,7 +28,7 @@ const Home = () => {
     { icon: 'ri-folder-line', label: 'All Documents', mobileVisible: true },
     { icon: 'ri-team-line', label: 'Collaboration', mobileVisible: true },
     { icon: 'ri-star-line', label: 'Favorites', mobileVisible: true },
-    { icon: 'ri-delete-bin-line', label: 'Trash', mobileVisible: true },
+    { icon: 'ri-delete-bin-line', label: 'Recycle Bin', mobileVisible: true },
     { icon: 'ri-settings-3-line', label: 'Settings', mobileVisible: true, action: () => navigate('/settings') }
   ];
 
@@ -451,7 +452,7 @@ const Home = () => {
                       </div>
                     </div>
                     <div className="card-visual">
-                      <span className="doc-thumb">{docInitial}</span>
+                      <ProfileBox text={docInitial} size={52} />
                       <div className="doc-quick-meta">
                         <span className="doc-meta-chip">
                           <i className="ri-file-text-line"></i>
@@ -490,7 +491,11 @@ const Home = () => {
                   <i className="ri-file-text-line template-icon"></i>
                   <span>Blank Document</span>
                 </div>
-                <div className="template-card" onClick={() => navigate('/templates')}>
+                <div className="template-card" onClick={() => {
+                  setSelectedSection('Collaboration');
+                  setAnimateCards(true);
+                  setTimeout(() => setAnimateCards(false), 600);
+                }}>
                   <i className="ri-team-line template-icon"></i>
                   <span>Collaboration</span>
                 </div>
@@ -846,17 +851,17 @@ const Home = () => {
           </div>
         )}
         
-        {/* Trash Section */}
-        {selectedSection === 'Trash' && (
+        {/* Recycle Bin Section */}
+        {selectedSection === 'Recycle Bin' && (
           <div className="workspace-section">
             <div className="section-header">
-              <h2>Trash</h2>
+              <h2>Recycle Bin</h2>
             </div>
             
             {trashDocuments.length === 0 ? (
               <div className="empty-state">
                 <i className="ri-delete-bin-line"></i>
-                <h3>Trash is empty</h3>
+                <h3>Recycle Bin is empty</h3>
                 <p>Deleted documents will appear here</p>
               </div>
             ) : (
@@ -904,7 +909,7 @@ const Home = () => {
         )}
 
         {/* Other sections */}
-        {!['Quick Access', 'New Document', 'All Documents', 'Collaboration', 'Favorites', 'Trash'].includes(selectedSection) && (
+        {!['Quick Access', 'New Document', 'All Documents', 'Collaboration', 'Favorites', 'Recycle Bin'].includes(selectedSection) && (
           <div className="workspace-section">
             <h2>{selectedSection}</h2>
             <p>Content for {selectedSection} coming soon...</p>

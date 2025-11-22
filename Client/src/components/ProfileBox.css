@@ -1,0 +1,85 @@
+/* Modern Profile Box Component */
+.profile-box {
+  border-radius: 12px;
+  background: #000000;
+  color: white;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.profile-box:hover {
+  transform: translateY(-2px) scale(1.05);
+}
+
+/* Light theme styles */
+[data-theme="light"] .profile-box {
+  background: #ffffff;
+  color: #000000;
+  border: 2px solid #000000;
+}
+
+[data-theme="light"] .profile-box:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Size variants */
+.profile-box.small {
+  width: 32px;
+  height: 32px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+.profile-box.small::before,
+.profile-box.small::after {
+  border-radius: 10px;
+}
+
+.profile-box.medium {
+  width: 44px;
+  height: 44px;
+  font-size: 16px;
+  border-radius: 10px;
+}
+
+.profile-box.medium::before,
+.profile-box.medium::after {
+  border-radius: 12px;
+}
+
+.profile-box.large {
+  width: 64px;
+  height: 64px;
+  font-size: 24px;
+  border-radius: 16px;
+}
+
+.profile-box.large::before,
+.profile-box.large::after {
+  border-radius: 18px;
+}
+
+/* Accessibility */
+.profile-box:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 4px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .profile-box,
+  .profile-box::before,
+  .profile-box::after {
+    animation: none;
+  }
+  
+  .profile-box:hover {
+    transform: none;
+  }
+}

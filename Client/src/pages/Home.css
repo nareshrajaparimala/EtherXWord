@@ -146,9 +146,13 @@
 }
 
 .sidebar-item:hover {
-  background: var(--icon-accent-soft);
-  color: var(--icon-accent);
+  background: rgba(255, 207, 64, 0.2);
+  color: #ffcf40;
   transform: translateX(8px);
+}
+
+.sidebar-item:hover .sidebar-icon {
+  color: #ffcf40;
 }
 
 .sidebar-item:hover::before {
@@ -187,12 +191,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(145deg, var(--icon-accent-soft), rgba(255, 255, 255, 0.02));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 8px 18px rgba(0, 0, 0, 0.25);
-  color: var(--icon-accent);
+  background: transparent;
+  color: white;
   position: relative;
+}
+
+[data-theme="light"] .sidebar-icon {
+  color: #000000;
 }
 
 .sidebar-icon::after {
@@ -233,6 +238,22 @@
   padding: 16px 10px;
 }
 
+.home-sidebar.collapsed .sidebar-icon {
+  color: white !important;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.home-sidebar.collapsed .sidebar-item:hover .sidebar-icon {
+  color: #000 !important;
+  background: #ffcf40;
+}
+
+.home-sidebar.collapsed .sidebar-item.active .sidebar-icon {
+  color: #000 !important;
+  background: #ffcf40;
+}
+
 [data-theme="light"] .sidebar-icon {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(247, 248, 255, 0.75));
   box-shadow:
@@ -259,38 +280,38 @@
 }
 
 .sidebar-item[data-item="new-document"] {
-  --icon-accent: #4ade80;
-  --icon-accent-soft: rgba(74, 222, 128, 0.18);
+  --icon-accent: #ffcf40;
+  --icon-accent-soft: rgba(255, 207, 64, 0.18);
 }
 
 .sidebar-item[data-item="templates"] {
-  --icon-accent: #c084fc;
-  --icon-accent-soft: rgba(192, 132, 252, 0.2);
+  --icon-accent: #ffcf40;
+  --icon-accent-soft: rgba(255, 207, 64, 0.18);
 }
 
 .sidebar-item[data-item="all-documents"] {
-  --icon-accent: #60a5fa;
-  --icon-accent-soft: rgba(96, 165, 250, 0.2);
+  --icon-accent: #ffcf40;
+  --icon-accent-soft: rgba(255, 207, 64, 0.18);
 }
 
 .sidebar-item[data-item="collaboration"] {
-  --icon-accent: #fb7185;
-  --icon-accent-soft: rgba(251, 113, 133, 0.2);
+  --icon-accent: #ffcf40;
+  --icon-accent-soft: rgba(255, 207, 64, 0.18);
 }
 
 .sidebar-item[data-item="favorites"] {
-  --icon-accent: #f97316;
-  --icon-accent-soft: rgba(249, 115, 22, 0.18);
+  --icon-accent: #ffcf40;
+  --icon-accent-soft: rgba(255, 207, 64, 0.18);
 }
 
 .sidebar-item[data-item="trash"] {
-  --icon-accent: #f87171;
-  --icon-accent-soft: rgba(248, 113, 113, 0.2);
+  --icon-accent: #ffcf40;
+  --icon-accent-soft: rgba(255, 207, 64, 0.18);
 }
 
 .sidebar-item[data-item="settings"] {
-  --icon-accent: #38bdf8;
-  --icon-accent-soft: rgba(56, 189, 248, 0.2);
+  --icon-accent: #ffcf40;
+  --icon-accent-soft: rgba(255, 207, 64, 0.18);
 }
 
 @keyframes sidebarRipple {
@@ -635,19 +656,30 @@
 .doc-thumb {
   width: 52px;
   height: 52px;
-  border-radius: 18px;
-  background: var(--doc-accent);
-  color: #0f0f0f;
+  border-radius: 12px;
+  background: #000000;
+  color: white;
   font-size: 20px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--doc-accent) 55%, transparent);
+  border: 2px solid white;
+  transition: all 0.3s ease;
+}
+
+.document-card:hover .doc-thumb {
+  transform: translateY(-2px) scale(1.05);
 }
 
 [data-theme="light"] .doc-thumb {
-  color: #1f2937;
+  background: #ffffff;
+  color: #000000;
+  border: 2px solid #000000;
+}
+
+[data-theme="light"] .document-card:hover .doc-thumb {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .doc-quick-meta {

@@ -1,11 +1,19 @@
 .logo-wrapper {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
+  opacity: 1;
+  visibility: visible;
 }
 
 .logo-image {
   transition: transform 0.3s ease;
   object-fit: contain;
+  display: block;
+  opacity: 1;
+  visibility: visible;
+  filter: brightness(1.1) contrast(1.1);
 }
 
 /* Rotation animation - triggers every 3 minutes for 3 seconds */

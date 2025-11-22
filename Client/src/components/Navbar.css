@@ -37,16 +37,25 @@
   gap: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
+  opacity: 1;
+  visibility: visible;
 }
 
 .navbar-logo:hover {
   transform: scale(1.02);
 }
 
+.navbar-logo:hover .logo-text-main {
+  color: #ffcf40;
+}
+
 .logo-text-main {
   font-size: 18px;
   font-weight: 600;
   color: #ffd700;
+  opacity: 1;
+  visibility: visible;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .navbar-right {
@@ -69,12 +78,17 @@
   justify-content: center;
   min-width: 38px;
   height: 38px;
-  color: var(--text-primary);
+  color: white;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.2),
     0 12px 24px rgba(0, 0, 0, 0.25);
   position: relative;
   overflow: hidden;
+}
+
+.navbar.light .nav-icon,
+.navbar.light .theme-toggle {
+  color: #000000;
 }
 
 .nav-icon::after,
@@ -94,6 +108,8 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.3),
     0 16px 30px rgba(0, 0, 0, 0.35);
+  background-color: #ffcf40;
+  color: #000;
 }
 
 .nav-icon:hover::after,
@@ -251,12 +267,24 @@
   background: rgba(255, 255, 255, 0.85);
   border: 1px solid rgba(0, 0, 0, 0.05);
   box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
-  color: #0f172a;
+  color: white;
+}
+
+.navbar.dark .nav-icon,
+.navbar.dark .theme-toggle {
+  color: white;
 }
 
 .navbar.dark .nav-icon:hover,
 .navbar.dark .theme-toggle:hover {
-  background-color: rgba(55, 65, 81, 0.6);
+  background-color: #ffcf40;
+  color: #000;
+}
+
+.navbar.light .nav-icon:hover,
+.navbar.light .theme-toggle:hover {
+  background-color: #ffcf40;
+  color: #000;
 }
 
 .navbar.light .dropdown-menu {
@@ -383,16 +411,20 @@
   padding: 20px;
   border-radius: 12px;
   margin-bottom: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
 }
 
 .right-sidebar.light .profile-section {
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
+  background: transparent;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  color: #1f2937;
 }
 
 .right-sidebar.dark .profile-section {
-  background: #111827;
-  border: 1px solid #374151;
+  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: white;
 }
 
 .profile-avatar {
@@ -404,9 +436,15 @@
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  background: linear-gradient(135deg, #ffd700, #ffed4e);
-  color: #000;
+  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
   flex-shrink: 0;
+}
+
+.right-sidebar.light .profile-avatar {
+  color: #1f2937;
+  border: 2px solid rgba(0, 0, 0, 0.2);
 }
 
 .profile-info {
@@ -422,6 +460,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: white;
 }
 
 .profile-info p {
@@ -431,6 +470,12 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: white;
+}
+
+.right-sidebar.light .profile-info h4,
+.right-sidebar.light .profile-info p {
+  color: #1f2937;
 }
 
 .sidebar-menu {

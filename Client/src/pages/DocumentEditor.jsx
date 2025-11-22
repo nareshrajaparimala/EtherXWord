@@ -18,7 +18,7 @@ const DocumentEditor = () => {
   // Document state
   const [documentTitle, setDocumentTitle] = useState('Untitled Document');
   const [isEditing, setIsEditing] = useState(false);
-  const [documentContent, setDocumentContent] = useState('<p>Start writing your document here...</p>');
+  const [documentContent, setDocumentContent] = useState('<p dir="ltr">Start writing your document here...</p>');
   const [documentStats, setDocumentStats] = useState({
     words: 0,
     characters: 0,
@@ -60,6 +60,8 @@ const DocumentEditor = () => {
   const editorRef = useRef(null);
   const fileInputRef = useRef(null);
   const autoSaveInterval = useRef(null);
+  const isApplyingContentRef = useRef(false);
+  const isEditorChangeRef = useRef(false);
   
   // Auto-save functionality
   useEffect(() => {
@@ -79,6 +81,25 @@ const DocumentEditor = () => {
   // Update document stats
   useEffect(() => {
     updateDocumentStats();
+  }, [documentContent]);
+
+  // When documentContent is changed programmatically (e.g., import or load), apply it to the editor
+  useEffect(() => {
+    if (!editorRef.current) return;
+    // If change was triggered by the editor itself, don't re-apply
+    if (isApplyingContentRef.current) return;
+    if (isEditorChangeRef.current) {
+      // reset the flag and skip applying programmatic changes
+      isEditorChangeRef.current = false;
+      return;
+    }
+
+    isApplyingContentRef.current = true;
+    editorRef.current.innerHTML = documentContent;
+    // Small timeout to allow event loop to settle before allowing user input again
+    setTimeout(() => {
+      isApplyingContentRef.current = false;
+    }, 0);
   }, [documentContent]);
   
   const updateDocumentStats = useCallback(() => {
@@ -127,6 +148,40 @@ const DocumentEditor = () => {
       backgroundColor: document.queryCommandValue('backColor') || 'transparent'
     });
   };
+
+  // Ensure all block elements are explicitly LTR so typing appears left-to-right
+  const normalizeContentLTR = (html) => {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html || '', 'text/html');
+
+      const blockSelectors = 'p, div, h1, h2, h3, h4, h5, h6, li, td, th, blockquote';
+      const blocks = doc.body.querySelectorAll(blockSelectors);
+
+      if (blocks.length === 0) {
+        // If there are no blocks, wrap text nodes in a paragraph with dir=ltr
+        const text = doc.body.textContent || '';
+        doc.body.innerHTML = '';
+        const p = doc.createElement('p');
+        p.setAttribute('dir', 'ltr');
+        p.style.direction = 'ltr';
+        p.style.unicodeBidi = 'isolate-override';
+        p.textContent = text;
+        doc.body.appendChild(p);
+      } else {
+        blocks.forEach((el) => {
+          el.setAttribute('dir', 'ltr');
+          el.style.direction = 'ltr';
+          el.style.unicodeBidi = 'isolate-override';
+        });
+      }
+
+      return doc.body.innerHTML;
+    } catch (e) {
+      console.warn('normalizeContentLTR failed', e);
+      return html;
+    }
+  };
   
   // DOCX Import
   const handleImportDocx = async (event) => {
@@ -145,7 +200,7 @@ const DocumentEditor = () => {
       const result = await importDocxOOXML(fileBuffer);
       
       if (result.success) {
-        setDocumentContent(result.html);
+        applyContentToEditor(result.html);
         setDocumentTitle(file.name.replace('.docx', ''));
         showNotification('DOCX file imported successfully!', 'success');
       } else {
@@ -214,12 +269,28 @@ const DocumentEditor = () => {
   
   // Handle content change
   const handleContentChange = () => {
-    if (editorRef.current) {
-      const newContent = editorRef.current.innerHTML;
-      setDocumentContent(newContent);
-    }
+    if (!editorRef.current) return;
+    if (isApplyingContentRef.current) return;
+
+    const newContent = editorRef.current.innerHTML;
+    // Normalize but do not re-apply innerHTML immediately (avoid caret jumps)
+    const normalized = normalizeContentLTR(newContent);
+    isEditorChangeRef.current = true;
+    setDocumentContent(normalized);
   };
-  
+
+  // Apply HTML into editor safely (for imports/loads)
+  const applyContentToEditor = (html) => {
+    if (!editorRef.current) return;
+    const normalized = normalizeContentLTR(html);
+    isApplyingContentRef.current = true;
+    editorRef.current.innerHTML = normalized;
+    setDocumentContent(normalized);
+    setTimeout(() => {
+      isApplyingContentRef.current = false;
+    }, 0);
+  };
+
   // Insert table
   const insertTable = (rows = 3, cols = 3) => {
     let tableHTML = '<table class="etherx-table" style="width: 100%; border-collapse: collapse; margin: 16px 0; border: 1px solid #ddd;">';
@@ -257,6 +328,38 @@ const DocumentEditor = () => {
     reader.readAsDataURL(file);
     
     event.target.value = '';
+  };
+
+  // Paste handler: sanitize and enforce LTR
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const clipboard = e.clipboardData || window.clipboardData;
+    let html = clipboard.getData('text/html');
+    const text = clipboard.getData('text/plain');
+
+    if (!html && text) {
+      // Insert plain text wrapped in a paragraph
+      const safe = `<p dir="ltr">${escapeHtml(text)}</p>`;
+      document.execCommand('insertHTML', false, safe);
+    } else if (html) {
+      // Normalize pasted HTML and insert
+      const normalized = normalizeContentLTR(html);
+      document.execCommand('insertHTML', false, normalized);
+    }
+
+    // After paste, update our state
+    setTimeout(() => {
+      handleContentChange();
+    }, 0);
+  };
+
+  const escapeHtml = (unsafe) => {
+    return unsafe
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   };
   
   // Zoom functions
@@ -522,14 +625,16 @@ const DocumentEditor = () => {
                   ref={editorRef}
                   className="editor-content a4-content"
                   contentEditable
-                  dangerouslySetInnerHTML={{ __html: documentContent }}
+                  dir="ltr"
                   onInput={handleContentChange}
+                  onPaste={(e) => handlePaste(e)}
                   onMouseUp={updateFormatState}
                   onKeyUp={updateFormatState}
                   style={{
                     fontFamily: currentFormat.fontFamily,
                     fontSize: currentFormat.fontSize,
-                    padding: `${pageSetup.margins.top}mm ${pageSetup.margins.right}mm ${pageSetup.margins.bottom}mm ${pageSetup.margins.left}mm`
+                    padding: `${pageSetup.margins.top}mm ${pageSetup.margins.right}mm ${pageSetup.margins.bottom}mm ${pageSetup.margins.left}mm`,
+                    unicodeBidi: 'isolate-override'
                   }}
                 />
               </div>
