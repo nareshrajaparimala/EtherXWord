@@ -4,6 +4,12 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  optimizeDeps: {
+    exclude: ['html-docx-js'], 
+  },
+  ssr: {
+    noExternal: ['html-docx-js'], 
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -28,5 +34,3 @@ export default defineConfig({
     }
   }
 })
-
-

@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { saveAs } from 'file-saver';
 import Logo from '../components/Logo';
 import { useLogoAnimation } from '../hooks/useLogoAnimation';
 import { useNotification } from '../context/NotificationContext';
+import { exportDocxOOXML } from '../utils/ooxmlUtils';
 import './DocumentViewer.css';
 
 const DocumentViewer = () => {
@@ -20,13 +22,45 @@ const DocumentViewer = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [showPageNumbers, setShowPageNumbers] = useState(true);
+  const [fitScale, setFitScale] = useState(1);
   
   const viewerRef = useRef(null);
+  const contentRef = useRef(null);
   const token = searchParams.get('token');
+
+  // Constants for A4 dimensions
+  const MM_TO_PX = 3.7795275591;
+  const basePageWidth = 210 * MM_TO_PX;
+  const basePageHeight = 297 * MM_TO_PX;
 
   useEffect(() => {
     loadDocument();
   }, [documentId, documentAddress, token]);
+
+  useEffect(() => {
+    const updateFitScale = () => {
+      if (!contentRef.current) return;
+
+      const NAVBAR_HEIGHT = 70;
+      const horizontalPadding = 40;
+      const verticalPadding = 80;
+
+      const availableWidth = Math.max(100, contentRef.current.clientWidth - horizontalPadding);
+      const availableHeight = Math.max(100, window.innerHeight - NAVBAR_HEIGHT - verticalPadding);
+
+      const widthScale = availableWidth / basePageWidth;
+      const heightScale = availableHeight / basePageHeight;
+      const nextFitScale = Math.min(widthScale, heightScale);
+
+      if (Number.isFinite(nextFitScale) && nextFitScale > 0) {
+        setFitScale(nextFitScale);
+      }
+    };
+
+    updateFitScale();
+    window.addEventListener('resize', updateFitScale);
+    return () => window.removeEventListener('resize', updateFitScale);
+  }, []);
 
   const loadDocument = async () => {
     setLoading(true);
@@ -37,7 +71,6 @@ const DocumentViewer = () => {
       const headers = {};
       
       if (documentAddress) {
-        // Load by document address
         url = `${import.meta.env.VITE_API_URL}/api/documents/address/${documentAddress}`;
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
@@ -45,10 +78,8 @@ const DocumentViewer = () => {
           headers['Authorization'] = `Bearer ${localStorage.getItem('accessToken')}`;
         }
       } else if (token) {
-        // Load by share token
         url = `${import.meta.env.VITE_API_URL}/api/documents/shared/${token}`;
       } else if (documentId) {
-        // Load by document ID (authenticated)
         url = `${import.meta.env.VITE_API_URL}/api/documents/${documentId}`;
         headers['Authorization'] = `Bearer ${localStorage.getItem('accessToken')}`;
       } else {
@@ -61,7 +92,6 @@ const DocumentViewer = () => {
         const data = await response.json();
         setDocumentData(data);
         
-        // If user has edit permission, offer to switch to editor
         if (data.userPermission === 'edit' || data.permission === 'edit') {
           const switchToEditor = window.confirm(
             'You have edit permission for this document. Would you like to open it in the editor instead?'
@@ -102,16 +132,6 @@ const DocumentViewer = () => {
       const margin = 20;
       const contentWidth = pageWidth - (2 * margin);
       
-      // Helper function to convert hex to RGB
-      const hexToRgb = (hex) => {
-        const result = /^#?([a-f\\d]{2})([a-f\\d]{2})([a-f\\d]{2})$/i.exec(hex);
-        return result ? {
-          r: parseInt(result[1], 16),
-          g: parseInt(result[2], 16),
-          b: parseInt(result[3], 16)
-        } : { r: 0, g: 0, b: 0 };
-      };
-      
       const pages = documentData.pages || [{ id: 1, content: documentData.content }];
       
       for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
@@ -119,37 +139,6 @@ const DocumentViewer = () => {
         
         if (pageIndex > 0) {
           pdf.addPage();
-        }
-        
-        let yPosition = margin;
-        
-        // Add header if exists
-        if (documentData.formatting?.headerText) {
-          const headerParts = documentData.formatting.headerText.split('|');
-          pdf.setFontSize(10);
-          pdf.setTextColor(100, 100, 100);
-          
-          if (headerParts[0]) pdf.text(headerParts[0].trim(), margin, yPosition);
-          if (headerParts[1]) pdf.text(headerParts[1].trim(), pageWidth / 2, yPosition, { align: 'center' });
-          if (headerParts[2]) pdf.text(headerParts[2].trim(), pageWidth - margin, yPosition, { align: 'right' });
-          
-          yPosition += 10;
-          pdf.line(margin, yPosition, pageWidth - margin, yPosition);
-          yPosition += 5;
-        }
-        
-        // Add page border if enabled
-        const pageBorder = documentData.formatting?.pageBorder;
-        if (pageBorder?.enabled) {
-          const borderWidth = parseFloat(pageBorder.width) || 1;
-          pdf.setLineWidth(borderWidth * 0.35);
-          
-          const borderColor = hexToRgb(pageBorder.color);
-          pdf.setDrawColor(borderColor.r, borderColor.g, borderColor.b);
-          
-          if (pageBorder.position === 'all') {
-            pdf.rect(margin, margin, contentWidth, pageHeight - (2 * margin));
-          }
         }
         
         // Create temporary container for page content
@@ -160,7 +149,7 @@ const DocumentViewer = () => {
           left: -9999px;
           width: ${contentWidth * 3.78}px;
           background: white;
-          padding: 0;
+          padding: 20px;
           font-family: ${documentData.formatting?.defaultFont?.family || 'Georgia'};
           font-size: ${documentData.formatting?.defaultFont?.size || '12pt'};
           line-height: ${documentData.formatting?.defaultFont?.lineHeight || '1.5'};
@@ -183,70 +172,15 @@ const DocumentViewer = () => {
           const imgWidth = contentWidth;
           const imgHeight = (canvas.height * imgWidth) / canvas.width;
           
-          let contentY = yPosition;
-          if (documentData.formatting?.headerText) contentY += 10;
-          
-          pdf.addImage(imgData, 'PNG', margin, contentY, imgWidth, imgHeight);
+          pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight);
         } finally {
           document.body.removeChild(tempContainer);
         }
         
-        // Add watermark if enabled
-        const watermark = documentData.formatting?.watermark;
-        if (watermark?.enabled && watermark.type === 'text') {
-          pdf.saveGraphicsState();
-          pdf.setGState(new pdf.GState({ opacity: watermark.opacity }));
-          pdf.setFontSize(watermark.size * 0.35);
-          
-          const watermarkColor = hexToRgb(watermark.color);
-          pdf.setTextColor(watermarkColor.r, watermarkColor.g, watermarkColor.b);
-          
-          pdf.text(watermark.text, pageWidth / 2, pageHeight / 2, {
-            angle: watermark.rotation,
-            align: 'center'
-          });
-          
-          pdf.restoreGraphicsState();
-        }
-        
-        // Add footer and page numbers
-        const pageNumbering = documentData.formatting?.pageNumbering;
-        if (documentData.formatting?.footerText || pageNumbering?.enabled) {
-          const footerY = pageHeight - margin + 5;
-          pdf.setFontSize(10);
-          pdf.setTextColor(100, 100, 100);
-          
-          if (documentData.formatting?.footerText) {
-            const footerParts = documentData.formatting.footerText.split('|');
-            if (footerParts[0]) pdf.text(footerParts[0].trim(), margin, footerY);
-            if (footerParts[1]) pdf.text(footerParts[1].trim(), pageWidth / 2, footerY, { align: 'center' });
-            if (footerParts[2]) pdf.text(footerParts[2].trim(), pageWidth - margin, footerY, { align: 'right' });
-          }
-          
-          if (pageNumbering?.enabled) {
-            let pageNum = pageIndex + 1;
-            if (pageNumbering.format === 'i') {
-              const romanNumerals = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x'];
-              pageNum = romanNumerals[pageIndex] || (pageIndex + 1);
-            } else if (pageNumbering.format === 'a') {
-              pageNum = String.fromCharCode(97 + pageIndex);
-            }
-            
-            const positions = {
-              'bottom-left': [margin, footerY],
-              'bottom-center': [pageWidth / 2, footerY, { align: 'center' }],
-              'bottom-right': [pageWidth - margin, footerY, { align: 'right' }],
-              'top-left': [margin, margin - 5],
-              'top-center': [pageWidth / 2, margin - 5, { align: 'center' }],
-              'top-right': [pageWidth - margin, margin - 5, { align: 'right' }]
-            };
-            
-            const [x, y, options] = positions[pageNumbering.position] || positions['bottom-right'];
-            pdf.text(String(pageNum), x, y, options);
-          }
-          
-          pdf.line(margin, footerY - 3, pageWidth - margin, footerY - 3);
-        }
+        // Add page number
+        pdf.setFontSize(10);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(`Page ${pageIndex + 1} of ${pages.length}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
       }
       
       pdf.save(`${documentData.title}.pdf`);
@@ -258,8 +192,30 @@ const DocumentViewer = () => {
     }
   };
 
+  const exportToDocx = async () => {
+    if (!documentData) return;
+    
+    try {
+      showNotification('Exporting to DOCX...', 'info');
+      
+      const pages = documentData.pages || [{ id: 1, content: documentData.content }];
+      const fullContent = pages.map(page => page.content || '').join('');
+      
+      const buffer = await exportDocxOOXML(fullContent, documentData.title);
+      const blob = new Blob([buffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+      });
+      
+      saveAs(blob, `${documentData.title}.docx`);
+      showNotification('DOCX exported successfully!', 'success');
+    } catch (error) {
+      console.error('DOCX export error:', error);
+      showNotification('Failed to export DOCX: ' + error.message, 'error');
+    }
+  };
+
   const handleZoomChange = (newZoom) => {
-    setZoomLevel(newZoom);
+    setZoomLevel(Math.max(50, Math.min(200, newZoom)));
   };
 
   const goToPage = (pageNumber) => {
@@ -269,6 +225,22 @@ const DocumentViewer = () => {
       pageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
+
+  // Zoom with mouse wheel
+  useEffect(() => {
+    const container = viewerRef.current;
+    if (!container) return;
+    
+    const handleWheelZoom = (event) => {
+      if (event.ctrlKey) {
+        event.preventDefault();
+        handleZoomChange(zoomLevel + (event.deltaY > 0 ? -10 : 10));
+      }
+    };
+    
+    container.addEventListener('wheel', handleWheelZoom, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheelZoom);
+  }, [zoomLevel]);
 
   if (loading) {
     return (
@@ -302,9 +274,13 @@ const DocumentViewer = () => {
   }
 
   const pages = documentData.pages || [{ id: 1, content: documentData.content }];
+  const scale = fitScale * (zoomLevel / 100);
+  const scaledPageWidth = basePageWidth * scale;
+  const scaledPageHeight = basePageHeight * scale;
+  const verticalGap = 30 * scale;
 
   return (
-    <div className="viewer-container">
+    <div className="viewer-container" ref={viewerRef}>
       {/* Viewer Navbar */}
       <nav className="viewer-navbar">
         <div className="navbar-left">
@@ -346,7 +322,11 @@ const DocumentViewer = () => {
           </div>
           
           <button onClick={exportToPDF} className="export-btn">
-            <i className="ri-download-line"></i> Export PDF
+            <i className="ri-file-pdf-line"></i> PDF
+          </button>
+          
+          <button onClick={exportToDocx} className="export-btn">
+            <i className="ri-file-word-line"></i> DOCX
           </button>
           
           {localStorage.getItem('accessToken') && (
@@ -367,85 +347,51 @@ const DocumentViewer = () => {
       </nav>
 
       {/* Document Content */}
-      <div className="viewer-content" style={{ transform: `scale(${zoomLevel / 100})` }}>
-        <div className="pages-container">
-          {pages.map((page, index) => (
-            <div 
-              key={page.id || index}
-              className="viewer-page"
-              data-page-id={page.id || index + 1}
-            >
-              {/* Header */}
-              {documentData.formatting?.headerText && (
-                <div className="page-header">
-                  {documentData.formatting.headerText.split('|').map((part, i) => (
-                    <span key={i} className={`header-${['left', 'center', 'right'][i]}`}>
-                      {part.trim()}
-                    </span>
-                  ))}
-                </div>
-              )}
-              
-              {/* Page Border */}
-              {documentData.formatting?.pageBorder?.enabled && (
-                <div 
-                  className="page-border"
-                  style={{
-                    borderColor: documentData.formatting.pageBorder.color,
-                    borderWidth: documentData.formatting.pageBorder.width,
-                    borderStyle: documentData.formatting.pageBorder.style
-                  }}
-                />
-              )}
-              
-              {/* Content */}
-              <div 
-                className="page-content"
-                dangerouslySetInnerHTML={{ __html: page.content || '' }}
+      <div className="viewer-content" ref={contentRef}>
+        <div className="pages-viewport">
+          <div className="pages-container">
+            {pages.map((page, index) => (
+              <div
+                key={page.id || index}
+                className="page-scale-wrapper"
                 style={{
-                  fontFamily: documentData.formatting?.defaultFont?.family || 'Georgia',
-                  fontSize: documentData.formatting?.defaultFont?.size || '12pt',
-                  lineHeight: documentData.formatting?.defaultFont?.lineHeight || '1.5',
-                  color: documentData.formatting?.defaultFont?.color || '#333'
+                  width: `${scaledPageWidth}px`,
+                  height: `${scaledPageHeight}px`,
+                  marginBottom: index === pages.length - 1 ? 0 : `${verticalGap}px`
                 }}
-              />
-              
-              {/* Watermark */}
-              {documentData.formatting?.watermark?.enabled && (
+              >
                 <div 
-                  className="page-watermark"
+                  className="viewer-page"
+                  data-page-id={page.id || index + 1}
                   style={{
-                    opacity: documentData.formatting.watermark.opacity,
-                    fontSize: `${documentData.formatting.watermark.size}px`,
-                    color: documentData.formatting.watermark.color,
-                    transform: `rotate(${documentData.formatting.watermark.rotation}deg)`
+                    width: `${basePageWidth}px`,
+                    height: `${basePageHeight}px`,
+                    transform: `scale(${scale})`,
+                    transformOrigin: 'top center'
                   }}
                 >
-                  {documentData.formatting.watermark.type === 'text' 
-                    ? documentData.formatting.watermark.text 
-                    : null}
+                  {/* Page Content */}
+                  <div 
+                    className="page-content"
+                    dangerouslySetInnerHTML={{ __html: page.content || '' }}
+                    style={{
+                      fontFamily: documentData.formatting?.defaultFont?.family || 'Georgia',
+                      fontSize: documentData.formatting?.defaultFont?.size || '12pt',
+                      lineHeight: documentData.formatting?.defaultFont?.lineHeight || '1.5',
+                      color: documentData.formatting?.defaultFont?.color || '#333'
+                    }}
+                  />
+                  
+                  {/* Page Number */}
+                  {showPageNumbers && (
+                    <div className="page-number">
+                      Page {index + 1} of {pages.length}
+                    </div>
+                  )}
                 </div>
-              )}
-              
-              {/* Footer */}
-              {documentData.formatting?.footerText && (
-                <div className="page-footer">
-                  {documentData.formatting.footerText.split('|').map((part, i) => (
-                    <span key={i} className={`footer-${['left', 'center', 'right'][i]}`}>
-                      {part.trim()}
-                    </span>
-                  ))}
-                </div>
-              )}
-              
-              {/* Page Number */}
-              {showPageNumbers && (
-                <div className="page-number">
-                  Page {index + 1} of {pages.length}
-                </div>
-              )}
-            </div>
-          ))}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

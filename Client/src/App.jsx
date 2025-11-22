@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import IPFSDocuments from './pages/IPFSDocuments';
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import LoadingPage from './components/LoadingPage';
@@ -29,6 +30,8 @@ function AppContent() {
     <div className="App">
       {!hideNavbar && <Navbar />}
       <Routes>
+        <Route path="/ipfs-documents" element={<ProtectedRoute><IPFSDocuments /></ProtectedRoute>} />
+
         <Route path="/" element={token ? <Navigate to="/home" replace /> : <Navigate to="/signin" replace />} />
         <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
@@ -55,12 +58,30 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const persist = localStorage.getItem('persistLogin');
+    if (persist !== 'true') {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+    }
+
+    const handleBeforeUnload = () => {
+      if (localStorage.getItem('persistLogin') !== 'true') {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     // Simulate app initialization
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 5000); // 10 seconds loading
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, []);
 
   if (isLoading) {
