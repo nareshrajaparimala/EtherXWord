@@ -318,6 +318,7 @@
   word-wrap: break-word;
   direction: ltr;
   text-align: left;
+  unicode-bidi: isolate-override;
 }
 
 /* Ensure editor content is always readable */
