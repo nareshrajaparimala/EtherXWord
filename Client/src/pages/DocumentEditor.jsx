@@ -215,12 +215,48 @@ const DocumentEditor = () => {
     event.target.value = '';
   };
   
+  // Enrich HTML with text-align styles from editor's computed styles
+  const enrichAlignmentStyles = (html) => {
+    if (!editorRef.current) return html;
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const pElements = doc.querySelectorAll('p');
+      
+      // For each paragraph, check the actual editor DOM for its computed alignment
+      // and inject it into the style attribute
+      const editorParas = editorRef.current.querySelectorAll('p');
+      pElements.forEach((p, idx) => {
+        if (idx < editorParas.length) {
+          const editorP = editorParas[idx];
+          const computedStyle = window.getComputedStyle(editorP);
+          const textAlign = computedStyle.textAlign || 'left';
+          if (textAlign && textAlign !== 'left') {
+            const existing = p.getAttribute('style') || '';
+            const alignStyle = `text-align: ${textAlign}`;
+            // Add align style if not already present
+            if (!existing.includes('text-align')) {
+              p.setAttribute('style', existing ? `${existing}; ${alignStyle}` : alignStyle);
+            }
+          }
+        }
+      });
+      
+      return doc.body.innerHTML;
+    } catch (e) {
+      console.warn('enrichAlignmentStyles failed', e);
+      return html;
+    }
+  };
+  
   // DOCX Export
   const handleExportDocx = async () => {
     try {
       showNotification('Exporting to DOCX...', 'info');
       
-      const buffer = await exportDocxOOXML(documentContent, documentTitle);
+      // Enrich HTML with alignment styles before export
+      const enrichedHtml = enrichAlignmentStyles(documentContent);
+      const buffer = await exportDocxOOXML(enrichedHtml, documentTitle);
       const blob = new Blob([buffer], { 
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
       });

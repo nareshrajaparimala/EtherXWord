@@ -145,62 +145,165 @@ const convertOOXMLToHTML = (xmlString) => {
   return html || '<p>Start writing your document here...</p>';
 };
 
+// Detect and mark page breaks in HTML content
+// A4 page: 297mm height, 20mm margins = 257mm usable, roughly 27-30 lines per page
+const insertPageBreaks = (htmlContent) => {
+  try {
+    // Use regex-based parsing since DOMParser is browser-only
+    const blockRegex = /<(p|table|div|h[1-6])[^>]*>[\s\S]*?<\/\1>/gi;
+    const blocks = [];
+    let match;
+    
+    while ((match = blockRegex.exec(htmlContent)) !== null) {
+      const block = {
+        html: match[0],
+        type: match[1].toLowerCase(),
+        startIndex: match.index
+      };
+      
+      // Estimate lines for this block
+      if (block.type === 'table') {
+        const rowMatches = block.html.match(/<tr[^>]*>/gi) || [];
+        block.lines = rowMatches.length + 2; // Add overhead
+      } else {
+        // For paragraphs: count text content + estimate wrapping
+        const text = block.html.replace(/<[^>]+>/g, '');
+        const lineBreaks = (text.match(/\n/g) || []).length;
+        const estimatedWrappedLines = Math.ceil(text.length / 80);
+        block.lines = Math.max(lineBreaks + 1, estimatedWrappedLines, 1);
+      }
+      
+      blocks.push(block);
+    }
+    
+    // Now accumulate line counts and insert page breaks
+    let result = '';
+    let lineCount = 0;
+    const LINES_PER_PAGE = 28;
+    
+    blocks.forEach((block, index) => {
+      lineCount += block.lines;
+      
+      // Insert page break if we exceed capacity (not before first block)
+      if (lineCount > LINES_PER_PAGE && index > 0) {
+        result += '<div style="page-break-before: always; margin: 0; padding: 0; height: 0;"></div>';
+        lineCount = block.lines; // Reset for new page
+      }
+      
+      result += block.html;
+    });
+    
+    return result || htmlContent;
+  } catch (error) {
+    console.warn('Page break detection error:', error);
+    return htmlContent; // Fallback to original if parsing fails
+  }
+};
+
 // Convert HTML to OOXML
 const convertHTMLToOOXML = (htmlContent) => {
+  // Insert page break markers based on estimated content height
+  const htmlWithPageBreaks = insertPageBreaks(htmlContent);
+  
   let ooxml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body>`;
   
-  // Convert paragraphs
-  const paragraphs = htmlContent.match(/<p[^>]*>(.*?)<\/p>/gs) || [];
-  
-  paragraphs.forEach(paragraph => {
-    let alignment = '';
-    let content = paragraph.replace(/<p[^>]*>|<\/p>/g, '');
+  // Helper: detect alignment from a tag string (style attr or align attr)
+  const getAlignmentXml = (tagString) => {
+    const styleMatch = tagString.match(/style=["']([^"']*)["']/i);
+    let style = styleMatch ? styleMatch[1] : '';
+    const alignAttrMatch = tagString.match(/align=["']?([^"'\s>]+)["']?/i);
+    let align = alignAttrMatch ? alignAttrMatch[1] : null;
+
+    // If style contains text-align
+    const taMatch = style.match(/text-align\s*:\s*(left|center|right|justify)/i);
+    if (taMatch) align = taMatch[1].toLowerCase();
+
+    if (!align) return '';
     
-    // Check alignment
-    if (paragraph.includes('text-align: center')) alignment = '<w:pPr><w:jc w:val="center"/></w:pPr>';
-    else if (paragraph.includes('text-align: right')) alignment = '<w:pPr><w:jc w:val="right"/></w:pPr>';
-    else if (paragraph.includes('text-align: justify')) alignment = '<w:pPr><w:jc w:val="both"/></w:pPr>';
+    // Build pPr with alignment and spacing for cross-platform compatibility
+    let pPr = '<w:pPr>';
     
-    ooxml += `<w:p>${alignment}`;
+    // Add alignment
+    if (align === 'center') pPr += '<w:jc w:val="center"/>';
+    else if (align === 'right') pPr += '<w:jc w:val="right"/>';
+    else if (align === 'justify' || align === 'both') pPr += '<w:jc w:val="both"/>';
     
-    // Handle formatted text
-    if (content.includes('<strong>') || content.includes('<b>') || content.includes('<em>') || content.includes('<i>') || content.includes('<u>')) {
-      // Process formatted runs
-      const parts = content.split(/(<\/?(?:strong|b|em|i|u)[^>]*>)/);
-      let isBold = false, isItalic = false, isUnderline = false;
-      
-      parts.forEach(part => {
-        if (part === '<strong>' || part === '<b>') isBold = true;
-        else if (part === '</strong>' || part === '</b>') isBold = false;
-        else if (part === '<em>' || part === '<i>') isItalic = true;
-        else if (part === '</em>' || part === '</i>') isItalic = false;
-        else if (part === '<u>') isUnderline = true;
-        else if (part === '</u>') isUnderline = false;
-        else if (part && !part.startsWith('<')) {
-          let rPr = '';
-          if (isBold || isItalic || isUnderline) {
-            rPr = '<w:rPr>';
-            if (isBold) rPr += '<w:b/>';
-            if (isItalic) rPr += '<w:i/>';
-            if (isUnderline) rPr += '<w:u w:val="single"/>';
-            rPr += '</w:rPr>';
-          }
-          ooxml += `<w:r>${rPr}<w:t>${part}</w:t></w:r>`;
+    // Add spacing (important for macOS Pages and paragraph separation)
+    pPr += '<w:spacing w:before="0" w:after="200" w:line="360" w:lineRule="auto"/>';
+    
+    pPr += '</w:pPr>';
+    return pPr;
+  };
+
+  const createRunsFromHtml = (content) => {
+    let runs = '';
+    // Split keeping inline tags (case-insensitive)
+    const parts = content.split(/(<\/?(?:strong|b|em|i|u)[^>]*>)/i);
+    let isBold = false, isItalic = false, isUnderline = false;
+
+    parts.forEach(part => {
+      const lower = part.toLowerCase();
+      if (lower === '<strong>' || lower === '<b>') isBold = true;
+      else if (lower === '</strong>' || lower === '</b>') isBold = false;
+      else if (lower === '<em>' || lower === '<i>') isItalic = true;
+      else if (lower === '</em>' || lower === '</i>') isItalic = false;
+      else if (lower === '<u>') isUnderline = true;
+      else if (lower === '</u>') isUnderline = false;
+      else if (part && !part.startsWith('<')) {
+        let rPr = '';
+        if (isBold || isItalic || isUnderline) {
+          rPr = '<w:rPr>';
+          if (isBold) rPr += '<w:b/>';
+          if (isItalic) rPr += '<w:i/>';
+          if (isUnderline) rPr += '<w:u w:val="single"/>';
+          rPr += '</w:rPr>';
         }
-      });
-    } else {
-      // Plain text
-      const plainText = content.replace(/<[^>]*>/g, '');
-      ooxml += `<w:r><w:t>${plainText || ' '}</w:t></w:r>`;
+        runs += `<w:r>${rPr}<w:t xml:space="preserve">${escapeXml(part)}</w:t></w:r>`;
+      }
+    });
+
+    return runs || `<w:r><w:t xml:space="preserve"> </w:t></w:r>`;
+  };
+
+  // Convert paragraphs (using content with page breaks marked)
+  // First, handle explicit page break markers
+  const partsWithBreaks = htmlWithPageBreaks.split(/<div[^>]*page-break-before[^>]*><\/div>/);
+  let isFirstPage = true;
+  
+  partsWithBreaks.forEach((part, pageIndex) => {
+    // Add page break at start of subsequent pages (not before first page)
+    if (!isFirstPage && pageIndex > 0) {
+      ooxml += '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>';
     }
+    isFirstPage = false;
     
+    const paragraphs = part.match(/<p[^>]*>(.*?)<\/p>/gis) || [];
+    
+    paragraphs.forEach(paragraph => {
+    const alignment = getAlignmentXml(paragraph);
+    let content = paragraph.replace(/<p[^>]*>|<\/p>/gi, '');
+
+    // Build paragraph with properties (alignment and/or spacing)
+    let pPr = '';
+    if (alignment) {
+      // alignment already includes <w:pPr>...</w:pPr> with spacing
+      pPr = alignment;
+    } else {
+      // No alignment: still add spacing for proper paragraph separation
+      pPr = '<w:pPr><w:spacing w:before="0" w:after="200" w:line="360" w:lineRule="auto"/></w:pPr>';
+    }
+
+    ooxml += `<w:p>${pPr}`;
+    // Create runs (handles inline formatting)
+    ooxml += createRunsFromHtml(content);
     ooxml += '</w:p>';
+    });
   });
   
   // Convert tables
-  const tables = htmlContent.match(/<table[^>]*>(.*?)<\/table>/gs) || [];
+  const tables = htmlWithPageBreaks.match(/<table[^>]*>(.*?)<\/table>/gs) || [];
   
   tables.forEach(table => {
     ooxml += '<w:tbl>';
@@ -211,8 +314,21 @@ const convertHTMLToOOXML = (htmlContent) => {
       const cells = row.match(/<td[^>]*>(.*?)<\/td>/gs) || [];
       
       cells.forEach(cell => {
-        const cellContent = cell.replace(/<td[^>]*>|<\/td>/g, '').replace(/<[^>]*>/g, '');
-        ooxml += `<w:tc><w:p><w:r><w:t>${cellContent || ' '}</w:t></w:r></w:p></w:tc>`;
+        // Keep inner HTML to preserve inline tags
+        const cellInner = cell.replace(/<td[^>]*>|<\/td>/gi, '');
+        const cellAlignment = getAlignmentXml(cell);
+        
+        // Build cell paragraph with properties
+        let cellPPr = '';
+        if (cellAlignment) {
+          cellPPr = cellAlignment;
+        } else {
+          cellPPr = '<w:pPr><w:spacing w:before="0" w:after="200" w:line="360" w:lineRule="auto"/></w:pPr>';
+        }
+        
+        ooxml += `<w:tc><w:p>${cellPPr}`;
+        ooxml += createRunsFromHtml(cellInner);
+        ooxml += '</w:p></w:tc>';
       });
       
       ooxml += '</w:tr>';
@@ -221,10 +337,23 @@ const convertHTMLToOOXML = (htmlContent) => {
     ooxml += '</w:tbl>';
   });
   
-  ooxml += `  </w:body>
+  // Add section properties so Word recognizes document boundaries
+  ooxml += `    <w:sectPr/>
+  </w:body>
 </w:document>`;
   
   return ooxml;
+};
+
+// Escape XML special characters inside text nodes
+const escapeXml = (unsafe) => {
+  if (unsafe === null || unsafe === undefined) return '';
+  return String(unsafe)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 };
 
 // DOCX XML Templates
