@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import jsPDF from 'jspdf';
@@ -22,7 +23,9 @@ const DocumentViewer = () => {
   const [showPageNumbers, setShowPageNumbers] = useState(true);
   
   const viewerRef = useRef(null);
+  const contentRef = useRef(null);
   const token = searchParams.get('token');
+  const [fitScale, setFitScale] = useState(1);
 
   useEffect(() => {
     loadDocument();
@@ -259,8 +262,49 @@ const DocumentViewer = () => {
   };
 
   const handleZoomChange = (newZoom) => {
-    setZoomLevel(newZoom);
+    setZoomLevel(Math.max(50, Math.min(200, newZoom)));
   };
+
+  useEffect(() => {
+    const container = viewerRef.current;
+    if (!container) return;
+    const handleWheelZoom = (event) => {
+      if (event.ctrlKey) {
+        event.preventDefault();
+        handleZoomChange(zoomLevel + (event.deltaY > 0 ? -10 : 10));
+      }
+    };
+    container.addEventListener('wheel', handleWheelZoom, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheelZoom);
+  }, [zoomLevel]);
+
+  useEffect(() => {
+    const updateFitScale = () => {
+      if (!contentRef.current) return;
+
+      const NAVBAR_HEIGHT = document.querySelector('.viewer-navbar')?.offsetHeight || 70;
+      const horizontalPadding = 40; // viewer-content padding left + right (20px each)
+      const verticalPadding = 80; // viewer-content padding top + bottom (40px each)
+
+      const availableWidth = Math.max(100, contentRef.current.clientWidth - horizontalPadding);
+      const availableHeight = Math.max(
+        100,
+        window.innerHeight - NAVBAR_HEIGHT - verticalPadding
+      );
+
+      const widthScale = availableWidth / basePageWidth;
+      const heightScale = availableHeight / basePageHeight;
+      const nextFitScale = Math.min(widthScale, heightScale);
+
+      if (Number.isFinite(nextFitScale) && nextFitScale > 0) {
+        setFitScale(nextFitScale);
+      }
+    };
+
+    updateFitScale();
+    window.addEventListener('resize', updateFitScale);
+    return () => window.removeEventListener('resize', updateFitScale);
+  }, []);
 
   const goToPage = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -302,9 +346,16 @@ const DocumentViewer = () => {
   }
 
   const pages = documentData.pages || [{ id: 1, content: documentData.content }];
+  const scale = fitScale * (zoomLevel / 100);
+  const MM_TO_PX = 3.7795275591;
+  const basePageWidth = 210 * MM_TO_PX;
+  const basePageHeight = 297 * MM_TO_PX;
+  const scaledPageWidth = basePageWidth * scale;
+  const scaledPageHeight = basePageHeight * scale;
+  const verticalGap = 30 * scale;
 
   return (
-    <div className="viewer-container">
+    <div className="viewer-container" ref={viewerRef}>
       {/* Viewer Navbar */}
       <nav className="viewer-navbar">
         <div className="navbar-left">
@@ -367,13 +418,29 @@ const DocumentViewer = () => {
       </nav>
 
       {/* Document Content */}
-      <div className="viewer-content" style={{ transform: `scale(${zoomLevel / 100})` }}>
-        <div className="pages-container">
+      <div className="viewer-content" ref={contentRef}>
+        {/* pages-viewport keeps layout static; each page scales independently */}
+        <div className="pages-viewport">
+          <div className="pages-container" style={{ gap: 0 }}>
           {pages.map((page, index) => (
-            <div 
+            <div
               key={page.id || index}
+              className="page-scale-wrapper"
+              style={{
+                width: `${scaledPageWidth}px`,
+                height: `${scaledPageHeight}px`,
+                marginBottom: index === pages.length - 1 ? 0 : `${verticalGap}px`
+              }}
+            >
+            <div 
               className="viewer-page"
               data-page-id={page.id || index + 1}
+              style={{
+                width: `${basePageWidth}px`,
+                height: `${basePageHeight}px`,
+                transform: `scale(${scale})`,
+                transformOrigin: 'top center'
+              }}
             >
               {/* Header */}
               {documentData.formatting?.headerText && (
@@ -445,7 +512,9 @@ const DocumentViewer = () => {
                 </div>
               )}
             </div>
+            </div>
           ))}
+        </div>
         </div>
       </div>
 

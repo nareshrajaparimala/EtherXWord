@@ -271,6 +271,21 @@
   transition: transform 0.3s ease;
 }
 
+/* Viewport that wraps scaled pages so the surrounding layout (center/scroll) adjusts
+   to the scaled visual size. The inner .pages-container will be scaled while this
+   viewport receives a matching width in pixels. */
+.pages-viewport {
+  display: flex;
+  justify-content: center;
+}
+
+.page-scale-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  transition: width 0.2s ease;
+}
+
 .pages-container {
   display: flex;
   flex-direction: column;

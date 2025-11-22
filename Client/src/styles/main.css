@@ -42,10 +42,22 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: var(--bg-primary);
+  background:
+    radial-gradient(circle at 5% 10%, rgba(255, 207, 64, 0.18), transparent 45%),
+    radial-gradient(circle at 90% 85%, rgba(67, 97, 238, 0.22), transparent 50%),
+    linear-gradient(135deg, #020202 0%, #0a0a0a 45%, #030303 100%);
   color: var(--text-primary);
   transition: var(--transition);
   line-height: 1.6;
+  min-height: 100vh;
+}
+
+[data-theme="light"] body {
+  background:
+    radial-gradient(circle at 8% 18%, rgba(255, 229, 173, 0.55), transparent 60%),
+    radial-gradient(circle at 85% 80%, rgba(181, 198, 255, 0.5), transparent 65%),
+    linear-gradient(140deg, #f7f8ff 0%, #eef1ff 50%, #ffffff 100%);
+  color: var(--text-primary);
 }
 
 .container {
@@ -76,7 +88,6 @@ body {
 
 .btn-primary:hover {
   background: #e6b800;
-  transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(255, 207, 64, 0.3);
 }
 
@@ -193,6 +204,8 @@ body {
   from { opacity: 0; transform: translateY(30px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+
 
 @media (max-width: 768px) {
   .container {

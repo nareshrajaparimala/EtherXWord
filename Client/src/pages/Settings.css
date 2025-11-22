@@ -195,6 +195,81 @@
   animation: pulse 2s infinite;
 }
 
+.theme-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.theme-chip {
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .theme-chip {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.theme-chip i {
+  margin-left: auto;
+  color: var(--accent-color);
+}
+
+.theme-chip.active {
+  border-color: var(--accent-color);
+  box-shadow: 0 10px 25px rgba(255, 215, 0, 0.15);
+}
+
+.chip-preview {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #1f1f1f, #050505);
+  position: relative;
+  overflow: hidden;
+}
+
+.chip-preview::before,
+.chip-preview::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(6px);
+}
+
+.chip-preview[data-variant="light"] {
+  background: linear-gradient(135deg, #ffffff, #e5e7ff);
+}
+
+.chip-preview[data-variant="auto"] {
+  background: linear-gradient(135deg, #111827 0%, #111827 50%, #f8fafc 50%, #f8fafc 100%);
+}
+
+.chip-text {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.chip-text strong {
+  font-size: 14px;
+}
+
+.chip-text span {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
 /* Profile Section */
 .profile-section {
   background: var(--bg-secondary);

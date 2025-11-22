@@ -32,6 +32,16 @@ const Home = () => {
   ];
 
   const [collaborativeDocuments, setCollaborativeDocuments] = useState([]);
+
+  const getDocumentAccent = (title = '') => {
+    if (!title) return '#ffcf40';
+    let hash = 0;
+    for (let i = 0; i < title.length; i += 1) {
+      hash = title.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 75%, 60%)`;
+  };
   
   useEffect(() => {
     loadRecentDocuments();
@@ -292,10 +302,13 @@ const Home = () => {
       {/* Sidebar */}
       <aside className={`home-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-content">
-          {menuItems.map((item, index) => (
+          {menuItems.map((item, index) => {
+            const dataId = item.label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            return (
             <button
               key={index}
               className={`sidebar-item ${selectedSection === item.label ? 'active' : ''} ${item.mobileVisible ? 'mobile-visible' : ''}`}
+              data-item={dataId}
               onClick={() => {
                 if (item.action) {
                   item.action();
@@ -309,7 +322,7 @@ const Home = () => {
               <i className={`sidebar-icon ${item.icon}`}></i>
               <span className="sidebar-label">{item.label}</span>
             </button>
-          ))}
+          );})}
         </div>
       </aside>
 
@@ -322,7 +335,7 @@ const Home = () => {
               <h2>Quick Access</h2>
               <div className="quick-actions">
                 <button 
-                  className="btn btn-primary" 
+                  className="btn btn-primary glass-btn primary-glass" 
                   onClick={() => {
                     setIsLoading(true);
                     setTimeout(() => {
@@ -334,7 +347,7 @@ const Home = () => {
                   <i className={`ri-add-line ${isLoading ? 'animate-spin' : ''}`}></i>
                   {isLoading ? 'Creating...' : 'New Document'}
                 </button>
-                <button className="btn btn-secondary" onClick={() => navigate('/templates')}>
+                <button className="btn btn-secondary glass-btn secondary-glass" onClick={() => navigate('/templates')}>
                   <i className="ri-layout-2-line"></i>
                   Browse Templates
                 </button>
@@ -363,10 +376,22 @@ const Home = () => {
                   <button className="btn btn-primary" onClick={() => navigate('/editor')}>Create Document</button>
                 </div>
               ) : (
-                recentDocuments.map((doc, index) => (
+                recentDocuments.map((doc, index) => {
+                  const previewSource = doc.preview || doc.content?.replace(/<[^>]*>/g, ' ') || '';
+                  const sanitizedPreview = previewSource.replace(/\s+/g, ' ').trim();
+                  const previewSnippet = sanitizedPreview
+                    ? `${sanitizedPreview.substring(0, 120)}${sanitizedPreview.length > 120 ? '…' : ''}`
+                    : 'Start writing to see a rich preview';
+                  const accentColor = getDocumentAccent(doc.title);
+                  const docInitial = (doc.title?.trim()?.[0] || 'D').toUpperCase();
+                  const lastEdited = doc.lastModified
+                    ? new Date(doc.lastModified).toLocaleDateString()
+                    : 'Just now';
+                  return (
                   <div 
                     key={index} 
                     className={`document-card ${animateCards ? 'animate' : ''}`}
+                    style={{ '--doc-accent': accentColor }}
                     onClick={() => {
                       // Add to recent documents
                       const recentDocs = JSON.parse(localStorage.getItem('recentDocuments') || '[]');
@@ -390,7 +415,7 @@ const Home = () => {
                         navigate('/editor');
                       }
                     }}
-                    style={{ animationDelay: `${index * 0.1}s` }}
+                    style={{ animationDelay: `${index * 0.1}s`, '--doc-accent': accentColor }}
                   >
                     <div className="card-header">
                       <h3>{doc.title}</h3>
@@ -425,16 +450,32 @@ const Home = () => {
                         </button>
                       </div>
                     </div>
-                    <p className="card-preview">{doc.preview || 'No preview available'}</p>
+                    <div className="card-visual">
+                      <span className="doc-thumb">{docInitial}</span>
+                      <div className="doc-quick-meta">
+                        <span className="doc-meta-chip">
+                          <i className="ri-file-text-line"></i>
+                          {doc.wordCount || 0} words
+                        </span>
+                        <span className="doc-meta-chip subtle">
+                          Updated {lastEdited}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="card-preview">{previewSnippet}</p>
                     <div className="card-footer">
                       <span className="word-count">
-                        <i className="ri-file-text-line"></i>
-                        {doc.wordCount || 0} words
+                        <i className="ri-time-line"></i>
+                        Last opened {lastEdited}
                       </span>
-                      <span className="last-edit">{new Date(doc.lastModified).toLocaleDateString()}</span>
+                      <span className="open-pill">
+                        Continue
+                        <i className="ri-arrow-right-up-line"></i>
+                      </span>
                     </div>
                   </div>
-                ))
+                );
+                })
               )}
             </div>
 

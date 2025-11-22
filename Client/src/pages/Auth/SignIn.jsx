@@ -50,82 +50,84 @@ const SignIn = () => {
 
   return (
     <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h1 className="auth-title">Welcome Back</h1>
-          <p className="auth-subtitle">Sign in to your account</p>
-        </div>
-
-        {successMessage && (
-          <div className="success-message" style={{ textAlign: 'center', marginBottom: '1rem' }}>
-            {successMessage}
+      <div className="auth-wrapper">
+        <div className="auth-card">
+          <div className="auth-header">
+            <h1 className="auth-title">Welcome Back</h1>
+            <p className="auth-subtitle">Sign in to your account</p>
           </div>
-        )}
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <FormInput
-            label="Email"
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="you@example.com"
-            required
-            error={errors.email}
-          />
-
-          <PasswordInput
-            label="Password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            placeholder="Your account password"
-            required
-            error={errors.password}
-          />
-
-          <div className="form-group">
-            <div className="align-checkbox">
-              <input
-                type="checkbox"
-                id="rememberMe"
-                name="rememberMe"
-                checked={formData.rememberMe}
-                onChange={handleChange}
-                className="checkbox"
-              />
-              <label htmlFor="rememberMe" className="" style={{ marginBottom: 0 }}>
-                Remember me
-              </label>
+          {successMessage && (
+            <div className="success-message" style={{ textAlign: 'center', marginBottom: '1rem' }}>
+              {successMessage}
             </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="auth-form">
+            <FormInput
+              label="Email"
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="you@example.com"
+              required
+              error={errors.email}
+            />
+
+            <PasswordInput
+              label="Password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="Your account password"
+              required
+              error={errors.password}
+            />
+
+            <div className="form-group">
+              <div className="align-checkbox">
+                <input
+                  type="checkbox"
+                  id="rememberMe"
+                  name="rememberMe"
+                  checked={formData.rememberMe}
+                  onChange={handleChange}
+                  className="checkbox"
+                />
+                <label htmlFor="rememberMe" className="" style={{ marginBottom: 0 }}>
+                  Remember me
+                </label>
+              </div>
+            </div>
+
+            {errors.submit && <div className="error-message">{errors.submit}</div>}
+
+            <button 
+              type="submit" 
+              className={`btn btn-primary ${loading ? 'loading' : ''}`}
+              style={{ width: '100%' }}
+              disabled={loading}
+            >
+              {loading ? <span className="spinner"></span> : 'Sign In'}
+            </button>
+          </form>
+
+          <div className="auth-links" style={{ marginBottom: '1rem' }}>
+            <Link to="/forgot-password" className="auth-link">Forgot Password?</Link>
           </div>
 
-          {errors.submit && <div className="error-message">{errors.submit}</div>}
+          <div className="auth-divider">
+            <span>or</span>
+          </div>
 
-          <button 
-            type="submit" 
-            className={`btn btn-primary ${loading ? 'loading' : ''}`}
-            style={{ width: '100%' }}
-            disabled={loading}
-          >
-            {loading ? <span className="spinner"></span> : 'Sign In'}
+          <button className="btn btn-google" style={{ width: '100%', display: 'none' }}>
+            <span>📧</span> Sign in with Google
           </button>
-        </form>
 
-        <div className="auth-links" style={{ marginBottom: '1rem' }}>
-          <Link to="/forgot-password" className="auth-link">Forgot Password?</Link>
-        </div>
-
-        <div className="auth-divider">
-          <span>or</span>
-        </div>
-
-        <button className="btn btn-google" style={{ width: '100%', display: 'none' }}>
-          <span>📧</span> Sign in with Google
-        </button>
-
-        <div className="auth-links">
-          Don't have an account? <Link to="/signup" className="auth-link">Create Account</Link>
+          <div className="auth-links">
+            Don't have an account? <Link to="/signup" className="auth-link">Create Account</Link>
+          </div>
         </div>
       </div>
     </div>

@@ -353,32 +353,35 @@ const Navbar = () => {
           </div>
           
           <div className="sidebar-menu">
-            <button className="sidebar-item" onClick={() => { navigate('/profile'); setShowSidebar(false); }}>
-              <span className="item-icon">👤</span>
-              <span>Profile</span>
-            </button>
-            <button className="sidebar-item" onClick={() => { navigate('/settings'); setShowSidebar(false); }}>
-              <span className="item-icon">⚙️</span>
-              <span>Settings</span>
-            </button>
-            <button className="sidebar-item" onClick={() => { navigate('/home'); setShowSidebar(false); }}>
-              <span className="item-icon">📊</span>
-              <span>Dashboard</span>
-            </button>
-            <button className="sidebar-item" onClick={() => { navigate('/templates'); setShowSidebar(false); }}>
-              <span className="item-icon">📄</span>
-              <span>Templates</span>
-            </button>
-            <button className="sidebar-item" onClick={() => { navigate('/home'); setShowSidebar(false); }}>
-              <span className="item-icon">📝</span>
-              <span>My Documents</span>
-            </button>
-            <button className="sidebar-item">
-              <span className="item-icon"><i className="ri-notification-3-line"></i></span>
-              <span>Notifications</span>
-            </button>
+            {[
+              { label: 'Profile', icon: 'ri-user-3-line', accent: '#ffcf40', onClick: () => navigate('/profile') },
+              { label: 'Settings', icon: 'ri-equalizer-line', accent: '#a78bfa', onClick: () => navigate('/settings') },
+              { label: 'Dashboard', icon: 'ri-bar-chart-grouped-line', accent: '#38bdf8', onClick: () => navigate('/home') },
+              { label: 'Templates', icon: 'ri-layout-4-line', accent: '#c084fc', onClick: () => navigate('/templates') },
+              { label: 'My Documents', icon: 'ri-file-list-3-line', accent: '#34d399', onClick: () => navigate('/home') },
+              { label: 'Notifications', icon: 'ri-notification-2-line', accent: '#facc15', onClick: () => setShowNotifications(true) },
+              { label: 'IPFS Documents', icon: 'ri-folder-2-line', accent: '#f97316', onClick: () => navigate('/ipfs-documents') }
+            ].map((item, index) => (
+              <button
+                key={item.label}
+                className="sidebar-item"
+                onClick={() => {
+                  item.onClick();
+                  setShowSidebar(false);
+                }}
+                style={{ '--item-order': index }}
+              >
+                <span className="item-icon" style={{ '--item-accent': item.accent }}>
+                  <i className={item.icon}></i>
+                </span>
+                <span>{item.label}</span>
+              </button>
+            ))}
+
             <button className="sidebar-item logout" onClick={handleLogout}>
-              <span className="item-icon">🚪</span>
+              <span className="item-icon danger" style={{ '--item-accent': '#f87171' }}>
+                <i className="ri-logout-circle-line"></i>
+              </span>
               <span>Logout</span>
             </button>
           </div>

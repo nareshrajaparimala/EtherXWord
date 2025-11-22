@@ -45,6 +45,11 @@ const Settings = () => {
     sessionTimeout: '30',
     passwordLastChanged: null
   });
+  const themeOptions = [
+    { id: 'light', label: 'Light', subtitle: 'Crisp & bright' },
+    { id: 'dark', label: 'Dark', subtitle: 'Deep focus' },
+    { id: 'auto', label: 'Auto', subtitle: 'Match system' }
+  ];
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: 'ri-user-line' },
@@ -297,6 +302,23 @@ const Settings = () => {
                     <option value="light">Light</option>
                     <option value="auto">Auto</option>
                   </select>
+                </div>
+                <div className="theme-preview-grid">
+                  {themeOptions.map((option) => (
+                    <button
+                      type="button"
+                      key={option.id}
+                      className={`theme-chip ${preferences.theme === option.id ? 'active' : ''}`}
+                      onClick={() => handlePreferenceUpdate('theme', option.id)}
+                    >
+                      <span className="chip-preview" data-variant={option.id}></span>
+                      <div className="chip-text">
+                        <strong>{option.label}</strong>
+                        <span>{option.subtitle}</span>
+                      </div>
+                      {preferences.theme === option.id && <i className="ri-check-line"></i>}
+                    </button>
+                  ))}
                 </div>
                 
                 <div className="form-group">

@@ -5,111 +5,116 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import connectDB from './config/db.js';
-// import { initializeSocket } from './services/realtime.service.js';
 import { startTrashCleanup } from './services/cleanup.service.js';
+
+// ✅ Routes
 import authRoutes from './routes/auth.routes.js';
 import collaborationRoutes from './routes/collaboration.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import documentRoutes from './routes/document.routes.js';
 import activityRoutes from './routes/activity.routes.js';
+import ipfsRoutes from './routes/ipfs.Routes.js'; // ✅ Make sure filename is lowercase
 
+// ✅ Load environment variables
 dotenv.config();
-// console.log('Environment loaded:', {
-//   EMAIL_USER: process.env.EMAIL_USER,
-//   EMAIL_PASS: process.env.EMAIL_PASS
-// });
 
 const app = express();
 const server = createServer(app);
-const PORT = process.env.PORT || 5030;
+const PORT = process.env.PORT || 5031;
 
-// Initialize Socket.IO (temporarily disabled)
-// initializeSocket(server);
-
-// Connect to MongoDB
+// ✅ Connect to MongoDB
 connectDB().catch(err => {
-  console.error('MongoDB connection failed:', err);
+  console.error('❌ MongoDB connection failed:', err);
   process.exit(1);
 });
 
-// Security middleware
+// ✅ Security middleware
 app.use(helmet());
-app.use(cors({
-  origin: [
-    'https://etherxword.netlify.app',
-    'https://ether-x-word-ba14avyrv-nareshrajaparimalas-projects.vercel.app',
-    'https://ether-x-word.vercel.app',
-    'http://localhost:3000'
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  optionsSuccessStatus: 200
-}));
+app.use(
+  cors({
+    origin: [
+      'https://etherxword.netlify.app',
+      'https://ether-x-word-ba14avyrv-nareshrajaparimalas-projects.vercel.app',
+      'https://ether-x-word.vercel.app',
+      'http://localhost:3000',
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    optionsSuccessStatus: 200,
+  })
+);
 
-// Rate limiting
+// ✅ Rate limiting (1 minute window, 1000 requests)
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  windowMs: 1 * 60 * 1000,
+  max: 1000,
 });
 app.use(limiter);
 
-// Body parsing middleware
+// ✅ Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Routes
+// ✅ Register routes
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/collaboration', collaborationRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/activities', activityRoutes);
+app.use('/api/ipfs', ipfsRoutes); // ✅ IPFS route properly registered
 
-// Health check
+// ✅ Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Root route
+// ✅ Root route
 app.get('/', (req, res) => {
-  res.json({ 
-    message: 'EtherXWord API Server', 
+  res.json({
+    message: 'EtherXWord API Server',
     version: '1.0.0',
     endpoints: {
       auth: '/api/auth',
-      health: '/health'
-    }
+      documents: '/api/documents',
+      ipfs: '/api/ipfs/upload',
+      health: '/health',
+    },
   });
 });
 
-// Error handling middleware
+// ✅ Global error handler
 app.use((err, req, res, next) => {
   console.error('Server Error:', {
     message: err.message,
     stack: err.stack,
     url: req.url,
-    method: req.method
+    method: req.method,
   });
-  res.status(500).json({ 
+  res.status(500).json({
     message: 'Server error',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    error:
+      process.env.NODE_ENV === 'development'
+        ? err.message
+        : 'Internal server error',
   });
 });
 
-// 404 handler
+// ✅ 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
+// ✅ Start the server
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log('Environment:', {
+  console.log('Server running on port ${PORT}');
+  console.log('🌍 Environment:', {
     NODE_ENV: process.env.NODE_ENV,
     MONGODB_URI: process.env.MONGODB_URI ? 'Set' : 'Missing',
     JWT_SECRET: process.env.JWT_SECRET ? 'Set' : 'Missing',
-    EMAIL_USER: process.env.EMAIL_USER ? 'Set' : 'Missing'
+    EMAIL_USER: process.env.EMAIL_USER ? 'Set' : 'Missing',
   });
-  
+
   // Start cleanup service
   startTrashCleanup();
 });

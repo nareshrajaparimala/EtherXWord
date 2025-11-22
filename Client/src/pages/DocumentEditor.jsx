@@ -13,6 +13,10 @@ import { ThemeContext } from '../context/ThemeContext';
 import TemplateDemo from '../components/TemplateDemo';
 
 const DocumentEditor = () => {
+  const navigate = useNavigate();
+  const { id: documentId } = useParams();
+  const isLogoAnimating = useLogoAnimation();
+  const autoSaveInterval = useRef(null);
   const { showNotification, clearAllNotifications } = useNotification();
   const [documentTitle, setDocumentTitle] = useState('Untitled Document');
   const [isEditing, setIsEditing] = useState(false);
@@ -21,6 +25,13 @@ const DocumentEditor = () => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [imageTransform, setImageTransform] = useState({
+    width: 100,
+    rotation: 0,
+    border: 'none',
+    crop: { top: 0, right: 0, bottom: 0, left: 0 }
+  });
+  const [showCropControls, setShowCropControls] = useState(false);
   const [documentHistory, setDocumentHistory] = useState([]);
   const [collaborators, setCollaborators] = useState([]);
   const [shareLink, setShareLink] = useState('');
@@ -47,6 +58,7 @@ const DocumentEditor = () => {
   const [headerAlignment, setHeaderAlignment] = useState('top-center');
   const [footerAlignment, setFooterAlignment] = useState('bottom-center');
   const [pageNumbering, setPageNumbering] = useState({ enabled: true, position: 'bottom-right', format: '1' });
+  const [showFeatureCoach, setShowFeatureCoach] = useState(false);
   const [showListStyles, setShowListStyles] = useState(false);
   const [undoStack, setUndoStack] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
@@ -54,7 +66,7 @@ const DocumentEditor = () => {
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [findText, setFindText] = useState('');
   const [replaceText, setReplaceText] = useState('');
-  const [currentMatch, setCurrentMatch] = useState(0);
+  const [currentMatch, setCurrentMatch] = useState(-1);
   const [totalMatches, setTotalMatches] = useState(0);
   const [defaultFont, setDefaultFont] = useState({
     family: 'Georgia',
@@ -62,6 +74,21 @@ const DocumentEditor = () => {
     lineHeight: '1.5',
     color: '#333333'
   });
+  const dismissFeatureCoach = () => {
+    localStorage.setItem('editorFeatureCoach', 'seen');
+    setShowFeatureCoach(false);
+  };
+  const baseFontFamilies = [
+    'Arial', 'Arial Black', 'Calibri', 'Cambria', 'Candara', 'Courier New', 'Didot', 'Franklin Gothic',
+    'Garamond', 'Georgia', 'Helvetica', 'Impact', 'Lucida Console', 'Lucida Sans', 'Palatino',
+    'Segoe UI', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana'
+  ];
+  const baseFontSizes = [
+    '8pt', '9pt', '10pt', '11pt', '12pt', '14pt', '16pt', '18pt',
+    '20pt', '22pt', '24pt', '26pt', '28pt', '32pt', '36pt', '48pt', '60pt', '72pt'
+  ];
+  const [customFonts, setCustomFonts] = useState([]);
+  const availableFonts = [...baseFontFamilies, ...customFonts];
   const [showTemplateDemo, setShowTemplateDemo] = useState(false);
   const [showWatermarkControls, setShowWatermarkControls] = useState(false);
   const [watermark, setWatermark] = useState({
@@ -75,14 +102,779 @@ const DocumentEditor = () => {
     rotation: 45, // degrees
     alignment: 'center' // 'center', 'diagonal', 'straight'
   });
-  const [wordCount, setWordCount] = useState(0);
+  const [documentStats, setDocumentStats] = useState({
+    words: 0,
+    characters: 0,
+    charactersNoSpaces: 0,
+    paragraphs: 0,
+    pages: 1
+  });
+  const [colorPanel, setColorPanel] = useState({
+    visible: false,
+    type: 'text',
+    color: '#000000',
+    position: { top: 0, left: 0 }
+  });
+  const [tablePanel, setTablePanel] = useState({
+    visible: false,
+    position: { top: 0, left: 0 },
+    hoverRows: 0,
+    hoverCols: 0
+  });
+  const [tableConfig, setTableConfig] = useState({
+    rows: 3,
+    cols: 3,
+    includeHeader: true,
+    zebra: false,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: '#4a5568',
+    cellPadding: 8,
+    width: 100
+  });
+  const [tableTools, setTableTools] = useState({
+    visible: false,
+    tableId: null,
+    rowIndex: null,
+    colIndex: null,
+    top: 0,
+    left: 0,
+    cellWidth: '',
+    cellHeight: '',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: '#4a5568',
+    headerEnabled: true,
+    zebraEnabled: false
+  });
+  const [customColors, setCustomColors] = useState([
+    '#000000', '#FFFFFF', '#FFD700', '#FF7F50', '#FF4D6D',
+    '#1E90FF', '#00C896', '#8A2BE2', '#FFB347', '#0F172A'
+  ]);
+  const [textColor, setTextColor] = useState('#000000');
+  const [backgroundColor, setBackgroundColor] = useState('#fff27d');
+  const [pageSetup, setPageSetup] = useState({
+    orientation: 'portrait',
+    margins: {
+      top: 20,
+      bottom: 20,
+      left: 20,
+      right: 20
+    }
+  });
+  const [zoomLevel, setZoomLevel] = useState(100);
+  const [comments, setComments] = useState([]);
+  const [activeCommentId, setActiveCommentId] = useState(null);
+  const [commentDraft, setCommentDraft] = useState({ visible: false, snippet: '' });
+  const [commentInput, setCommentInput] = useState('');
+  const [showCommentsPanel, setShowCommentsPanel] = useState(false);
+  const [trackChangesEnabled, setTrackChangesEnabled] = useState(false);
+  const [changeRecords, setChangeRecords] = useState([]);
+  const [reviewerName] = useState(() => {
+    if (typeof window === 'undefined') return 'You';
+    try {
+      const storedProfile = localStorage.getItem('userProfile') || localStorage.getItem('user');
+      if (!storedProfile) return 'You';
+      const profile = JSON.parse(storedProfile);
+      return profile.fullName || profile.name || profile.email || 'You';
+    } catch (error) {
+      console.warn('Unable to parse reviewer profile for track changes:', error);
+      return 'You';
+    }
+  });
   const { theme, toggleTheme } = useContext(ThemeContext);
 
   const editorRef = useRef(null);
+  const editorContainerRef = useRef(null);
   const undoTimeoutRef = useRef(null);
+  const colorPanelRef = useRef(null);
+  const selectionRangeRef = useRef(null);
+  const commentSelectionRef = useRef(null);
+  const resizeHandlesRef = useRef([]);
+  const resizeCleanupRef = useRef({ move: null, up: null });
+  const tableHoverGrid = React.useMemo(() => Array.from({ length: 8 }), []);
+
+  const rememberSelection = () => {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      selectionRangeRef.current = selection.getRangeAt(0);
+    }
+  };
+
+  const restoreSelection = () => {
+    const selection = window.getSelection();
+    if (selectionRangeRef.current && selection) {
+      selection.removeAllRanges();
+      selection.addRange(selectionRangeRef.current);
+    }
+  };
+
+  const closeTablePanel = () => {
+    setTablePanel((prev) => ({ ...prev, visible: false, hoverRows: 0, hoverCols: 0 }));
+  };
+
+  const getTableMeta = (table) => ({
+    borderColor: table?.dataset.borderColor || '#4a5568',
+    borderWidth: Number(table?.dataset.borderWidth || 1),
+    borderStyle: table?.dataset.borderStyle || 'solid',
+    cellPadding: Number(table?.dataset.cellPadding || 8),
+    zebra: table?.dataset.zebra === 'true'
+  });
+
+  const applyCellStyles = (cell, table, rowIndex = 0) => {
+    if (!cell || !table) return;
+    const meta = getTableMeta(table);
+    cell.style.border = `${meta.borderWidth}px ${meta.borderStyle} ${meta.borderColor}`;
+    cell.style.padding = `${meta.cellPadding}px`;
+     cell.style.fontWeight = cell.tagName === 'TH' ? '600' : '400';
+     cell.style.background = cell.tagName === 'TH'
+       ? 'rgba(255, 215, 0, 0.08)'
+       : 'transparent';
+    if (cell.tagName !== 'TH') {
+      cell.style.background = 'transparent';
+      if (meta.zebra && rowIndex % 2 === 1) {
+        cell.style.background = 'rgba(15,23,42,0.04)';
+      }
+    }
+  };
+
+  const buildTableHTML = () => {
+    const table = document.createElement('table');
+    const tableId = `tbl-${Date.now()}`;
+    table.className = 'etherx-table';
+    table.dataset.tableId = tableId;
+    table.dataset.borderColor = tableConfig.borderColor;
+    table.dataset.borderStyle = tableConfig.borderStyle;
+    table.dataset.borderWidth = String(tableConfig.borderWidth);
+    table.dataset.cellPadding = String(tableConfig.cellPadding);
+    table.dataset.zebra = String(tableConfig.zebra);
+    table.dataset.includeHeader = String(tableConfig.includeHeader);
+    table.style.width = `${tableConfig.width}%`;
+    table.style.borderCollapse = 'collapse';
+    table.style.border = `${tableConfig.borderWidth}px ${tableConfig.borderStyle} ${tableConfig.borderColor}`;
+
+    const totalRows = Math.max(1, Number(tableConfig.rows) || 1);
+    const totalCols = Math.max(1, Number(tableConfig.cols) || 1);
+    const body = document.createElement('tbody');
+
+    for (let row = 0; row < totalRows; row++) {
+      const tr = document.createElement('tr');
+      for (let col = 0; col < totalCols; col++) {
+        const cellTag = tableConfig.includeHeader && row === 0 ? 'th' : 'td';
+        const cell = document.createElement(cellTag);
+        cell.innerHTML = '<p><br /></p>';
+        applyCellStyles(cell, table, row);
+        tr.appendChild(cell);
+      }
+      body.appendChild(tr);
+    }
+
+    table.appendChild(body);
+
+    return { html: table.outerHTML, tableId };
+  };
+
+  const insertTableAtCursor = () => {
+    const { html } = buildTableHTML();
+    restoreSelection();
+    saveToUndoStack();
+    document.execCommand('insertHTML', false, html);
+    closeTablePanel();
+    setTimeout(() => {
+      const editor = editorRef.current;
+      if (!editor) return;
+      const inserted = editor.querySelector('.etherx-table:last-of-type');
+      if (inserted) {
+        const firstCell = inserted.querySelector('td,th');
+        if (firstCell) {
+          showTableToolsForCell(firstCell, true);
+        }
+      }
+    }, 50);
+  };
+
+  const getActiveTable = () => {
+    if (!editorRef.current || !tableTools.tableId) return null;
+    return editorRef.current.querySelector(`.etherx-table[data-table-id="${tableTools.tableId}"]`);
+  };
+
+  const refreshTableToolsPosition = React.useCallback((nextRow = tableTools.rowIndex, nextCol = tableTools.colIndex) => {
+    if (!tableTools.visible) return;
+    const table = getActiveTable();
+    if (!table) {
+      setTableTools((prev) => ({ ...prev, visible: false }));
+      return;
+    }
+    const rows = Array.from(table.rows);
+    if (!rows.length) return;
+    const safeRow = Math.min(Math.max(nextRow ?? 0, 0), rows.length - 1);
+    const rowEl = rows[safeRow];
+    const cells = Array.from(rowEl.cells);
+    if (!cells.length) return;
+    const safeCol = Math.min(Math.max(nextCol ?? 0, 0), cells.length - 1);
+    const cell = cells[safeCol];
+    const rect = cell.getBoundingClientRect();
+    const meta = getTableMeta(table);
+    const headerEnabled = !!table.rows[0] && table.rows[0].cells[0]?.tagName === 'TH';
+    setTableTools((prev) => ({
+      ...prev,
+      tableId: table.dataset.tableId,
+      rowIndex: safeRow,
+      colIndex: safeCol,
+      top: rect.bottom + window.scrollY + 8,
+      left: rect.left + window.scrollX,
+      cellWidth: Math.round(cell.offsetWidth),
+      cellHeight: Math.round(cell.offsetHeight),
+      borderWidth: meta.borderWidth,
+      borderStyle: meta.borderStyle,
+      borderColor: meta.borderColor,
+      zebraEnabled: meta.zebra,
+      headerEnabled
+    }));
+  }, [tableTools]);
+
+  const showTableToolsForCell = (cell, focusEditor = false) => {
+    if (!cell) return;
+    const table = cell.closest('.etherx-table');
+    if (!table) return;
+    const tableId = table.dataset.tableId;
+    const rows = Array.from(table.rows);
+    const rowIndex = rows.indexOf(cell.parentElement);
+    const colIndex = Array.from(cell.parentElement.children).indexOf(cell);
+    const rect = cell.getBoundingClientRect();
+    const meta = getTableMeta(table);
+    const headerEnabled = !!table.rows[0] && table.rows[0].cells[0]?.tagName === 'TH';
+    setTableTools({
+      visible: true,
+      tableId,
+      rowIndex,
+      colIndex,
+      top: rect.bottom + window.scrollY + 8,
+      left: rect.left + window.scrollX,
+      cellWidth: Math.round(cell.offsetWidth),
+      cellHeight: Math.round(cell.offsetHeight),
+      borderWidth: meta.borderWidth,
+      borderStyle: meta.borderStyle,
+      borderColor: meta.borderColor,
+      zebraEnabled: meta.zebra,
+      headerEnabled
+    });
+    if (focusEditor) {
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(cell);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  };
+
+  const mutateTableStructure = (callback) => {
+    const table = getActiveTable();
+    if (!table) return;
+    saveToUndoStack();
+    callback(table);
+    refreshTableToolsPosition();
+  };
+
+  const addTableRow = (position) => {
+    mutateTableStructure((table) => {
+      const rows = Array.from(table.rows);
+      if (!rows.length) return;
+      const targetRow = rows[tableTools.rowIndex ?? 0] || rows[rows.length - 1];
+      const targetIndex = rows.indexOf(targetRow);
+      const insertIndex = position === 'above' ? targetIndex : targetIndex + 1;
+      const newRow = table.insertRow(insertIndex);
+      const columnCount = targetRow ? targetRow.cells.length : Math.max(1, tableConfig.cols);
+      for (let i = 0; i < columnCount; i++) {
+        const cell = newRow.insertCell();
+        cell.innerHTML = '<p><br /></p>';
+        applyCellStyles(cell, table, insertIndex);
+      }
+    });
+  };
+
+  const addTableColumn = (position) => {
+    mutateTableStructure((table) => {
+      const rows = Array.from(table.rows);
+      if (!rows.length) return;
+      rows.forEach((row, rowIndex) => {
+        const cells = Array.from(row.cells);
+        let referenceIndex = tableTools.colIndex ?? cells.length - 1;
+        if (referenceIndex < 0) referenceIndex = 0;
+        if (referenceIndex >= cells.length) referenceIndex = cells.length - 1;
+        const insertIndex = position === 'left'
+          ? Math.max(referenceIndex, 0)
+          : referenceIndex + 1;
+        const newCell = row.insertCell(insertIndex);
+        const isHeaderRow = rowIndex === 0 && (table.dataset.includeHeader === 'true');
+        if (isHeaderRow) {
+          newCell.outerHTML = '<th><p><br /></p></th>';
+        } else {
+          newCell.innerHTML = '<p><br /></p>';
+        }
+        const finalCell = row.cells[insertIndex];
+        applyCellStyles(finalCell, table, rowIndex);
+      });
+    });
+  };
+
+  const deleteTableRow = () => {
+    mutateTableStructure((table) => {
+      if (table.rows.length <= 1) return;
+      const row = table.rows[tableTools.rowIndex ?? 0];
+      row?.parentElement?.removeChild(row);
+    });
+  };
+
+  const deleteTableColumn = () => {
+    mutateTableStructure((table) => {
+      const rows = Array.from(table.rows);
+      if (!rows.length || (rows[0].cells.length <= 1)) return;
+      let colIndex = tableTools.colIndex ?? 0;
+      const maxIndex = rows[0].cells.length - 1;
+      colIndex = Math.min(Math.max(colIndex, 0), maxIndex);
+      rows.forEach((row) => {
+        const cell = row.cells[colIndex];
+        cell && row.removeChild(cell);
+      });
+    });
+  };
+
+  const updateCellDimension = (dimension, value) => {
+    const table = getActiveTable();
+    if (!table) return;
+    const rows = Array.from(table.rows);
+    const row = rows[tableTools.rowIndex ?? 0];
+    if (!row) return;
+    const cell = row.cells[tableTools.colIndex ?? 0];
+    if (!cell) return;
+    const numeric = Number(value);
+    if (Number.isNaN(numeric) || numeric <= 0) {
+      cell.style[dimension] = '';
+    } else {
+      cell.style[dimension] = `${numeric}px`;
+    }
+    setTableTools((prev) => ({
+      ...prev,
+      [`cell${dimension === 'width' ? 'Width' : 'Height'}`]: numeric || ''
+    }));
+  };
+
+  const updateTableBorder = (prop, value) => {
+    const table = getActiveTable();
+    if (!table) return;
+    const meta = getTableMeta(table);
+    const nextMeta = { ...meta, [prop]: value };
+    table.dataset.borderColor = nextMeta.borderColor;
+    table.dataset.borderStyle = nextMeta.borderStyle;
+    table.dataset.borderWidth = String(nextMeta.borderWidth);
+    table.style.border = `${nextMeta.borderWidth}px ${nextMeta.borderStyle} ${nextMeta.borderColor}`;
+    Array.from(table.querySelectorAll('td,th')).forEach((cell, rowIndex) =>
+      applyCellStyles(cell, table, rowIndex)
+    );
+    setTableTools((prev) => ({
+      ...prev,
+      borderWidth: nextMeta.borderWidth,
+      borderStyle: nextMeta.borderStyle,
+      borderColor: nextMeta.borderColor
+    }));
+    refreshTableToolsPosition();
+  };
+
+  const updateZebraStripes = (enabled) => {
+    const table = getActiveTable();
+    if (!table) return;
+    table.dataset.zebra = String(enabled);
+    Array.from(table.querySelectorAll('td,th')).forEach((cell, rowIndex) =>
+      applyCellStyles(cell, table, rowIndex)
+    );
+    setTableTools((prev) => ({ ...prev, zebraEnabled: enabled }));
+  };
+
+  const toggleHeaderRow = (enabled) => {
+    const table = getActiveTable();
+    if (!table) return;
+    table.dataset.includeHeader = String(enabled);
+    const firstRow = table.rows[0];
+    if (!firstRow) return;
+    Array.from(firstRow.cells).forEach((cell) => {
+      cell.outerHTML = enabled
+        ? `<th>${cell.innerHTML}</th>`
+        : `<td>${cell.innerHTML}</td>`;
+    });
+    setTableTools((prev) => ({ ...prev, headerEnabled: enabled }));
+  };
+
+  const getEditorSelection = React.useCallback(() => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return null;
+    const range = selection.getRangeAt(0);
+    if (!editorRef.current || !editorRef.current.contains(range.commonAncestorContainer)) {
+      return null;
+    }
+    return range;
+  }, []);
+
+  const startComment = () => {
+    const range = getEditorSelection();
+    if (!range || range.collapsed || !range.toString().trim()) {
+      showNotification('Select text in the document before adding a comment.', 'warning');
+      return;
+    }
+    commentSelectionRef.current = range.cloneRange();
+    setCommentDraft({
+      visible: true,
+      snippet: range.toString().slice(0, 140)
+    });
+    setCommentInput('');
+    setShowCommentsPanel(true);
+  };
+
+  const cancelCommentDraft = () => {
+    commentSelectionRef.current = null;
+    setCommentDraft({ visible: false, snippet: '' });
+    setCommentInput('');
+  };
+
+  const addCommentNote = () => {
+    const text = commentInput.trim();
+    if (!text) {
+      showNotification('Comment cannot be empty.', 'warning');
+      return;
+    }
+    const range = commentSelectionRef.current;
+    if (!range) {
+      showNotification('Selection expired. Please select text again.', 'error');
+      return;
+    }
+    const commentId = `c-${Date.now()}`;
+    const span = document.createElement('span');
+    span.className = 'comment-annotation';
+    span.dataset.commentId = commentId;
+    span.dataset.author = reviewerName;
+    span.dataset.timestamp = new Date().toISOString();
+    const fragment = range.extractContents();
+    span.appendChild(fragment);
+    range.insertNode(span);
+
+    const selection = window.getSelection();
+    if (selection) {
+      selection.removeAllRanges();
+      const afterRange = document.createRange();
+      afterRange.setStartAfter(span);
+      afterRange.collapse(true);
+      selection.addRange(afterRange);
+    }
+
+    setComments((prev) => [
+      ...prev,
+      {
+        id: commentId,
+        author: reviewerName,
+        text,
+        snippet: span.textContent,
+        timestamp: span.dataset.timestamp
+      }
+    ]);
+    setActiveCommentId(commentId);
+    setCommentDraft({ visible: false, snippet: '' });
+    setCommentInput('');
+    commentSelectionRef.current = null;
+    setShowCommentsPanel(true);
+    saveToUndoStack();
+  };
+
+  const focusComment = (commentId) => {
+    const annotation = editorRef.current?.querySelector(`[data-comment-id="${commentId}"]`);
+    if (annotation) {
+      annotation.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setActiveCommentId(commentId);
+    }
+  };
+
+  const removeComment = (commentId) => {
+    const annotations = editorRef.current?.querySelectorAll(`[data-comment-id="${commentId}"]`);
+    if (annotations) {
+      annotations.forEach((node) => {
+        const parent = node.parentNode;
+        if (!parent) return;
+        while (node.firstChild) {
+          parent.insertBefore(node.firstChild, node);
+        }
+        parent.removeChild(node);
+      });
+    }
+    setComments((prev) => prev.filter((comment) => comment.id !== commentId));
+    if (activeCommentId === commentId) {
+      setActiveCommentId(null);
+    }
+    saveToUndoStack();
+  };
+
+  const pushChangeRecord = React.useCallback((record) => {
+    setChangeRecords((prev) => [record, ...prev].slice(0, 200));
+  }, []);
+
+  const createTrackedSpan = (type) => {
+    const span = document.createElement('span');
+    span.className = `track-change ${type}`;
+    span.dataset.changeId = `chg-${Date.now()}-${Math.round(Math.random() * 1000)}`;
+    span.dataset.author = reviewerName;
+    span.dataset.timestamp = new Date().toISOString();
+    return span;
+  };
+
+  const insertTrackedText = React.useCallback((text) => {
+    if (!text) return;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    const span = createTrackedSpan('insertion');
+    span.textContent = text;
+    range.insertNode(span);
+    range.setStartAfter(span);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    pushChangeRecord({
+      id: span.dataset.changeId,
+      type: 'insertion',
+      author: reviewerName,
+      snippet: text,
+      timestamp: span.dataset.timestamp
+    });
+    saveToUndoStack();
+  }, [pushChangeRecord]);
+
+  const getSimpleDeletionRange = React.useCallback((baseRange, direction) => {
+    if (!baseRange.collapsed) {
+      return baseRange.cloneRange();
+    }
+    const node = baseRange.startContainer;
+    if (node && node.nodeType === Node.TEXT_NODE) {
+      if (direction === 'backward' && baseRange.startOffset > 0) {
+        const range = baseRange.cloneRange();
+        range.setStart(node, baseRange.startOffset - 1);
+        return range;
+      }
+      if (direction === 'forward' && baseRange.startOffset < node.textContent.length) {
+        const range = baseRange.cloneRange();
+        range.setEnd(node, baseRange.startOffset + 1);
+        return range;
+      }
+    }
+    return null;
+  }, []);
+
+  const markDeletionRange = React.useCallback((targetRange) => {
+    if (!targetRange) return;
+    const text = targetRange.toString();
+    if (!text) return;
+    const span = createTrackedSpan('deletion');
+    span.appendChild(targetRange.extractContents());
+    targetRange.insertNode(span);
+    const selection = window.getSelection();
+    if (selection) {
+      selection.removeAllRanges();
+      const afterRange = document.createRange();
+      afterRange.setStartAfter(span);
+      afterRange.collapse(true);
+      selection.addRange(afterRange);
+    }
+    pushChangeRecord({
+      id: span.dataset.changeId,
+      type: 'deletion',
+      author: reviewerName,
+      snippet: text,
+      timestamp: span.dataset.timestamp
+    });
+    saveToUndoStack();
+  }, [pushChangeRecord]);
+  const pageRefs = useRef({});
+  const findMatchesRef = useRef([]);
+
+  const syncPagesFromDom = React.useCallback(() => {
+    setPages((prevPages) =>
+      prevPages.map((page) => {
+        const el = pageRefs.current[page.id];
+        if (!el) return page;
+        return { ...page, content: el.innerHTML };
+      })
+    );
+  }, []);
+
+  const focusMatch = React.useCallback((index) => {
+    if (!findMatchesRef.current.length) return;
+    const match = findMatchesRef.current[index];
+    if (!match || !match.node || !match.node.isConnected) return;
+    try {
+      const range = document.createRange();
+      range.setStart(match.node, match.startOffset);
+      range.setEnd(match.node, match.endOffset);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      match.node.parentElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch (error) {
+      console.error('Error focusing match:', error);
+    }
+  }, []);
+
+  const performFind = React.useCallback(
+    (query) => {
+      findMatchesRef.current = [];
+      setTotalMatches(0);
+      setCurrentMatch(-1);
+      if (!query || !query.trim()) {
+        window.getSelection()?.removeAllRanges();
+        return;
+      }
+      const needle = query.toLowerCase();
+      Object.entries(pageRefs.current).forEach(([pageId, element]) => {
+        if (!element) return;
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null);
+        let node;
+        while ((node = walker.nextNode())) {
+          const textValue = node.nodeValue || '';
+          if (!textValue.trim()) continue;
+          const haystack = textValue.toLowerCase();
+          let searchIndex = 0;
+          while (true) {
+            const foundIndex = haystack.indexOf(needle, searchIndex);
+            if (foundIndex === -1) break;
+            findMatchesRef.current.push({
+              pageId: Number(pageId),
+              node,
+              startOffset: foundIndex,
+              endOffset: foundIndex + query.length
+            });
+            searchIndex = foundIndex + query.length;
+          }
+        }
+      });
+      const total = findMatchesRef.current.length;
+      setTotalMatches(total);
+      if (total > 0) {
+        setCurrentMatch(0);
+        requestAnimationFrame(() => focusMatch(0));
+      }
+    },
+    [focusMatch]
+  );
+
+  const handleFindNext = () => {
+    if (!findMatchesRef.current.length) return;
+    setCurrentMatch((prev) => {
+      const base = prev === -1 ? 0 : prev;
+      const nextIndex = (base + 1) % findMatchesRef.current.length;
+      focusMatch(nextIndex);
+      return nextIndex;
+    });
+  };
+
+  const handleFindPrevious = () => {
+    if (!findMatchesRef.current.length) return;
+    setCurrentMatch((prev) => {
+      const base = prev === -1 ? 0 : prev;
+      const prevIndex =
+        (base - 1 + findMatchesRef.current.length) % findMatchesRef.current.length;
+      focusMatch(prevIndex);
+      return prevIndex;
+    });
+  };
+
+  const handleReplaceCurrent = () => {
+    if (currentMatch === -1 || !findMatchesRef.current.length) return;
+    const match = findMatchesRef.current[currentMatch];
+    if (!match || !match.node || !match.node.isConnected) {
+      performFind(findText);
+      return;
+    }
+    const textValue = match.node.nodeValue || '';
+    match.node.nodeValue =
+      textValue.slice(0, match.startOffset) + replaceText + textValue.slice(match.endOffset);
+    syncPagesFromDom();
+    setTimeout(() => performFind(findText), 0);
+  };
+
+  const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  const handleReplaceAll = () => {
+    if (!findText || !findText.trim()) return;
+    const pattern = new RegExp(escapeRegExp(findText), 'gi');
+    Object.values(pageRefs.current).forEach((element) => {
+      if (!element) return;
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null);
+      let node;
+      while ((node = walker.nextNode())) {
+        const value = node.nodeValue;
+        if (!value) continue;
+        const newValue = value.replace(pattern, replaceText);
+        if (newValue !== value) {
+          node.nodeValue = newValue;
+        }
+      }
+    });
+    syncPagesFromDom();
+    setTimeout(() => performFind(findText), 0);
+  };
+
+  const closeFindReplace = React.useCallback(() => {
+    setShowFindReplace(false);
+    findMatchesRef.current = [];
+    setTotalMatches(0);
+    setCurrentMatch(-1);
+    window.getSelection()?.removeAllRanges();
+  }, []);
+
+  const computeDocumentStats = React.useCallback((pagesData) => {
+    if (typeof document === 'undefined' || !Array.isArray(pagesData)) return;
+
+    const initialStats = {
+      words: 0,
+      characters: 0,
+      charactersNoSpaces: 0,
+      paragraphs: 0,
+      pages: pagesData.length || 1
+    };
+
+    const tempDiv = document.createElement('div');
+
+    const aggregated = pagesData.reduce((stats, page) => {
+      const htmlContent = page?.content || '';
+      tempDiv.innerHTML = htmlContent;
+      const textContent = tempDiv.textContent || tempDiv.innerText || '';
+      const trimmed = textContent.trim();
+
+      if (trimmed.length > 0) {
+        stats.words += trimmed.split(/\s+/).filter(Boolean).length;
+        stats.paragraphs += 1;
+      }
+
+      stats.characters += textContent.length;
+      stats.charactersNoSpaces += textContent.replace(/\s+/g, '').length;
+
+      const paragraphMatches = htmlContent.match(/<(p|div|h[1-6])\b/gi);
+      if (paragraphMatches) {
+        stats.paragraphs += paragraphMatches.length - 1; // first paragraph already counted above
+      }
+
+      return stats;
+    }, initialStats);
+
+    setDocumentStats(aggregated);
+  }, []);
 
   // Load template data if available and apply default font
 
+
+  React.useEffect(() => {
+    if (localStorage.getItem('editorFeatureCoach')) return;
+    const timer = setTimeout(() => setShowFeatureCoach(true), 1200);
+    return () => clearTimeout(timer);
+  }, []);
 
   React.useEffect(() => {
     const selectedTemplate = localStorage.getItem('selectedTemplate');
@@ -126,15 +918,140 @@ const DocumentEditor = () => {
     }
   }, [defaultFont]);
   
-  // Update word count on initial load
   React.useEffect(() => {
-    if (editorRef.current) {
-      const textContent = editorRef.current.innerText || editorRef.current.textContent || '';
-      const words = textContent.trim().split(/\s+/).filter(word => word.length > 0);
-      setWordCount(words.length);
-    }
-  }, [editorRef.current?.innerHTML]);
+    computeDocumentStats(pages);
+  }, [pages, computeDocumentStats]);
 
+  React.useEffect(() => {
+    const handleClick = (event) => {
+      if (!editorRef.current) return;
+      const cell = event.target.closest('.etherx-table td, .etherx-table th');
+      if (cell && editorRef.current.contains(cell)) {
+        showTableToolsForCell(cell);
+      } else if (!event.target.closest('.table-toolbox')) {
+        setTableTools((prev) => ({ ...prev, visible: false }));
+      }
+    };
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
+
+  React.useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const handleClick = (event) => {
+      const annotation = event.target.closest('.comment-annotation');
+      if (annotation) {
+        setActiveCommentId(annotation.dataset.commentId);
+        setShowCommentsPanel(true);
+      }
+    };
+    editor.addEventListener('click', handleClick);
+    return () => editor.removeEventListener('click', handleClick);
+  }, []);
+
+  React.useEffect(() => {
+    if (!editorRef.current) return;
+    editorRef.current.querySelectorAll('.comment-annotation').forEach((node) => {
+      if (node.dataset.commentId === activeCommentId) {
+        node.classList.add('active');
+      } else {
+        node.classList.remove('active');
+      }
+    });
+  }, [activeCommentId, comments]);
+
+  React.useEffect(() => {
+    if (!trackChangesEnabled) return;
+    const editor = editorRef.current;
+    if (!editor) return;
+    const handleBeforeInput = (event) => {
+      const type = event.inputType || '';
+      if (!trackChangesEnabled) return;
+      if (!editor.contains(event.target)) return;
+      if (type === 'insertText' || type === 'insertFromPaste' || type === 'insertFromDrop') {
+        event.preventDefault();
+        const payload =
+          event.data ||
+          event.dataTransfer?.getData('text/plain') ||
+          event.clipboardData?.getData('text/plain') ||
+          '';
+        insertTrackedText(payload);
+      } else if (
+        type === 'deleteContentBackward' ||
+        type === 'deleteContentForward' ||
+        type === 'deleteByCut'
+      ) {
+        const range = getEditorSelection();
+        if (!range) return;
+        let targetRange = range.cloneRange();
+        if (targetRange.collapsed) {
+          const direction = type === 'deleteContentBackward' ? 'backward' : 'forward';
+          targetRange = getSimpleDeletionRange(range, direction);
+        }
+        if (targetRange) {
+          event.preventDefault();
+          markDeletionRange(targetRange);
+        }
+      }
+    };
+    editor.addEventListener('beforeinput', handleBeforeInput);
+    return () => editor.removeEventListener('beforeinput', handleBeforeInput);
+  }, [trackChangesEnabled, insertTrackedText, markDeletionRange, getEditorSelection, getSimpleDeletionRange]);
+
+  React.useEffect(() => {
+    if (!tablePanel.visible) return;
+    const handleClick = (event) => {
+      if (
+        !event.target.closest('.table-insert-panel') &&
+        !event.target.closest('[data-table-trigger="true"]')
+      ) {
+        closeTablePanel();
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [tablePanel.visible]);
+
+  React.useEffect(() => {
+    if (!tableTools.visible) return;
+    const handleReposition = () => refreshTableToolsPosition();
+    window.addEventListener('scroll', handleReposition, true);
+    window.addEventListener('resize', handleReposition);
+    return () => {
+      window.removeEventListener('scroll', handleReposition, true);
+      window.removeEventListener('resize', handleReposition);
+    };
+  }, [tableTools.visible, refreshTableToolsPosition]);
+
+  React.useEffect(() => {
+    if (!colorPanel.visible) return;
+    const handleClickOutside = (event) => {
+      const target = event.target;
+      const isChip = target.closest && target.closest('.color-chip');
+      if (
+        colorPanelRef.current &&
+        !colorPanelRef.current.contains(target) &&
+        !isChip
+      ) {
+        closeColorPanel();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [colorPanel.visible]);
+
+  React.useEffect(() => {
+    if (showFindReplace) {
+      const debounce = setTimeout(() => performFind(findText), 150);
+      return () => clearTimeout(debounce);
+    }
+    findMatchesRef.current = [];
+    setTotalMatches(0);
+    setCurrentMatch(-1);
+    window.getSelection()?.removeAllRanges();
+  }, [findText, showFindReplace, performFind]);
+  
   // Keyboard shortcuts for undo/redo and find/replace
   React.useEffect(() => {
     const handleKeyDown = (e) => {
@@ -154,11 +1071,7 @@ const DocumentEditor = () => {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [undoStack, redoStack, showFindReplace]);
-  const navigate = useNavigate();
-  const { id: documentId } = useParams();
-  const autoSaveInterval = useRef(null);
-  const isLogoAnimating = useLogoAnimation();
+  }, [undoStack, redoStack, showFindReplace, closeFindReplace]);
 
   const saveToUndoStack = () => {
     if (editorRef.current && !isUndoRedo) {
@@ -243,6 +1156,205 @@ const DocumentEditor = () => {
     showNotification('Content pasted', 'success');
   };
 
+  const applyFontFamily = (family) => {
+    if (!family) return;
+    formatText('fontName', family);
+  };
+
+  const applyFontSize = (size) => {
+    if (!size) return;
+    saveToUndoStack();
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0 && !selection.isCollapsed) {
+      const range = selection.getRangeAt(0);
+      const span = document.createElement('span');
+      span.style.fontSize = size;
+      try {
+        const contents = range.extractContents();
+        span.appendChild(contents);
+        range.insertNode(span);
+        selection.removeAllRanges();
+        const newRange = document.createRange();
+        newRange.setStartAfter(span);
+        newRange.collapse(true);
+        selection.addRange(newRange);
+      } catch (error) {
+        console.error('Error applying font size:', error);
+      }
+    } else if (editorRef.current) {
+      editorRef.current.style.fontSize = size;
+    }
+    editorRef.current?.focus();
+  };
+
+  const handleOrientationChange = (value) => {
+    setPageSetup((prev) => ({ ...prev, orientation: value }));
+  };
+
+  const handleMarginChange = (side, value) => {
+    const numeric = Math.max(5, Math.min(50, Number(value) || 0));
+    setPageSetup((prev) => ({
+      ...prev,
+      margins: { ...prev.margins, [side]: numeric }
+    }));
+  };
+
+  const marginPresets = {
+    normal: { top: 25, bottom: 25, left: 25, right: 25 },
+    narrow: { top: 15, bottom: 15, left: 12, right: 12 },
+    wide: { top: 32, bottom: 32, left: 32, right: 32 }
+  };
+
+  const applyMarginPreset = (presetKey) => {
+    const preset = marginPresets[presetKey];
+    if (!preset) return;
+    setPageSetup((prev) => ({
+      ...prev,
+      margins: { ...preset }
+    }));
+  };
+
+  const handleCustomFontUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const fontName = file.name.replace(/\.[^/.]+$/, '');
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const fontFace = new FontFace(fontName, arrayBuffer);
+      await fontFace.load();
+      document.fonts.add(fontFace);
+      setCustomFonts((prev) => (prev.includes(fontName) ? prev : [...prev, fontName]));
+      showNotification(`Font "${fontName}" loaded successfully`, 'success');
+    } catch (error) {
+      console.error('Custom font load error:', error);
+      showNotification('Failed to load font. Please upload a valid font file.', 'error');
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  const openColorPanel = (type, event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const currentColor = type === 'text' ? textColor : backgroundColor;
+    setColorPanel({
+      visible: true,
+      type,
+      color: currentColor,
+      position: {
+        top: rect.bottom + window.scrollY + 12,
+        left: rect.left + window.scrollX
+      }
+    });
+  };
+
+  const closeColorPanel = () => {
+    setColorPanel((prev) => ({ ...prev, visible: false }));
+  };
+
+  const applySelectedColor = (value) => {
+    if (!value) return;
+    const command = colorPanel.type === 'text' ? 'foreColor' : 'hiliteColor';
+    formatText(command, value);
+    if (colorPanel.type === 'text') {
+      setTextColor(value);
+    } else {
+      setBackgroundColor(value);
+    }
+    setColorPanel((prev) => ({ ...prev, color: value }));
+  };
+
+  const handleColorWheelChange = (value) => {
+    applySelectedColor(value);
+  };
+
+  const handleHexInputChange = (value) => {
+    const sanitized = value.replace(/[^0-9A-Fa-f]/g, '').slice(0, 6);
+    const normalized = `#${sanitized}`;
+    setColorPanel((prev) => ({ ...prev, color: normalized }));
+    if (sanitized.length === 6) {
+      applySelectedColor(normalized);
+    }
+  };
+
+  const handlePaletteSelect = (color) => {
+    applySelectedColor(color);
+  };
+
+  const addToCustomPalette = () => {
+    const color = colorPanel.color;
+    if (!/^#([0-9A-F]{6})$/i.test(color)) {
+      showNotification('Enter a valid HEX color before adding.', 'warning');
+      return;
+    }
+    setCustomColors((prev) => {
+      if (prev.includes(color)) return prev;
+      return [color, ...prev].slice(0, 12);
+    });
+  };
+
+  const changeTextCase = (type) => {
+    if (!editorRef.current) return;
+    const selection = window.getSelection();
+    if (!selection.rangeCount || selection.isCollapsed) {
+      showNotification('Select text to change case', 'warning');
+      return;
+    }
+    saveToUndoStack();
+    const range = selection.getRangeAt(0);
+    const selectedText = range.toString();
+    const transformedText = type === 'upper' ? selectedText.toUpperCase() : selectedText.toLowerCase();
+    const span = document.createElement('span');
+    span.textContent = transformedText;
+    range.deleteContents();
+    range.insertNode(span);
+    selection.removeAllRanges();
+    const newRange = document.createRange();
+    newRange.setStartAfter(span);
+    newRange.collapse(true);
+    selection.addRange(newRange);
+    editorRef.current.focus();
+  };
+
+  const insertHorizontalLine = () => {
+    saveToUndoStack();
+    document.execCommand('insertHorizontalRule');
+    editorRef.current && editorRef.current.focus();
+  };
+
+  const insertDateTime = () => {
+    saveToUndoStack();
+    const now = new Date();
+    const formatted = now.toLocaleString();
+    document.execCommand('insertText', false, formatted);
+    editorRef.current && editorRef.current.focus();
+  };
+
+  const insertTable = (rows = 3, cols = 3) => {
+    if (!editorRef.current) return;
+    saveToUndoStack();
+    const selection = window.getSelection();
+    const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+    const table = document.createElement('table');
+    table.className = 'editor-table';
+
+    for (let r = 0; r < rows; r++) {
+      const row = table.insertRow();
+      for (let c = 0; c < cols; c++) {
+        const cell = row.insertCell();
+        cell.innerHTML = '&nbsp;';
+      }
+    }
+
+    if (range) {
+      range.deleteContents();
+      range.insertNode(table);
+    } else {
+      editorRef.current.appendChild(table);
+    }
+
+    editorRef.current.focus();
+  };
+
   const applyWatermark = () => {
     setWatermark({ ...watermark, enabled: true });
     setShowWatermarkControls(false);
@@ -253,6 +1365,15 @@ const DocumentEditor = () => {
     setWatermark({ ...watermark, enabled: false });
     showNotification('Watermark removed', 'success');
   };
+
+  const handleZoomChange = (newZoom) => {
+    const clamped = Math.max(50, Math.min(200, newZoom));
+    setZoomLevel(clamped);
+  };
+
+  const zoomIn = () => handleZoomChange(zoomLevel + 10);
+  const zoomOut = () => handleZoomChange(zoomLevel - 10);
+  const resetZoom = () => handleZoomChange(100);
 
   const handleWatermarkImageUpload = (e) => {
     const file = e.target.files[0];
@@ -301,64 +1422,6 @@ const DocumentEditor = () => {
       parent.replaceChild(document.createTextNode(highlight.textContent), highlight);
       parent.normalize();
     });
-  };
-
-  const findNext = () => {
-    const highlights = editorRef.current.querySelectorAll('.find-highlight');
-    if (highlights.length === 0) return;
-    
-    highlights.forEach(h => h.classList.remove('current-match'));
-    const nextIndex = currentMatch >= highlights.length ? 0 : currentMatch;
-    highlights[nextIndex].classList.add('current-match');
-    highlights[nextIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setCurrentMatch(nextIndex + 1);
-  };
-
-  const findPrevious = () => {
-    const highlights = editorRef.current.querySelectorAll('.find-highlight');
-    if (highlights.length === 0) return;
-    
-    highlights.forEach(h => h.classList.remove('current-match'));
-    const prevIndex = currentMatch <= 1 ? highlights.length - 1 : currentMatch - 2;
-    highlights[prevIndex].classList.add('current-match');
-    highlights[prevIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setCurrentMatch(prevIndex + 1);
-  };
-
-  const replaceOne = () => {
-    const currentHighlight = editorRef.current.querySelector('.find-highlight.current-match');
-    if (currentHighlight) {
-      saveToUndoStack();
-      currentHighlight.textContent = replaceText;
-      currentHighlight.classList.remove('find-highlight', 'current-match');
-      
-      // Re-highlight remaining matches
-      setTimeout(() => {
-        highlightMatches(findText);
-      }, 100);
-    }
-  };
-
-  const replaceAll = () => {
-    if (!findText || !editorRef.current) return;
-    
-    saveToUndoStack();
-    const content = editorRef.current.textContent;
-    const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-    const newContent = content.replace(regex, replaceText);
-    editorRef.current.innerHTML = newContent;
-    
-    setTotalMatches(0);
-    setCurrentMatch(0);
-  };
-
-  const closeFindReplace = () => {
-    clearHighlights();
-    setShowFindReplace(false);
-    setFindText('');
-    setReplaceText('');
-    setCurrentMatch(0);
-    setTotalMatches(0);
   };
 
   const applyDefaultFont = () => {
@@ -586,12 +1649,6 @@ const DocumentEditor = () => {
         page.id === pageId ? { ...page, content } : page
       )
     );
-    
-    // Update word count
-    const textContent = e.target.innerText || e.target.textContent || '';
-    const words = textContent.trim().split(/\s+/).filter(word => word.length > 0);
-    setWordCount(words.length);
-    
     // Check line count and create new page if needed
     checkAndCreateNewPage(e.target);
     
@@ -709,9 +1766,7 @@ const DocumentEditor = () => {
             // Make image clickable for editing
             img.onclick = (e) => {
               e.stopPropagation();
-              setSelectedImage(img);
-              document.querySelectorAll('.editor-content img').forEach(i => i.classList.remove('selected'));
-              img.classList.add('selected');
+              selectImageElement(img);
             };
             
             // Add hover effect
@@ -728,6 +1783,7 @@ const DocumentEditor = () => {
               editorRef.current.appendChild(img);
               saveToUndoStack();
               showNotification('Image imported successfully! Click to edit.', 'success');
+              selectImageElement(img);
             }
           };
           reader.readAsDataURL(file);
@@ -804,132 +1860,176 @@ const DocumentEditor = () => {
     };
     input.click();
   };
+const saveDocument = async (isAutoSave = false, saveVersion = false) => {
+  const userProfileRaw = localStorage.getItem('userProfile') || localStorage.getItem('user');
+  const userProfile = userProfileRaw ? JSON.parse(userProfileRaw) : null;
+  const userId = userProfile?._id || userProfile?.id;
 
-  const saveDocument = async (isAutoSave = false, saveVersion = false) => {
-    // Check if user has edit permission
-    if (isCollaborative && userPermission !== 'edit') {
-      if (!isAutoSave) {
-        showNotification('You do not have permission to edit this document', 'error');
-      }
-      return;
-    }
-    
-    const content = editorRef.current.innerHTML;
-    const currentWordCount = content ? content.replace(/<[^>]*>/g, '').trim().split(/\s+/).length : 0;
-    
-    if (isCollaborative && documentData && documentId && documentId.match(/^[0-9a-fA-F]{24}$/)) {
-      // Save to server
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${documentId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-          },
-          body: JSON.stringify({
-            title: documentTitle,
-            content: content,
-            pages: pages,
-            formatting: {
-              defaultFont: defaultFont,
-              pageBorder: pageBorder,
-              watermark: watermark,
-              pageNumbering: pageNumbering
-            },
-            saveVersion: saveVersion
-          })
-        });
-        
-        if (response.ok) {
-          const updatedDoc = await response.json();
-          setDocumentData(updatedDoc);
-          if (!isAutoSave) {
-            showNotification('Document saved successfully!', 'success');
-          }
-        } else {
-          if (!isAutoSave) {
-            showNotification('Failed to save document', 'error');
-          }
-        }
-      } catch (error) {
-        console.error('Error saving document:', error);
-        if (!isAutoSave) {
-          showNotification('Failed to save document', 'error');
-        }
-      }
-      return;
-    }
-    
-    // Local storage save
-    const timestamp = new Date().toISOString();
-    const docData = {
-      id: Date.now().toString(),
-      title: documentTitle,
-      content: content,
-      lastModified: timestamp,
-      wordCount: currentWordCount,
-      pageCount: pages.length,
-      collaborators: collaborators,
-      pages: pages,
-      formatting: {
-        defaultFont: defaultFont,
-        pageBorder: pageBorder,
-        watermark: watermark,
-        pageNumbering: pageNumbering
-      },
-      headerText: headerText,
-      footerText: footerText
-    };
-    
-    // Save version to history if requested or significant changes
-    if (saveVersion || documentHistory.length === 0) {
-      const newHistory = {
-        id: Date.now().toString(),
-        content: content,
-        timestamp: timestamp,
-        author: localStorage.getItem('userProfile') ? JSON.parse(localStorage.getItem('userProfile')).fullName : 'Anonymous',
-        changes: 'Document updated',
-        wordCount: currentWordCount
-      };
-      
-      const updatedHistory = [newHistory, ...documentHistory.slice(0, 19)]; // Keep last 20 versions
-      setDocumentHistory(updatedHistory);
-      localStorage.setItem(`history_${documentTitle}`, JSON.stringify(updatedHistory));
-    }
-    
-    // Save document
-    const savedDocs = JSON.parse(localStorage.getItem('documents') || '[]');
-    const docIndex = savedDocs.findIndex(doc => doc.title === documentTitle);
-    
-    if (docIndex >= 0) {
-      savedDocs[docIndex] = docData;
-    } else {
-      savedDocs.push(docData);
-    }
-    
-    localStorage.setItem('documents', JSON.stringify(savedDocs));
-    
-    // Update recent documents
-    const recentDocs = JSON.parse(localStorage.getItem('recentDocuments') || '[]');
-    const recentIndex = recentDocs.findIndex(doc => doc.title === documentTitle);
-    if (recentIndex >= 0) {
-      recentDocs.splice(recentIndex, 1);
-    }
-    const preview = editorRef.current.innerText.substring(0, 100) + '...';
-    recentDocs.unshift({ 
-      title: documentTitle, 
-      lastModified: timestamp,
-      preview: preview,
-      wordCount: currentWordCount,
-      pageCount: pages.length
+  if (!userId) {
+    if (!isAutoSave) showNotification('❌ User not logged in. Cannot upload to IPFS', 'error');
+    return;
+  }
+
+  if (isCollaborative && userPermission !== 'edit') {
+    if (!isAutoSave) showNotification('❌ You do not have permission to edit this document', 'error');
+    return;
+  }
+
+  const content = editorRef.current.innerHTML;
+  const textContent = editorRef.current.innerText || '';
+  const currentWordCount = textContent.trim().split(/\s+/).length;
+  const timestamp = new Date().toISOString();
+
+  // ✅ Upload only (no download)
+ const handleUploadToIPFS = async () => {
+  try {
+    // Convert the current document HTML to a Blob
+    const blob = new Blob([content], { type: "text/html" });
+
+    const file = new File(
+      [blob],
+      `${documentTitle || "Untitled"}.html`,
+      { type: "text/html" }
+    );
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    // ✅ Upload to your Helia IPFS server
+    const uploadResponse = await fetch("http://localhost:4000/upload", {
+      method: "POST",
+      body: formData,
     });
-    localStorage.setItem('recentDocuments', JSON.stringify(recentDocs.slice(0, 10)));
-    
-    if (!isAutoSave) {
-      showNotification('Document saved successfully!', 'success');
+
+    const result = await uploadResponse.json();
+if (uploadResponse.ok && result?.cid) {
+  const cid = result.cid;
+
+  // ✅ Save CID history locally
+  const savedList = JSON.parse(localStorage.getItem("ipfsDocuments") || "[]");
+  savedList.unshift({
+    title: documentTitle || "Untitled",
+    cid,
+    timestamp: new Date().toISOString(),
+  });
+  localStorage.setItem("ipfsDocuments", JSON.stringify(savedList));
+
+  showNotification(`✅ Document uploaded to IPFS!`, "success");
+
+  return cid;
+}
+else {
+      console.error("❌ IPFS upload failed:", result);
+      showNotification("⚠️ Document saved, but IPFS upload failed!", "warning");
+      return null;
     }
+  } catch (err) {
+    console.error("❌ Error uploading to IPFS:", err);
+    showNotification("⚠️ Document saved, but IPFS upload failed!", "warning");
+    return null;
+  }
+};
+
+
+  // --- Save on backend (for collaborative) ---
+  if (isCollaborative && documentData && documentId && documentId.match(/^[0-9a-fA-F]{24}$/)) {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${documentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+        body: JSON.stringify({
+          title: documentTitle,
+          content,
+          pages,
+          formatting: { defaultFont, pageBorder, watermark, pageNumbering },
+          saveVersion,
+        }),
+      });
+
+      if (response.ok) {
+        const updatedDoc = await response.json();
+        setDocumentData(updatedDoc);
+        if (!isAutoSave) await handleUploadToIPFS();
+      } else if (!isAutoSave) {
+        showNotification('❌ Failed to save document on server', 'error');
+      }
+    } catch (error) {
+      console.error('Error saving document:', error);
+      if (!isAutoSave) showNotification('❌ Failed to save document on server', 'error');
+    }
+    return;
+  }
+
+  // --- Local save ---
+  const docData = {
+    id: Date.now().toString(),
+    title: documentTitle,
+    content,
+    lastModified: timestamp,
+    wordCount: currentWordCount,
+    pageCount: pages.length,
+    collaborators,
+    pages,
+    formatting: { defaultFont, pageBorder, watermark, pageNumbering },
+    headerText,
+    footerText,
   };
-  
+
+  // Save version history
+  if (saveVersion || documentHistory.length === 0) {
+    const newHistory = {
+      id: Date.now().toString(),
+      content,
+      timestamp,
+      author: userProfile?.fullName || 'Anonymous',
+      changes: 'Document updated',
+      wordCount: currentWordCount,
+    };
+    const updatedHistory = [newHistory, ...documentHistory.slice(0, 19)];
+    setDocumentHistory(updatedHistory);
+    localStorage.setItem(`history_${documentTitle}`, JSON.stringify(updatedHistory));
+  }
+
+  // Save to localStorage
+  const savedDocs = JSON.parse(localStorage.getItem('documents') || '[]');
+  const docIndex = savedDocs.findIndex(doc => doc.title === documentTitle);
+  if (docIndex >= 0) savedDocs[docIndex] = docData;
+  else savedDocs.push(docData);
+  localStorage.setItem('documents', JSON.stringify(savedDocs));
+  if (!isAutoSave) showNotification('💾 Document saved locally', 'success');
+
+  // Update recent docs
+  const recentDocs = JSON.parse(localStorage.getItem('recentDocuments') || '[]');
+  const recentIndex = recentDocs.findIndex(doc => doc.title === documentTitle);
+  if (recentIndex >= 0) recentDocs.splice(recentIndex, 1);
+  const preview = textContent.substring(0, 100) + '...';
+  recentDocs.unshift({
+    title: documentTitle,
+    lastModified: timestamp,
+    preview,
+    wordCount: currentWordCount,
+    pageCount: pages.length,
+  });
+  localStorage.setItem('recentDocuments', JSON.stringify(recentDocs.slice(0, 10)));
+
+  // --- Upload to IPFS after saving ---
+  if (!isAutoSave) await handleUploadToIPFS();
+};
+
+  React.useEffect(() => {
+    const handler = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        saveDocument(false, true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [saveDocument]);
+
   const deleteDocument = () => {
     if (window.confirm('Are you sure you want to delete this document?')) {
       const deletedDoc = {
@@ -1264,11 +2364,6 @@ const DocumentEditor = () => {
           setPageNumbering(data.formatting.pageNumbering || pageNumbering);
         }
         
-        // Set word count
-        const textContent = data.content ? data.content.replace(/<[^>]*>/g, '').trim() : '';
-        const words = textContent.split(/\s+/).filter(word => word.length > 0);
-        setWordCount(words.length);
-        
         // Check user permission
         const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
         const userId = userProfile._id || localStorage.getItem('userId');
@@ -1344,6 +2439,164 @@ const DocumentEditor = () => {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
+  const parseClipPath = (clip) => {
+    if (!clip || !clip.startsWith('inset')) {
+      return { top: 0, right: 0, bottom: 0, left: 0 };
+    }
+    const values = clip
+      .replace(/inset|\(|\)|%/g, '')
+      .trim()
+      .split(/\s+/)
+      .map((val) => Number(val) || 0);
+    const [top = 0, right = 0, bottom = 0, left = 0] = values;
+    return { top, right, bottom, left };
+  };
+
+  const detachResizeHandles = React.useCallback(() => {
+    resizeHandlesRef.current.forEach((handle) => handle.remove());
+    resizeHandlesRef.current = [];
+    if (resizeCleanupRef.current.move) {
+      document.removeEventListener('mousemove', resizeCleanupRef.current.move);
+    }
+    if (resizeCleanupRef.current.up) {
+      document.removeEventListener('mouseup', resizeCleanupRef.current.up);
+    }
+    resizeCleanupRef.current = { move: null, up: null };
+  }, []);
+
+  const positionResizeHandles = React.useCallback(() => {
+    if (!selectedImage || !resizeHandlesRef.current.length) return;
+    const rect = selectedImage.getBoundingClientRect();
+    resizeHandlesRef.current.forEach((handle) => {
+      const pos = handle.dataset.position || '';
+      const offset = 6;
+      let top = rect.top - offset;
+      let left = rect.left - offset;
+      if (pos.includes('s')) top = rect.bottom - offset;
+      if (pos.includes('n')) top = rect.top - offset;
+      if (pos.includes('e')) left = rect.right - offset;
+      if (pos.includes('w')) left = rect.left - offset;
+      handle.style.top = `${top + window.scrollY}px`;
+      handle.style.left = `${left + window.scrollX}px`;
+    });
+  }, [selectedImage]);
+
+  const attachResizeHandles = React.useCallback(
+    (img) => {
+      if (!img) return;
+      detachResizeHandles();
+      const positions = ['nw', 'ne', 'sw', 'se'];
+
+      const initResize = (event, position) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const startX = event.clientX;
+        const startY = event.clientY;
+        const startWidth = img.offsetWidth;
+        const startHeight = img.offsetHeight;
+        const aspectRatio = startWidth / startHeight || 1;
+        const editorBounds = editorRef.current ? editorRef.current.getBoundingClientRect() : null;
+
+        const onMouseMove = (moveEvent) => {
+          let deltaX = moveEvent.clientX - startX;
+          let deltaY = moveEvent.clientY - startY;
+          if (position.includes('w')) deltaX = -deltaX;
+          if (position.includes('n')) deltaY = -deltaY;
+          let nextWidth = Math.max(40, startWidth + deltaX);
+          let nextHeight = Math.max(40, startHeight + deltaY);
+
+          if (moveEvent.shiftKey) {
+            // Freeform resize
+            img.style.width = `${nextWidth}px`;
+            img.style.height = `${nextHeight}px`;
+          } else {
+            // Maintain aspect ratio
+            const ratioWidth = startWidth + deltaX;
+            const constrainedWidth = Math.max(40, ratioWidth);
+            img.style.width = `${constrainedWidth}px`;
+            img.style.height = `${Math.max(40, constrainedWidth / aspectRatio)}px`;
+          }
+
+          if (editorBounds) {
+            const widthPercent = Math.min(
+              200,
+              Math.round((img.offsetWidth / editorBounds.width) * 100)
+            );
+            setImageTransform((prev) => ({ ...prev, width: widthPercent }));
+          } else {
+            setImageTransform((prev) => ({ ...prev, width: Math.round(img.offsetWidth) }));
+          }
+          positionResizeHandles();
+        };
+
+        const onMouseUp = () => {
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup', onMouseUp);
+          resizeCleanupRef.current = { move: null, up: null };
+        };
+
+        resizeCleanupRef.current = { move: onMouseMove, up: onMouseUp };
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+      };
+
+      resizeHandlesRef.current = positions.map((position) => {
+        const handle = document.createElement('div');
+        handle.className = `image-resize-handle handle-${position}`;
+        handle.dataset.position = position;
+        handle.addEventListener('mousedown', (event) => initResize(event, position));
+        document.body.appendChild(handle);
+        return handle;
+      });
+      positionResizeHandles();
+    },
+    [detachResizeHandles, positionResizeHandles]
+  );
+
+  const selectImageElement = React.useCallback(
+    (img) => {
+      if (!img) return;
+      document.querySelectorAll('.editor-content img').forEach((node) => node.classList.remove('selected'));
+      img.classList.add('selected');
+      const editorBounds = editorRef.current ? editorRef.current.getBoundingClientRect() : null;
+      const widthPercent = editorBounds
+        ? Math.round((img.offsetWidth / editorBounds.width) * 100)
+        : parseFloat(img.style.width) || 100;
+      const rotation = Number(img.dataset.rotation || 0);
+      const clip = parseClipPath(img.style.clipPath);
+
+      setImageTransform({
+        width: Math.min(200, Math.max(5, widthPercent)),
+        rotation,
+        border: img.style.border || 'none',
+        crop: clip
+      });
+      setShowCropControls(false);
+      setSelectedImage(img);
+      attachResizeHandles(img);
+    },
+    [attachResizeHandles]
+  );
+
+  React.useEffect(() => {
+    if (!selectedImage) return;
+    positionResizeHandles();
+    const handler = () => positionResizeHandles();
+    window.addEventListener('scroll', handler, true);
+    window.addEventListener('resize', handler);
+    return () => {
+      window.removeEventListener('scroll', handler, true);
+      window.removeEventListener('resize', handler);
+    };
+  }, [selectedImage, positionResizeHandles]);
+
+  const clearImageSelection = React.useCallback(() => {
+    setSelectedImage(null);
+    setShowCropControls(false);
+    document.querySelectorAll('.editor-content img').forEach((img) => img.classList.remove('selected'));
+    detachResizeHandles();
+  }, [detachResizeHandles]);
+
   const handleImageDrop = (e) => {
     e.preventDefault();
     const files = e.dataTransfer.files;
@@ -1357,38 +2610,76 @@ const DocumentEditor = () => {
         img.style.border = '1px solid #ddd';
         img.style.borderRadius = '4px';
         img.style.cursor = 'pointer';
-        img.onclick = (e) => {
-          e.stopPropagation();
-          setSelectedImage(img);
-          // Add selected class for visual feedback
-          document.querySelectorAll('.editor-content img').forEach(i => i.classList.remove('selected'));
-          img.classList.add('selected');
+        img.onclick = (clickEvent) => {
+          clickEvent.stopPropagation();
+          selectImageElement(img);
         };
         editorRef.current.appendChild(img);
+        selectImageElement(img);
       };
       reader.readAsDataURL(files[0]);
     }
   };
   
   const handleEditorClick = (e) => {
-    // If clicked element is not an image, hide image controls
     if (e.target.tagName !== 'IMG') {
-      setSelectedImage(null);
-      document.querySelectorAll('.editor-content img').forEach(img => img.classList.remove('selected'));
+      clearImageSelection();
     }
   };
 
-  const resizeImage = (size) => {
-    if (selectedImage) {
-      selectedImage.style.width = size;
-      selectedImage.style.height = 'auto';
-    }
+  const updateImageWidth = (value) => {
+    if (!selectedImage) return;
+    const clamped = Math.max(5, Math.min(200, value));
+    selectedImage.style.width = `${clamped}%`;
+    selectedImage.style.height = 'auto';
+    setImageTransform((prev) => ({ ...prev, width: clamped }));
+    positionResizeHandles();
+  };
+
+  const rotateSelectedImage = (delta) => {
+    if (!selectedImage) return;
+    const nextRotation = (imageTransform.rotation + delta + 360) % 360;
+    selectedImage.dataset.rotation = nextRotation;
+    selectedImage.style.transform = `rotate(${nextRotation}deg)`;
+    setImageTransform((prev) => ({ ...prev, rotation: nextRotation }));
+    positionResizeHandles();
   };
 
   const addImageBorder = (borderStyle) => {
-    if (selectedImage) {
-      selectedImage.style.border = borderStyle;
-    }
+    if (!selectedImage) return;
+    selectedImage.style.border = borderStyle;
+    setImageTransform((prev) => ({ ...prev, border: borderStyle }));
+  };
+
+  const updateCropSetting = (edge, value) => {
+    setImageTransform((prev) => ({
+      ...prev,
+      crop: { ...prev.crop, [edge]: Math.max(0, Math.min(45, Number(value) || 0)) }
+    }));
+  };
+
+  const applyCropToImage = () => {
+    if (!selectedImage) return;
+    const { top, right, bottom, left } = imageTransform.crop;
+    selectedImage.style.clipPath = `inset(${top}% ${right}% ${bottom}% ${left}%)`;
+    setShowCropControls(false);
+  };
+
+  const resetImageAdjustments = () => {
+    if (!selectedImage) return;
+    selectedImage.style.width = '';
+    selectedImage.style.height = '';
+    selectedImage.style.transform = '';
+    selectedImage.style.border = 'none';
+    selectedImage.style.clipPath = '';
+    selectedImage.dataset.rotation = 0;
+    setImageTransform({
+      width: 100,
+      rotation: 0,
+      border: 'none',
+      crop: { top: 0, right: 0, bottom: 0, left: 0 }
+    });
+    positionResizeHandles();
   };
 
   const insertBorder = () => {
@@ -2093,8 +3384,9 @@ const DocumentEditor = () => {
     
     return () => {
       delete window.EtherXWordEditor;
+      detachResizeHandles();
     };
-  }, []);
+  }, [detachResizeHandles]);
 
   const htmlToMarkdown = (html) => {
     return html
@@ -2111,8 +3403,62 @@ const DocumentEditor = () => {
       .replace(/\n\s*\n\s*\n/g, '\n\n');
   };
 
+  const scale = zoomLevel / 100;
+  const MM_TO_PX = 3.7795275591;
+  const isLandscape = pageSetup.orientation === 'landscape';
+  const basePageWidth = (isLandscape ? 297 : 210) * MM_TO_PX;
+  const basePageHeight = (isLandscape ? 210 : 297) * MM_TO_PX;
+  const scaledPageWidth = basePageWidth * scale;
+  const scaledPageHeight = basePageHeight * scale;
+  const pageGap = Math.max(24, 32 * scale);
+
+  React.useEffect(() => {
+    const container = editorContainerRef.current;
+    if (!container) return;
+    const handleWheelZoom = (event) => {
+      if (event.ctrlKey) {
+        event.preventDefault();
+        const step = event.deltaY > 0 ? -10 : 10;
+        setZoomLevel((prev) => {
+          const next = prev + step;
+          return Math.max(50, Math.min(200, next));
+        });
+      }
+    };
+    container.addEventListener('wheel', handleWheelZoom, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', handleWheelZoom);
+    };
+  }, []);
+
   return (
-    <div className="editor-container">
+    <div className="editor-container" ref={editorContainerRef}>
+      {showFeatureCoach && (
+        <div className="feature-coach">
+          <button className="coach-close" onClick={dismissFeatureCoach}>
+            <i className="ri-close-line"></i>
+          </button>
+          <p className="coach-eyebrow">What’s new in EtherXWord</p>
+          <h4>Need a hand?</h4>
+          <ul className="coach-list">
+            <li>
+              <i className="ri-chat-1-line"></i>
+              Highlight any text to leave contextual comments.
+            </li>
+            <li>
+              <i className="ri-image-edit-line"></i>
+              Drag images to reveal resize, crop, rotate & border controls.
+            </li>
+            <li>
+              <i className="ri-magic-line"></i>
+              Quick-access cards now surface smart previews as you type.
+            </li>
+          </ul>
+          <button className="coach-cta" onClick={dismissFeatureCoach}>
+            Got it, thanks!
+          </button>
+        </div>
+      )}
       {/* Navbar */}
       <nav className="editor-navbar">
         <div className="navbar-left">
@@ -2279,41 +3625,154 @@ const DocumentEditor = () => {
         </div>
         
         <div className="toolbar-group">
-          <select onChange={(e) => formatText('fontSize', e.target.value)} className="toolbar-select">
-            <option value="3">12px</option>
-            <option value="4" defaultValue>14px</option>
-            <option value="5">18px</option>
-            <option value="6">24px</option>
-            <option value="7">36px</option>
+          <select 
+            onChange={(e) => applyFontSize(e.target.value)} 
+            className="toolbar-select"
+            defaultValue="12pt"
+          >
+            {baseFontSizes.map((size) => (
+              <option key={size} value={size}>{size}</option>
+            ))}
           </select>
-          <select onChange={(e) => formatText('fontName', e.target.value)} className="toolbar-select">
-            <option value="Arial">Arial</option>
-            <option value="Georgia">Georgia</option>
-            <option value="Times New Roman">Times New Roman</option>
-            <option value="Courier New">Courier New</option>
-            <option value="Helvetica">Helvetica</option>
-            <option value="Verdana">Verdana</option>
-            <option value="Trebuchet MS">Trebuchet MS</option>
-            <option value="Palatino">Palatino</option>
-            <option value="Garamond">Garamond</option>
-            <option value="Bookman">Bookman</option>
-            <option value="Comic Sans MS">Comic Sans MS</option>
-            <option value="Impact">Impact</option>
-            <option value="Lucida Console">Lucida Console</option>
-            <option value="Tahoma">Tahoma</option>
+          <select 
+            onChange={(e) => applyFontFamily(e.target.value)} 
+            className="toolbar-select"
+            defaultValue="Arial"
+          >
+            {availableFonts.map((font) => (
+              <option key={font} value={font}>{font}</option>
+            ))}
           </select>
-          <input 
-            type="color" 
-            onChange={(e) => formatText('foreColor', e.target.value)} 
-            className="color-picker"
+          <label className="toolbar-upload">
+            <input 
+              type="file" 
+              accept=".ttf,.otf,.woff,.woff2"
+              onChange={handleCustomFontUpload}
+              hidden
+            />
+            <span><i className="ri-upload-2-line"></i> Custom Font</span>
+          </label>
+          <button 
+            type="button"
+            className="color-chip"
             title="Text Color"
-          />
-          <input 
-            type="color" 
-            onChange={(e) => formatText('backColor', e.target.value)} 
-            className="color-picker"
-            title="Background Color"
-          />
+            onClick={(e) => openColorPanel('text', e)}
+          >
+            <span className="color-chip-preview" style={{ background: textColor }}></span>
+            <span className="color-chip-label">A</span>
+          </button>
+          <button 
+            type="button"
+            className="color-chip"
+            title="Highlight Color"
+            onClick={(e) => openColorPanel('background', e)}
+          >
+            <span className="color-chip-preview" style={{ background: backgroundColor }}></span>
+            <span className="color-chip-label">▌</span>
+          </button>
+        </div>
+
+        <div className="toolbar-group">
+          <button 
+            onClick={() => formatText('subscript')} 
+            className="toolbar-btn" 
+            title="Subscript"
+          >
+            <span className="icon-type">X<sub>2</sub></span>
+          </button>
+          <button 
+            onClick={() => formatText('superscript')} 
+            className="toolbar-btn" 
+            title="Superscript"
+          >
+            <span className="icon-type">X<sup>2</sup></span>
+          </button>
+          <button 
+            onClick={() => formatText('removeFormat')} 
+            className="toolbar-btn" 
+            title="Clear Formatting"
+          >
+            <i className="ri-format-clear"></i>
+          </button>
+          <button 
+            onClick={() => formatText('hiliteColor', '#fff27d')} 
+            className="toolbar-btn" 
+            title="Highlight"
+          >
+            <i className="ri-mark-pen-line"></i>
+          </button>
+        </div>
+
+        <div className="toolbar-group">
+          <button 
+            onClick={() => changeTextCase('upper')} 
+            className="toolbar-btn" 
+            title="UPPERCASE"
+          >
+            <span className="icon-type">AA</span>
+          </button>
+          <button 
+            onClick={() => changeTextCase('lower')} 
+            className="toolbar-btn" 
+            title="lowercase"
+          >
+            <span className="icon-type">aa</span>
+          </button>
+          <button 
+            onClick={() => insertHorizontalLine()} 
+            className="toolbar-btn" 
+            title="Horizontal Line"
+          >
+            <i className="ri-separator"></i>
+          </button>
+          <button 
+            onClick={(e) => {
+              rememberSelection();
+              const rect = e.currentTarget.getBoundingClientRect();
+              setTablePanel({
+                visible: true,
+                position: { top: rect.bottom + window.scrollY + 12, left: rect.left + window.scrollX },
+                hoverRows: tableConfig.rows,
+                hoverCols: tableConfig.cols
+              });
+            }} 
+            className="toolbar-btn" 
+            title="Insert Table"
+            data-table-trigger="true"
+          >
+            <i className="ri-table-2"></i>
+          </button>
+          <button 
+            onClick={insertDateTime} 
+            className="toolbar-btn" 
+            title="Insert Date/Time"
+          >
+            <i className="ri-calendar-schedule-line"></i>
+          </button>
+        </div>
+
+        <div className="toolbar-group">
+          <button
+            onClick={startComment}
+            className="toolbar-btn"
+            title="Add Comment"
+          >
+            <i className="ri-chat-new-line"></i>
+          </button>
+          <button
+            onClick={() => setShowCommentsPanel((prev) => !prev)}
+            className={`toolbar-btn ${showCommentsPanel ? 'active' : ''}`}
+            title="Show Comments Panel"
+          >
+            <i className="ri-chat-1-line"></i>
+          </button>
+          <button
+            onClick={() => setTrackChangesEnabled((prev) => !prev)}
+            className={`toolbar-btn ${trackChangesEnabled ? 'active' : ''}`}
+            title={`Track Changes ${trackChangesEnabled ? 'On' : 'Off'}`}
+          >
+            <span className="icon-type">TC</span>
+          </button>
         </div>
 
         <div className="toolbar-group">
@@ -2346,6 +3805,411 @@ const DocumentEditor = () => {
         </div>
       </div>
 
+      {colorPanel.visible && (
+        <div 
+          className="color-panel"
+          style={{ top: colorPanel.position.top, left: colorPanel.position.left }}
+          ref={colorPanelRef}
+        >
+          <div className="color-panel-header">
+            <span>{colorPanel.type === 'text' ? 'Text Color' : 'Highlight Color'}</span>
+            <button className="close-btn" onClick={closeColorPanel}>
+              <i className="ri-close-line"></i>
+            </button>
+          </div>
+          <div className="color-panel-body">
+            <div className="color-wheel">
+              <input
+                type="color"
+                value={colorPanel.color}
+                onChange={(e) => handleColorWheelChange(e.target.value)}
+                aria-label="Color picker"
+              />
+            </div>
+            <button className="palette-btn" onClick={addToCustomPalette}>
+              Add current color to palette
+            </button>
+            <div className="color-palette">
+              {customColors.map((color) => (
+                <button
+                  key={color}
+                  className="palette-swatch"
+                  style={{ background: color }}
+                  onClick={() => handlePaletteSelect(color)}
+                  title={color}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tablePanel.visible && (
+        <div 
+          className="table-insert-panel"
+          style={{ top: tablePanel.position.top, left: tablePanel.position.left }}
+        >
+          <div className="panel-header">
+            <span>Insert table</span>
+            <button className="close-btn" onClick={closeTablePanel}>
+              <i className="ri-close-line"></i>
+            </button>
+          </div>
+          <div className="table-grid-picker">
+            {tableHoverGrid.map((_, row) => (
+              <div className="grid-row" key={`row-${row}`}>
+                {tableHoverGrid.map((__, col) => {
+                  const active =
+                    row < (tablePanel.hoverRows || tableConfig.rows) &&
+                    col < (tablePanel.hoverCols || tableConfig.cols);
+                  const rows = row + 1;
+                  const cols = col + 1;
+                  return (
+                    <button
+                      type="button"
+                      key={`cell-${row}-${col}`}
+                      className={`grid-cell ${active ? 'active' : ''}`}
+                      onMouseEnter={() =>
+                        setTablePanel((prev) => ({
+                          ...prev,
+                          hoverRows: rows,
+                          hoverCols: cols
+                        }))
+                      }
+                      onClick={() => {
+                        setTableConfig((prev) => ({ ...prev, rows, cols }));
+                        insertTableAtCursor();
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+          <div className="grid-info">
+            {(tablePanel.hoverRows || tableConfig.rows)} x {(tablePanel.hoverCols || tableConfig.cols)}
+          </div>
+          <div className="table-form">
+            <label>
+              Rows
+              <input
+                type="number"
+                min="1"
+                max="20"
+                value={tableConfig.rows}
+                onChange={(e) => {
+                  const value = Math.max(1, Math.min(20, Number(e.target.value) || 1));
+                  setTableConfig((prev) => ({ ...prev, rows: value }));
+                  setTablePanel((prev) => ({ ...prev, hoverRows: value }));
+                }}
+              />
+            </label>
+            <label>
+              Columns
+              <input
+                type="number"
+                min="1"
+                max="12"
+                value={tableConfig.cols}
+                onChange={(e) => {
+                  const value = Math.max(1, Math.min(12, Number(e.target.value) || 1));
+                  setTableConfig((prev) => ({ ...prev, cols: value }));
+                  setTablePanel((prev) => ({ ...prev, hoverCols: value }));
+                }}
+              />
+            </label>
+            <label>
+              Border width
+              <input
+                type="number"
+                min="0"
+                max="5"
+                value={tableConfig.borderWidth}
+                onChange={(e) => setTableConfig((prev) => ({ ...prev, borderWidth: Number(e.target.value) }))}
+              />
+            </label>
+            <label>
+              Border style
+              <select
+                value={tableConfig.borderStyle}
+                onChange={(e) => setTableConfig((prev) => ({ ...prev, borderStyle: e.target.value }))}
+              >
+                <option value="solid">Solid</option>
+                <option value="dashed">Dashed</option>
+                <option value="dotted">Dotted</option>
+                <option value="double">Double</option>
+              </select>
+            </label>
+            <label className="color-input">
+              Border color
+              <input
+                type="color"
+                value={tableConfig.borderColor}
+                onChange={(e) => setTableConfig((prev) => ({ ...prev, borderColor: e.target.value }))}
+              />
+            </label>
+            <label>
+              Cell padding
+              <input
+                type="number"
+                min="2"
+                max="24"
+                value={tableConfig.cellPadding}
+                onChange={(e) => setTableConfig((prev) => ({ ...prev, cellPadding: Number(e.target.value) }))}
+              />
+            </label>
+            <label>
+              Width ({tableConfig.width}%)
+              <input
+                type="range"
+                min="40"
+                max="100"
+                value={tableConfig.width}
+                onChange={(e) => setTableConfig((prev) => ({ ...prev, width: Number(e.target.value) }))}
+              />
+            </label>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={tableConfig.includeHeader}
+                onChange={(e) => setTableConfig((prev) => ({ ...prev, includeHeader: e.target.checked }))}
+              />
+              Include header row
+            </label>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={tableConfig.zebra}
+                onChange={(e) => setTableConfig((prev) => ({ ...prev, zebra: e.target.checked }))}
+              />
+              Zebra stripes
+            </label>
+            <button className="primary-btn" onClick={insertTableAtCursor}>
+              Insert table
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showFindReplace && (
+        <div className="find-replace-panel">
+          <div className="panel-header">
+            <h4>Find & Replace</h4>
+            <button className="close-btn" onClick={closeFindReplace}>
+              <i className="ri-close-line"></i>
+            </button>
+          </div>
+          <div className="panel-body">
+            <label>Find</label>
+            <input
+              type="text"
+              value={findText}
+              onChange={(e) => setFindText(e.target.value)}
+              placeholder="Search text..."
+            />
+            <label>Replace with</label>
+            <input
+              type="text"
+              value={replaceText}
+              onChange={(e) => setReplaceText(e.target.value)}
+              placeholder="Replacement text..."
+            />
+            <div className="find-status">
+              {totalMatches > 0
+                ? `Match ${currentMatch + 1} of ${totalMatches}`
+                : findText
+                ? 'No matches found'
+                : 'Enter text to search'}
+            </div>
+            <div className="panel-actions">
+              <button onClick={handleFindPrevious} disabled={totalMatches === 0}>Prev</button>
+              <button onClick={handleFindNext} disabled={totalMatches === 0}>Next</button>
+              <button onClick={handleReplaceCurrent} disabled={currentMatch === -1}>Replace</button>
+              <button onClick={handleReplaceAll} disabled={totalMatches === 0}>Replace All</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCommentsPanel && (
+        <aside className="comments-panel">
+          <div className="panel-header">
+            <h4>Comments & Changes</h4>
+            <button className="close-btn" onClick={() => setShowCommentsPanel(false)}>
+              <i className="ri-close-line"></i>
+            </button>
+          </div>
+
+          {commentDraft.visible && (
+            <div className="comment-composer">
+              <div className="selection-preview">
+                <strong>Selected text</strong>
+                <p>{commentDraft.snippet || 'Text selection unavailable'}</p>
+              </div>
+              <textarea
+                value={commentInput}
+                onChange={(e) => setCommentInput(e.target.value)}
+                placeholder="Leave a comment..."
+                rows={3}
+              />
+              <div className="composer-actions">
+                <button className="primary-btn" onClick={addCommentNote}>Add Comment</button>
+                <button className="ghost-btn" onClick={cancelCommentDraft}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          <div className="comment-list">
+            <div className="section-heading">
+              <h5>Comments ({comments.length})</h5>
+            </div>
+            {comments.length === 0 ? (
+              <p className="empty-state">No comments yet. Select text and choose “Add Comment”.</p>
+            ) : (
+              comments.map((comment) => (
+                <div
+                  key={comment.id}
+                  className={`comment-item ${activeCommentId === comment.id ? 'active' : ''}`}
+                >
+                  <div className="comment-snippet">{comment.snippet}</div>
+                  <p className="comment-text">{comment.text}</p>
+                  <div className="comment-meta">
+                    <span>{comment.author}</span>
+                    <span>{new Date(comment.timestamp).toLocaleString()}</span>
+                  </div>
+                  <div className="comment-actions">
+                    <button onClick={() => focusComment(comment.id)}>Go to</button>
+                    <button onClick={() => removeComment(comment.id)} className="ghost-btn">
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="changes-list">
+            <div className="section-heading">
+              <h5>Tracked Changes</h5>
+              <span className={`status-dot ${trackChangesEnabled ? 'on' : 'off'}`}>
+                {trackChangesEnabled ? 'Tracking on' : 'Tracking off'}
+              </span>
+            </div>
+            {changeRecords.length === 0 ? (
+              <p className="empty-state">No tracked edits yet.</p>
+            ) : (
+              changeRecords.map((change) => (
+                <div key={change.id} className={`change-item ${change.type}`}>
+                  <div className="change-label">
+                    {change.type === 'insertion' ? 'Insertion' : 'Deletion'} · {change.author}
+                  </div>
+                  <p className="change-snippet">{change.snippet}</p>
+                  <span className="change-time">
+                    {new Date(change.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </aside>
+      )}
+
+      {tableTools.visible && (
+        <div
+          className="table-toolbox"
+          style={{ top: tableTools.top, left: tableTools.left }}
+        >
+          <div className="toolbox-row">
+            <button onClick={() => addTableRow('above')} title="Insert row above">
+              Row ↑
+            </button>
+            <button onClick={() => addTableRow('below')} title="Insert row below">
+              Row ↓
+            </button>
+            <button onClick={deleteTableRow} title="Delete row">
+              Remove Row
+            </button>
+          </div>
+          <div className="toolbox-row">
+            <button onClick={() => addTableColumn('left')} title="Insert column left">
+              Col ←
+            </button>
+            <button onClick={() => addTableColumn('right')} title="Insert column right">
+              Col →
+            </button>
+            <button onClick={deleteTableColumn} title="Delete column">
+              Remove Col
+            </button>
+          </div>
+          <div className="toolbox-row dimension-inputs">
+            <label>
+              W
+              <input
+                type="number"
+                min="20"
+                max="800"
+                value={tableTools.cellWidth}
+                onChange={(e) => updateCellDimension('width', e.target.value)}
+              />
+            </label>
+            <label>
+              H
+              <input
+                type="number"
+                min="20"
+                max="400"
+                value={tableTools.cellHeight}
+                onChange={(e) => updateCellDimension('height', e.target.value)}
+              />
+            </label>
+          </div>
+          <div className="toolbox-row border-controls">
+            <label>
+              Border
+              <input
+                type="number"
+                min="0"
+                max="6"
+                value={tableTools.borderWidth}
+                onChange={(e) => updateTableBorder('borderWidth', Number(e.target.value) || 0)}
+              />
+            </label>
+            <select
+              value={tableTools.borderStyle}
+              onChange={(e) => updateTableBorder('borderStyle', e.target.value)}
+            >
+              <option value="solid">Solid</option>
+              <option value="dashed">Dashed</option>
+              <option value="dotted">Dotted</option>
+              <option value="double">Double</option>
+            </select>
+            <input
+              type="color"
+              value={tableTools.borderColor}
+              onChange={(e) => updateTableBorder('borderColor', e.target.value)}
+            />
+          </div>
+          <div className="toolbox-row toggle-row">
+            <label>
+              <input
+                type="checkbox"
+                checked={tableTools.headerEnabled}
+                onChange={(e) => toggleHeaderRow(e.target.checked)}
+              />
+              Header
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={tableTools.zebraEnabled}
+                onChange={(e) => updateZebraStripes(e.target.checked)}
+              />
+              Zebra
+            </label>
+          </div>
+        </div>
+      )}
+
       <div className="editor-layout" style={{marginBottom: '32px'}}>
         {/* Left Sidebar */}
         <aside className={`left-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
@@ -2363,12 +4227,9 @@ const DocumentEditor = () => {
                 onChange={(e) => setDefaultFont({...defaultFont, family: e.target.value})}
                 className="font-select"
               >
-                <option value="Georgia">Georgia</option>
-                <option value="Arial">Arial</option>
-                <option value="Times New Roman">Times New Roman</option>
-                <option value="Helvetica">Helvetica</option>
-                <option value="Verdana">Verdana</option>
-                <option value="Calibri">Calibri</option>
+                {availableFonts.map((font) => (
+                  <option key={font} value={font}>{font}</option>
+                ))}
               </select>
             </div>
             <div className="font-control-group">
@@ -2378,12 +4239,9 @@ const DocumentEditor = () => {
                 onChange={(e) => setDefaultFont({...defaultFont, size: e.target.value})}
                 className="font-select"
               >
-                <option value="10pt">10pt</option>
-                <option value="11pt">11pt</option>
-                <option value="12pt">12pt</option>
-                <option value="14pt">14pt</option>
-                <option value="16pt">16pt</option>
-                <option value="18pt">18pt</option>
+                {baseFontSizes.map((size) => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
               </select>
             </div>
             <div className="font-control-group">
@@ -2412,15 +4270,97 @@ const DocumentEditor = () => {
             <button className="sidebar-btn" onClick={() => formatText('outdent')}><i className="ri-indent-decrease"></i> Outdent</button>
             <button className="sidebar-btn" onClick={() => formatText('insertHTML', '<br><br>')}><i className="ri-letter-spacing-2"></i> Line Spacing</button>
           </div>
+
+          <div className="sidebar-section">
+            <h3><i className="ri-layout-4-line"></i> Page Setup</h3>
+            <div className="page-setup-group">
+              <label>Orientation</label>
+              <div className="orientation-options">
+                <button
+                  className={pageSetup.orientation === 'portrait' ? 'active' : ''}
+                  onClick={() => handleOrientationChange('portrait')}
+                  type="button"
+                >
+                  <i className="ri-file-line"></i> Portrait
+                </button>
+                <button
+                  className={pageSetup.orientation === 'landscape' ? 'active' : ''}
+                  onClick={() => handleOrientationChange('landscape')}
+                  type="button"
+                >
+                  <i className="ri-layout-row-line"></i> Landscape
+                </button>
+              </div>
+            </div>
+            <div className="page-setup-group">
+              <label>Margins (mm)</label>
+              <div className="page-setup-grid">
+                {['top', 'bottom', 'left', 'right'].map((side) => (
+                  <div key={side} className="margin-input">
+                    <span>{side.charAt(0).toUpperCase() + side.slice(1)}</span>
+                    <input
+                      type="number"
+                      min="5"
+                      max="50"
+                      value={pageSetup.margins[side]}
+                      onChange={(e) => handleMarginChange(side, e.target.value)}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="preset-buttons">
+                <button type="button" onClick={() => applyMarginPreset('normal')}>Normal</button>
+                <button type="button" onClick={() => applyMarginPreset('narrow')}>Narrow</button>
+                <button type="button" onClick={() => applyMarginPreset('wide')}>Wide</button>
+              </div>
+            </div>
+          </div>
         </aside>
 
         {/* Editor */}
         <div className="editor-wrapper">
-          <div className="pages-container">
-            {pages.map((page, index) => (
-              <div 
+          <div
+            className="pages-container"
+            style={{
+              width: `${scaledPageWidth}px`,
+              gap: `${pageGap}px`
+            }}
+          >
+            {pages.map((page, index) => {
+              const hasTopElements = Boolean(headerText) || (pageNumbering.enabled && pageNumbering.position.startsWith('top'));
+              const hasBottomElements = Boolean(footerText) || (pageNumbering.enabled && pageNumbering.position.startsWith('bottom'));
+              const topMarginValue = hasTopElements ? pageSetup.margins.top + 5 : pageSetup.margins.top;
+              const bottomMarginValue = hasBottomElements ? pageSetup.margins.bottom + 5 : pageSetup.margins.bottom;
+              const horizontalMargin = pageSetup.margins.left + pageSetup.margins.right;
+              const verticalMargin = topMarginValue + bottomMarginValue;
+              const contentBaseStyle = {
+                marginTop: `${topMarginValue}mm`,
+                marginBottom: `${bottomMarginValue}mm`,
+                marginLeft: `${pageSetup.margins.left}mm`,
+                marginRight: `${pageSetup.margins.right}mm`,
+                width: `calc(100% - ${horizontalMargin}mm)`,
+                height: `calc(100% - ${verticalMargin}mm)`,
+                position: 'relative',
+                boxSizing: 'border-box'
+              };
+              return (
+              <div
                 key={page.id}
+                className="page-scale-wrapper"
+                style={{
+                  width: `${scaledPageWidth}px`,
+                  height: `${scaledPageHeight}px`
+                }}
+              >
+              <div 
                 className={`editor-page a4-page ${currentPage === page.id ? 'active-page' : ''}`}
+                style={{
+                  width: `${basePageWidth}px`,
+                  height: `${basePageHeight}px`,
+                  transform: `scale(${scale})`,
+                  transformOrigin: 'top center',
+                  marginBottom: 0
+                }}
               >
                 {(headerText || pageNumbering.enabled && (pageNumbering.position.startsWith('top'))) && (
                   <div className="page-hf-element top-header" style={{
@@ -2432,9 +4372,6 @@ const DocumentEditor = () => {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     fontSize: '11px',
-                    color: 'var(--text-secondary)',
-                    borderBottom: '1px solid var(--border-color)',
-                    paddingBottom: '2mm',
                     zIndex: 10
                   }}>
                     <span>{headerText.split('|')[0] || (pageNumbering.enabled && pageNumbering.position === 'top-left' ? (pageNumbering.format === '1' ? index + 1 : pageNumbering.format === 'i' ? ['i', 'ii', 'iii', 'iv', 'v'][index] || (index + 1) : String.fromCharCode(97 + index)) : '')}</span>
@@ -2444,7 +4381,16 @@ const DocumentEditor = () => {
                 )}
                 
                 <div
-                  ref={index === 0 ? editorRef : null}
+                  ref={(el) => {
+                    if (index === 0) {
+                      editorRef.current = el;
+                    }
+                    if (el) {
+                      pageRefs.current[page.id] = el;
+                    } else {
+                      delete pageRefs.current[page.id];
+                    }
+                  }}
                   contentEditable
                   className={`editor-content a4-content ${pageBorder.enabled ? 'has-border' : ''}`}
                   suppressContentEditableWarning={true}
@@ -2461,26 +4407,10 @@ const DocumentEditor = () => {
                     borderBottom: (pageBorder.position === 'all' || pageBorder.position === 'bottom' || pageBorder.position === 'both') && pageBorder.borderType !== 'shadow' ? `${pageBorder.width} ${pageBorder.style} ${pageBorder.color}` : 'none',
                     borderLeft: pageBorder.position === 'all' && pageBorder.borderType !== 'shadow' ? `${pageBorder.width} ${pageBorder.style} ${pageBorder.color}` : 'none',
                     borderRight: pageBorder.position === 'all' && pageBorder.borderType !== 'shadow' ? `${pageBorder.width} ${pageBorder.style} ${pageBorder.color}` : 'none',
-                    marginTop: (headerText || pageNumbering.enabled && pageNumbering.position.startsWith('top')) ? '15mm' : '20mm',
-                    marginBottom: (footerText || pageNumbering.enabled && pageNumbering.position.startsWith('bottom')) ? '15mm' : '20mm',
-                    marginLeft: '20mm',
-                    marginRight: '20mm',
-                    width: `calc(100% - 40mm)`,
-                    height: `calc(100% - ${(headerText || pageNumbering.enabled && pageNumbering.position.startsWith('top')) ? '35mm' : '40mm'} - ${(footerText || pageNumbering.enabled && pageNumbering.position.startsWith('bottom')) ? '15mm' : '20mm'})`,
                     borderRadius: pageBorder.borderType === 'rounded' ? '8px' : '0',
                     boxShadow: pageBorder.borderType === 'shadow' ? `inset 0 0 0 ${pageBorder.width} ${pageBorder.color}` : 'none',
-                    position: 'relative',
-                    boxSizing: 'border-box'
-                  } : {
-                    marginTop: (headerText || pageNumbering.enabled && pageNumbering.position.startsWith('top')) ? '15mm' : '20mm',
-                    marginBottom: (footerText || pageNumbering.enabled && pageNumbering.position.startsWith('bottom')) ? '15mm' : '20mm',
-                    marginLeft: '20mm',
-                    marginRight: '20mm',
-                    width: `calc(100% - 40mm)`,
-                    height: `calc(100% - ${(headerText || pageNumbering.enabled && pageNumbering.position.startsWith('top')) ? '35mm' : '40mm'} - ${(footerText || pageNumbering.enabled && pageNumbering.position.startsWith('bottom')) ? '15mm' : '20mm'})`,
-                    position: 'relative',
-                    boxSizing: 'border-box'
-                  }}
+                    ...contentBaseStyle
+                  } : contentBaseStyle}
                 >
                   {page.id === 1 && page.content === '<p>Start writing your document here...</p>' ? (
                     'Start writing your document here...'
@@ -2558,9 +4488,6 @@ const DocumentEditor = () => {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     fontSize: '11px',
-                    color: 'var(--text-secondary)',
-                    borderTop: '1px solid var(--border-color)',
-                    paddingTop: '2mm',
                     zIndex: 10
                   }}>
                     <span>{footerText.split('|')[0] || (pageNumbering.enabled && pageNumbering.position === 'bottom-left' ? (pageNumbering.format === '1' ? index + 1 : pageNumbering.format === 'i' ? ['i', 'ii', 'iii', 'iv', 'v'][index] || (index + 1) : String.fromCharCode(97 + index)) : '')}</span>
@@ -2571,23 +4498,105 @@ const DocumentEditor = () => {
                 
 
               </div>
-            ))}
+              </div>
+              );
+            })}
           </div>
           
           {selectedImage && (
             <div className="image-controls">
-              <h4>Image Controls</h4>
-              <div className="control-group">
-                <button onClick={() => resizeImage('25%')}>25%</button>
-                <button onClick={() => resizeImage('50%')}>50%</button>
-                <button onClick={() => resizeImage('75%')}>75%</button>
-                <button onClick={() => resizeImage('100%')}>100%</button>
+              <div className="image-controls-header">
+                <h4>Image Tools</h4>
+                <button className="ghost-btn" onClick={clearImageSelection}>
+                  <i className="ri-close-line"></i>
+                </button>
               </div>
-              <div className="control-group">
-                <button onClick={() => addImageBorder('1px solid #ddd')}>Light Border</button>
-                <button onClick={() => addImageBorder('2px solid #FFD700')}>Gold Border</button>
-                <button onClick={() => addImageBorder('3px solid #000')}>Bold Border</button>
-                <button onClick={() => addImageBorder('none')}>No Border</button>
+
+              <div className="control-section">
+                <label>
+                  Size ({imageTransform.width}%)
+                  <input
+                    type="range"
+                    min="5"
+                    max="200"
+                    value={imageTransform.width}
+                    onChange={(e) => updateImageWidth(Number(e.target.value))}
+                  />
+                </label>
+                <div className="control-actions">
+                  <button onClick={() => updateImageWidth(25)}>25%</button>
+                  <button onClick={() => updateImageWidth(50)}>50%</button>
+                  <button onClick={() => updateImageWidth(75)}>75%</button>
+                  <button onClick={() => updateImageWidth(100)}>100%</button>
+                </div>
+              </div>
+
+              <div className="control-section">
+                <label>Rotate ({imageTransform.rotation}°)</label>
+                <div className="control-actions">
+                  <button onClick={() => rotateSelectedImage(-15)}>↺ 15°</button>
+                  <button onClick={() => rotateSelectedImage(15)}>↻ 15°</button>
+                  <button onClick={() => rotateSelectedImage(-imageTransform.rotation)}>Reset</button>
+                </div>
+              </div>
+
+              <div className="control-section">
+                <label>Borders</label>
+                <div className="control-actions wrap">
+                  <button onClick={() => addImageBorder('none')}>None</button>
+                  <button onClick={() => addImageBorder('1px solid #d4d4d4')}>Light</button>
+                  <button onClick={() => addImageBorder('2px solid #FFD700')}>Gold</button>
+                  <button onClick={() => addImageBorder('3px solid #0f172a')}>Bold</button>
+                  <button onClick={() => addImageBorder('4px dashed #94a3b8')}>Dashed</button>
+                </div>
+              </div>
+
+              <div className="control-section">
+                <label>Crop</label>
+                <button
+                  className={`toolbar-btn ${showCropControls ? 'active' : ''}`}
+                  onClick={() => setShowCropControls((prev) => !prev)}
+                >
+                  {showCropControls ? 'Hide crop' : 'Adjust crop'}
+                </button>
+                {showCropControls && (
+                  <div className="crop-grid">
+                    {['top', 'right', 'bottom', 'left'].map((edge) => (
+                      <label key={edge}>
+                        {edge.charAt(0).toUpperCase() + edge.slice(1)}
+                        <input
+                          type="number"
+                          min="0"
+                          max="45"
+                          value={imageTransform.crop[edge]}
+                          onChange={(e) => updateCropSetting(edge, e.target.value)}
+                        />
+                      </label>
+                    ))}
+                    <div className="control-actions">
+                      <button onClick={applyCropToImage}>Apply</button>
+                      <button
+                        onClick={() => {
+                          setImageTransform((prev) => ({
+                            ...prev,
+                            crop: { top: 0, right: 0, bottom: 0, left: 0 }
+                          }));
+                          if (selectedImage) {
+                            selectedImage.style.clipPath = '';
+                          }
+                        }}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="control-section">
+                <button className="ghost-btn" onClick={resetImageAdjustments}>
+                  Reset All Adjustments
+                </button>
               </div>
             </div>
           )}
@@ -3035,8 +5044,8 @@ const DocumentEditor = () => {
             <button className="sidebar-btn"><i className="ri-chat-3-line"></i> Comments</button>
             <button className="sidebar-btn"><i className="ri-lightbulb-line"></i> Suggestions</button>
             <button className="sidebar-btn" onClick={() => setShowVersionHistory(true)}><i className="ri-history-line"></i> Version History</button>
-            <button className="sidebar-btn" onClick={() => document.querySelector('input[type="file"]').click()}><i className="ri-image-add-line"></i> Upload Image</button>
-            <input type="file" accept="image/*" style={{display: 'none'}} onChange={(e) => {
+            <button className="sidebar-btn" onClick={() => document.querySelector('input[data-image-upload="inline"]').click()}><i className="ri-image-add-line"></i> Upload Image</button>
+            <input data-image-upload="inline" type="file" accept="image/*" style={{display: 'none'}} onChange={(e) => {
               const file = e.target.files[0];
               if (file) {
                 const reader = new FileReader();
@@ -3046,13 +5055,12 @@ const DocumentEditor = () => {
                   img.style.maxWidth = '100%';
                   img.style.height = 'auto';
                   img.style.cursor = 'pointer';
-                  img.onclick = (e) => {
-                    e.stopPropagation();
-                    setSelectedImage(img);
-                    document.querySelectorAll('.editor-content img').forEach(i => i.classList.remove('selected'));
-                    img.classList.add('selected');
+                  img.onclick = (clickEvent) => {
+                    clickEvent.stopPropagation();
+                    selectImageElement(img);
                   };
                   editorRef.current.appendChild(img);
+                  selectImageElement(img);
                 };
                 reader.readAsDataURL(file);
               }
@@ -3199,18 +5207,47 @@ const DocumentEditor = () => {
       <div className="bottom-status-bar">
         <div className="status-left">
           <span className="word-count">
-            <i className="ri-file-text-line"></i> {wordCount} words
+            <i className="ri-file-text-line"></i> {documentStats.words.toLocaleString()} words
+          </span>
+          <span className="char-count">
+            <i className="ri-hashtag"></i> {documentStats.characters.toLocaleString()} chars
           </span>
         </div>
         <div className="status-center">
           <span className="page-info">
-            Page {currentPage} of {pages.length}
+            Page {currentPage} of {documentStats.pages}
+          </span>
+          <span className="paragraph-info">
+            <i className="ri-paragraph"></i> {documentStats.paragraphs} paragraphs
           </span>
         </div>
         <div className="status-right">
-          <span className="zoom-level">
-            <i className="ri-zoom-in-line"></i> 100%
-          </span>
+          <div className="zoom-inline-controls">
+            <button 
+              className="zoom-inline-btn" 
+              onClick={zoomOut} 
+              disabled={zoomLevel <= 50}
+              title="Zoom out"
+            >
+              <i className="ri-subtract-line"></i>
+            </button>
+            <span className="zoom-level-display">{zoomLevel}%</span>
+            <button 
+              className="zoom-inline-btn" 
+              onClick={zoomIn} 
+              disabled={zoomLevel >= 200}
+              title="Zoom in"
+            >
+              <i className="ri-add-line"></i>
+            </button>
+            <button 
+              className="zoom-reset-btn" 
+              onClick={resetZoom} 
+              disabled={zoomLevel === 100}
+            >
+              Reset
+            </button>
+          </div>
         </div>
       </div>
     </div>
