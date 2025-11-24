@@ -7,6 +7,7 @@ import './DocumentEditor.css';
 import { useNotification } from '../context/NotificationContext';
 import { ThemeContext } from '../context/ThemeContext';
 import { importDocxOOXML, exportDocxOOXML } from '../utils/ooxmlUtils';
+import { MSWordPagination } from '../utils/paginationEngine';
 
 const DocumentEditor = () => {
   const navigate = useNavigate();
@@ -18,11 +19,9 @@ const DocumentEditor = () => {
   // Document state
   const [documentTitle, setDocumentTitle] = useState('Untitled Document');
   const [isEditing, setIsEditing] = useState(false);
-  const [documentContent, setDocumentContent] = useState('<p dir="ltr">Start writing your document here...</p>');
   const [documentStats, setDocumentStats] = useState({
     words: 0,
     characters: 0,
-    charactersNoSpaces: 0,
     paragraphs: 0,
     pages: 1
   });
@@ -31,6 +30,7 @@ const DocumentEditor = () => {
   const [zoomLevel, setZoomLevel] = useState(100);
   const [showToolbar, setShowToolbar] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Formatting state
   const [currentFormat, setCurrentFormat] = useState({
@@ -39,99 +39,91 @@ const DocumentEditor = () => {
     bold: false,
     italic: false,
     underline: false,
-    textAlign: 'left',
-    textColor: '#000000',
-    backgroundColor: 'transparent'
-  });
-  
-  // Page setup
-  const [pageSetup, setPageSetup] = useState({
-    orientation: 'portrait',
-    margins: {
-      top: 20,
-      bottom: 20,
-      left: 20,
-      right: 20
-    },
-    size: 'A4'
+    textAlign: 'left'
   });
   
   // Refs
-  const editorRef = useRef(null);
+  const editorContainerRef = useRef(null);
   const fileInputRef = useRef(null);
-  const autoSaveInterval = useRef(null);
-  const isApplyingContentRef = useRef(false);
-  const isEditorChangeRef = useRef(false);
+  const paginationRef = useRef(null);
   
-  // Auto-save functionality
+  // Initialize MS Word pagination system
   useEffect(() => {
-    if (documentId && documentContent) {
-      autoSaveInterval.current = setInterval(() => {
-        saveDocument(false);
-      }, 30000); // Auto-save every 30 seconds
-    }
-    
-    return () => {
-      if (autoSaveInterval.current) {
-        clearInterval(autoSaveInterval.current);
+    if (editorContainerRef.current && !paginationRef.current) {
+      try {
+        // Direct callback for stats updates
+        const handleStatsUpdate = (stats) => {
+          console.log('Received stats update:', stats); // Debug log
+          const { words, characters, paragraphs, pages, currentPage } = stats;
+          setDocumentStats({ words, characters, paragraphs, pages });
+          setCurrentPage(currentPage);
+        };
+        
+        paginationRef.current = new MSWordPagination(editorContainerRef.current, handleStatsUpdate);
+        
+        // Listen for export events
+        const handleExportDocx = (event) => {
+          handleExportDocx();
+        };
+        
+        const handleExportPdf = (event) => {
+          // TODO: Implement PDF export
+          showNotification('PDF export coming soon!', 'info');
+        };
+        
+        document.addEventListener('exportDocx', handleExportDocx);
+        document.addEventListener('exportPdf', handleExportPdf);
+        
+        // Initial stats update
+        setTimeout(() => {
+          if (paginationRef.current) {
+            paginationRef.current.updateStats();
+          }
+        }, 100);
+        
+        return () => {
+          document.removeEventListener('exportDocx', handleExportDocx);
+          document.removeEventListener('exportPdf', handleExportPdf);
+          if (paginationRef.current && paginationRef.current.observer) {
+            paginationRef.current.observer.disconnect();
+          }
+        };
+      } catch (error) {
+        console.error('Failed to initialize pagination:', error);
+        showNotification('Editor initialization failed', 'error');
       }
-    };
-  }, [documentId, documentContent]);
-  
-  // Update document stats
-  useEffect(() => {
-    updateDocumentStats();
-  }, [documentContent]);
-
-  // When documentContent is changed programmatically (e.g., import or load), apply it to the editor
-  useEffect(() => {
-    if (!editorRef.current) return;
-    // If change was triggered by the editor itself, don't re-apply
-    if (isApplyingContentRef.current) return;
-    if (isEditorChangeRef.current) {
-      // reset the flag and skip applying programmatic changes
-      isEditorChangeRef.current = false;
-      return;
     }
-
-    isApplyingContentRef.current = true;
-    editorRef.current.innerHTML = documentContent;
-    // Small timeout to allow event loop to settle before allowing user input again
-    setTimeout(() => {
-      isApplyingContentRef.current = false;
-    }, 0);
-  }, [documentContent]);
+  }, []);
   
+  // Update document statistics
   const updateDocumentStats = useCallback(() => {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = documentContent;
-    const text = tempDiv.textContent || tempDiv.innerText || '';
-    
-    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-    const characters = text.length;
-    const charactersNoSpaces = text.replace(/\s/g, '').length;
-    const paragraphs = (documentContent.match(/<p[^>]*>/g) || []).length;
-    
-    // Estimate pages based on content length (rough calculation)
-    const wordsPerPage = 250;
-    const estimatedPages = Math.max(1, Math.ceil(words / wordsPerPage));
-    
-    setDocumentStats({
-      words,
-      characters,
-      charactersNoSpaces,
-      paragraphs,
-      pages: estimatedPages
-    });
-  }, [documentContent]);
+    try {
+      if (!paginationRef.current) return;
+      
+      const allContent = paginationRef.current.getAllContent();
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = allContent;
+      const text = tempDiv.textContent || '';
+      
+      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      const characters = text.length;
+      const paragraphs = (allContent.match(/<p[^>]*>/g) || []).length;
+      
+      setDocumentStats(prev => ({
+        ...prev,
+        words,
+        characters,
+        paragraphs
+      }));
+    } catch (error) {
+      console.error('Error updating stats:', error);
+    }
+  }, []);
   
   // Format text functions
   const formatText = (command, value = null) => {
     document.execCommand(command, false, value);
     updateFormatState();
-    if (editorRef.current) {
-      editorRef.current.focus();
-    }
   };
   
   const updateFormatState = () => {
@@ -143,47 +135,11 @@ const DocumentEditor = () => {
       underline: document.queryCommandState('underline'),
       textAlign: document.queryCommandValue('justifyLeft') ? 'left' : 
                 document.queryCommandValue('justifyCenter') ? 'center' :
-                document.queryCommandValue('justifyRight') ? 'right' : 'left',
-      textColor: document.queryCommandValue('foreColor') || '#000000',
-      backgroundColor: document.queryCommandValue('backColor') || 'transparent'
+                document.queryCommandValue('justifyRight') ? 'right' : 'left'
     });
   };
-
-  // Ensure all block elements are explicitly LTR so typing appears left-to-right
-  const normalizeContentLTR = (html) => {
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html || '', 'text/html');
-
-      const blockSelectors = 'p, div, h1, h2, h3, h4, h5, h6, li, td, th, blockquote';
-      const blocks = doc.body.querySelectorAll(blockSelectors);
-
-      if (blocks.length === 0) {
-        // If there are no blocks, wrap text nodes in a paragraph with dir=ltr
-        const text = doc.body.textContent || '';
-        doc.body.innerHTML = '';
-        const p = doc.createElement('p');
-        p.setAttribute('dir', 'ltr');
-        p.style.direction = 'ltr';
-        p.style.unicodeBidi = 'isolate-override';
-        p.textContent = text;
-        doc.body.appendChild(p);
-      } else {
-        blocks.forEach((el) => {
-          el.setAttribute('dir', 'ltr');
-          el.style.direction = 'ltr';
-          el.style.unicodeBidi = 'isolate-override';
-        });
-      }
-
-      return doc.body.innerHTML;
-    } catch (e) {
-      console.warn('normalizeContentLTR failed', e);
-      return html;
-    }
-  };
   
-  // DOCX Import
+  // DOCX Import with pagination
   const handleImportDocx = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -200,9 +156,14 @@ const DocumentEditor = () => {
       const result = await importDocxOOXML(fileBuffer);
       
       if (result.success) {
-        applyContentToEditor(result.html);
+        if (paginationRef.current && paginationRef.current.setContent) {
+          paginationRef.current.setContent(result.html);
+        }
+        
         setDocumentTitle(file.name.replace('.docx', ''));
         showNotification('DOCX file imported successfully!', 'success');
+        
+        setTimeout(updateDocumentStats, 200);
       } else {
         throw new Error(result.error);
       }
@@ -211,52 +172,19 @@ const DocumentEditor = () => {
       showNotification('Failed to import DOCX file: ' + error.message, 'error');
     }
     
-    // Reset file input
     event.target.value = '';
   };
   
-  // Enrich HTML with text-align styles from editor's computed styles
-  const enrichAlignmentStyles = (html) => {
-    if (!editorRef.current) return html;
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-      const pElements = doc.querySelectorAll('p');
-      
-      // For each paragraph, check the actual editor DOM for its computed alignment
-      // and inject it into the style attribute
-      const editorParas = editorRef.current.querySelectorAll('p');
-      pElements.forEach((p, idx) => {
-        if (idx < editorParas.length) {
-          const editorP = editorParas[idx];
-          const computedStyle = window.getComputedStyle(editorP);
-          const textAlign = computedStyle.textAlign || 'left';
-          if (textAlign && textAlign !== 'left') {
-            const existing = p.getAttribute('style') || '';
-            const alignStyle = `text-align: ${textAlign}`;
-            // Add align style if not already present
-            if (!existing.includes('text-align')) {
-              p.setAttribute('style', existing ? `${existing}; ${alignStyle}` : alignStyle);
-            }
-          }
-        }
-      });
-      
-      return doc.body.innerHTML;
-    } catch (e) {
-      console.warn('enrichAlignmentStyles failed', e);
-      return html;
-    }
-  };
-  
-  // DOCX Export
+  // DOCX Export with multi-page content
   const handleExportDocx = async () => {
     try {
       showNotification('Exporting to DOCX...', 'info');
       
-      // Enrich HTML with alignment styles before export
-      const enrichedHtml = enrichAlignmentStyles(documentContent);
-      const buffer = await exportDocxOOXML(enrichedHtml, documentTitle);
+      const fullContent = (paginationRef.current && paginationRef.current.getAllContent) ? 
+        paginationRef.current.getAllContent() : 
+        '<p>No content</p>';
+      
+      const buffer = await exportDocxOOXML(fullContent, documentTitle);
       const blob = new Blob([buffer], { 
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
       });
@@ -269,153 +197,25 @@ const DocumentEditor = () => {
     }
   };
   
-  // Save document
-  const saveDocument = async (showMessage = true) => {
-    try {
-      const documentData = {
-        title: documentTitle,
-        content: documentContent,
-        stats: documentStats,
-        formatting: {
-          pageSetup,
-          defaultFont: {
-            family: currentFormat.fontFamily,
-            size: currentFormat.fontSize
-          }
-        },
-        lastModified: new Date().toISOString()
-      };
-      
-      // Here you would typically save to your backend
-      // For now, we'll just save to localStorage as a demo
-      if (documentId) {
-        localStorage.setItem(`document_${documentId}`, JSON.stringify(documentData));
-      }
-      
-      if (showMessage) {
-        showNotification('Document saved successfully!', 'success');
-      }
-    } catch (error) {
-      console.error('Save error:', error);
-      if (showMessage) {
-        showNotification('Failed to save document', 'error');
-      }
+  // Insert page break
+  const insertPageBreak = () => {
+    if (paginationRef.current && paginationRef.current.insertPageBreak) {
+      paginationRef.current.insertPageBreak();
     }
   };
   
-  // Handle content change
-  const handleContentChange = () => {
-    if (!editorRef.current) return;
-    if (isApplyingContentRef.current) return;
-
-    const newContent = editorRef.current.innerHTML;
-    // Normalize but do not re-apply innerHTML immediately (avoid caret jumps)
-    const normalized = normalizeContentLTR(newContent);
-    isEditorChangeRef.current = true;
-    setDocumentContent(normalized);
-  };
-
-  // Apply HTML into editor safely (for imports/loads)
-  const applyContentToEditor = (html) => {
-    if (!editorRef.current) return;
-    const normalized = normalizeContentLTR(html);
-    isApplyingContentRef.current = true;
-    editorRef.current.innerHTML = normalized;
-    setDocumentContent(normalized);
-    setTimeout(() => {
-      isApplyingContentRef.current = false;
-    }, 0);
-  };
-
-  // Insert table
-  const insertTable = (rows = 3, cols = 3) => {
-    let tableHTML = '<table class="etherx-table" style="width: 100%; border-collapse: collapse; margin: 16px 0; border: 1px solid #ddd;">';
-    
-    for (let i = 0; i < rows; i++) {
-      tableHTML += '<tr>';
-      for (let j = 0; j < cols; j++) {
-        tableHTML += '<td style="border: 1px solid #ddd; padding: 8px; min-width: 60px;" contenteditable="true">&nbsp;</td>';
-      }
-      tableHTML += '</tr>';
+  // Navigation between pages
+  const goToPage = (pageNumber) => {
+    if (paginationRef.current && paginationRef.current.goToPage) {
+      paginationRef.current.goToPage(pageNumber);
+      setCurrentPage(pageNumber);
     }
-    
-    tableHTML += '</table>';
-    
-    document.execCommand('insertHTML', false, tableHTML);
-    handleContentChange();
-  };
-  
-  // Insert image
-  const insertImage = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    if (!file.type.startsWith('image/')) {
-      showNotification('Please select a valid image file', 'error');
-      return;
-    }
-    
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = `<img src="${e.target.result}" style="max-width: 100%; height: auto; margin: 10px 0;" alt="Inserted image" />`;
-      document.execCommand('insertHTML', false, img);
-      handleContentChange();
-    };
-    reader.readAsDataURL(file);
-    
-    event.target.value = '';
-  };
-
-  // Paste handler: sanitize and enforce LTR
-  const handlePaste = (e) => {
-    e.preventDefault();
-    const clipboard = e.clipboardData || window.clipboardData;
-    let html = clipboard.getData('text/html');
-    const text = clipboard.getData('text/plain');
-
-    if (!html && text) {
-      // Insert plain text wrapped in a paragraph
-      const safe = `<p dir="ltr">${escapeHtml(text)}</p>`;
-      document.execCommand('insertHTML', false, safe);
-    } else if (html) {
-      // Normalize pasted HTML and insert
-      const normalized = normalizeContentLTR(html);
-      document.execCommand('insertHTML', false, normalized);
-    }
-
-    // After paste, update our state
-    setTimeout(() => {
-      handleContentChange();
-    }, 0);
-  };
-
-  const escapeHtml = (unsafe) => {
-    return unsafe
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
   };
   
   // Zoom functions
-  const handleZoomIn = () => {
-    setZoomLevel(prev => Math.min(200, prev + 10));
-  };
-  
-  const handleZoomOut = () => {
-    setZoomLevel(prev => Math.max(50, prev - 10));
-  };
-  
-  const resetZoom = () => {
-    setZoomLevel(100);
-  };
-  
-  // Toggle fullscreen
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
-    setShowToolbar(!isFullscreen);
-  };
+  const handleZoomIn = () => setZoomLevel(prev => Math.min(200, prev + 10));
+  const handleZoomOut = () => setZoomLevel(prev => Math.max(50, prev - 10));
+  const resetZoom = () => setZoomLevel(100);
   
   return (
     <div className={`editor-container ${isFullscreen ? 'fullscreen' : ''}`}>
@@ -443,24 +243,18 @@ const DocumentEditor = () => {
               autoFocus
             />
           ) : (
-            <h1 
-              className="document-title"
-              onClick={() => setIsEditing(true)}
-            >
+            <h1 className="document-title" onClick={() => setIsEditing(true)}>
               {documentTitle}
             </h1>
           )}
         </div>
         
         <div className="navbar-right">
-          <button onClick={toggleTheme} className="nav-btn" title="Toggle theme">
+          <button onClick={toggleTheme} className="nav-btn">
             <i className={`ri-${theme === 'dark' ? 'sun' : 'moon'}-line`}></i>
           </button>
-          <button onClick={toggleFullscreen} className="nav-btn" title="Toggle fullscreen">
+          <button onClick={() => setIsFullscreen(!isFullscreen)} className="nav-btn">
             <i className={`ri-${isFullscreen ? 'fullscreen-exit' : 'fullscreen'}-line`}></i>
-          </button>
-          <button onClick={() => saveDocument()} className="nav-btn save-btn">
-            <i className="ri-save-line"></i> Save
           </button>
         </div>
       </nav>
@@ -480,20 +274,15 @@ const DocumentEditor = () => {
             <button 
               className="toolbar-btn"
               onClick={() => fileInputRef.current?.click()}
-              title="Import DOCX"
             >
               <i className="ri-file-upload-line"></i> Import
             </button>
-            <button 
-              className="toolbar-btn"
-              onClick={handleExportDocx}
-              title="Export DOCX"
-            >
+            <button className="toolbar-btn" onClick={handleExportDocx}>
               <i className="ri-file-download-line"></i> Export
             </button>
           </div>
           
-          {/* Font Formatting */}
+          {/* Formatting */}
           <div className="toolbar-group">
             <select 
               className="toolbar-select"
@@ -504,7 +293,6 @@ const DocumentEditor = () => {
               <option value="Arial">Arial</option>
               <option value="Times New Roman">Times New Roman</option>
               <option value="Calibri">Calibri</option>
-              <option value="Helvetica">Helvetica</option>
             </select>
             
             <select 
@@ -520,130 +308,41 @@ const DocumentEditor = () => {
               <option value="18pt">18pt</option>
               <option value="24pt">24pt</option>
             </select>
-          </div>
-          
-          {/* Text Formatting */}
-          <div className="toolbar-group">
+            
             <button 
               className={`toolbar-btn ${currentFormat.bold ? 'active' : ''}`}
               onClick={() => formatText('bold')}
-              title="Bold"
             >
               <strong>B</strong>
             </button>
             <button 
               className={`toolbar-btn ${currentFormat.italic ? 'active' : ''}`}
               onClick={() => formatText('italic')}
-              title="Italic"
             >
               <em>I</em>
             </button>
             <button 
               className={`toolbar-btn ${currentFormat.underline ? 'active' : ''}`}
               onClick={() => formatText('underline')}
-              title="Underline"
             >
               <u>U</u>
             </button>
           </div>
           
-          {/* Alignment */}
+          {/* Page Controls */}
           <div className="toolbar-group">
-            <button 
-              className="toolbar-btn"
-              onClick={() => formatText('justifyLeft')}
-              title="Align Left"
-            >
-              <i className="ri-align-left"></i>
+            <button className="toolbar-btn" onClick={insertPageBreak}>
+              <i className="ri-insert-row-bottom"></i> Page Break
             </button>
-            <button 
-              className="toolbar-btn"
-              onClick={() => formatText('justifyCenter')}
-              title="Align Center"
-            >
-              <i className="ri-align-center"></i>
+            <button className="toolbar-btn" onClick={() => paginationRef.current?.exportToDocx()}>
+              <i className="ri-file-word-line"></i> DOCX
             </button>
-            <button 
-              className="toolbar-btn"
-              onClick={() => formatText('justifyRight')}
-              title="Align Right"
-            >
-              <i className="ri-align-right"></i>
+            <button className="toolbar-btn" onClick={() => paginationRef.current?.exportToPdf()}>
+              <i className="ri-file-pdf-line"></i> PDF
             </button>
-            <button 
-              className="toolbar-btn"
-              onClick={() => formatText('justifyFull')}
-              title="Justify"
-            >
-              <i className="ri-align-justify"></i>
-            </button>
-          </div>
-          
-          {/* Lists */}
-          <div className="toolbar-group">
-            <button 
-              className="toolbar-btn"
-              onClick={() => formatText('insertUnorderedList')}
-              title="Bullet List"
-            >
-              <i className="ri-list-unordered"></i>
-            </button>
-            <button 
-              className="toolbar-btn"
-              onClick={() => formatText('insertOrderedList')}
-              title="Numbered List"
-            >
-              <i className="ri-list-ordered"></i>
-            </button>
-          </div>
-          
-          {/* Insert */}
-          <div className="toolbar-group">
-            <button 
-              className="toolbar-btn"
-              onClick={() => insertTable()}
-              title="Insert Table"
-            >
-              <i className="ri-table-line"></i> Table
-            </button>
-            <input
-              type="file"
-              onChange={insertImage}
-              accept="image/*"
-              style={{ display: 'none' }}
-              id="image-input"
-            />
-            <button 
-              className="toolbar-btn"
-              onClick={() => document.getElementById('image-input')?.click()}
-              title="Insert Image"
-            >
-              <i className="ri-image-line"></i> Image
-            </button>
-          </div>
-          
-          {/* Colors */}
-          <div className="toolbar-group">
-            <div className="color-picker">
-              <input
-                type="color"
-                value={currentFormat.textColor}
-                onChange={(e) => formatText('foreColor', e.target.value)}
-                className="color-picker-input"
-                title="Text Color"
-              />
-              <span className="color-picker-label">A</span>
-            </div>
-            <div className="color-picker">
-              <input
-                type="color"
-                value={currentFormat.backgroundColor}
-                onChange={(e) => formatText('backColor', e.target.value)}
-                className="color-picker-input"
-                title="Background Color"
-              />
-              <span className="color-picker-label">■</span>
-            </div>
+            <span className="page-indicator">
+              Page {currentPage} of {documentStats.pages}
+            </span>
           </div>
         </div>
       )}
@@ -651,29 +350,12 @@ const DocumentEditor = () => {
       {/* Editor Content */}
       <div className="editor-layout">
         <div className="editor-wrapper">
-          <div className="pages-container">
-            <div 
-              className="page-scale-wrapper"
-              style={{ transform: `scale(${zoomLevel / 100})` }}
-            >
-              <div className="editor-page a4-page">
-                <div 
-                  ref={editorRef}
-                  className="editor-content a4-content"
-                  contentEditable
-                  dir="ltr"
-                  onInput={handleContentChange}
-                  onPaste={(e) => handlePaste(e)}
-                  onMouseUp={updateFormatState}
-                  onKeyUp={updateFormatState}
-                  style={{
-                    fontFamily: currentFormat.fontFamily,
-                    fontSize: currentFormat.fontSize,
-                    padding: `${pageSetup.margins.top}mm ${pageSetup.margins.right}mm ${pageSetup.margins.bottom}mm ${pageSetup.margins.left}mm`,
-                    unicodeBidi: 'isolate-override'
-                  }}
-                />
-              </div>
+          <div 
+            className="pages-container"
+            style={{ transform: `scale(${zoomLevel / 100})` }}
+          >
+            <div ref={editorContainerRef} className="multi-page-editor">
+              {/* Pages will be dynamically created here by MSWordPagination */}
             </div>
           </div>
         </div>
@@ -682,49 +364,25 @@ const DocumentEditor = () => {
       {/* Status Bar */}
       <div className="bottom-status-bar">
         <div className="status-left">
-          <div className="word-count">
-            <i className="ri-file-text-line"></i>
-            <span>{documentStats.words} words</span>
-          </div>
-          <div className="char-count">
-            <i className="ri-character-recognition-line"></i>
-            <span>{documentStats.characters} chars</span>
-          </div>
-          <div className="page-info">
-            <i className="ri-file-copy-line"></i>
-            <span>Page {documentStats.pages}</span>
-          </div>
+          <span>{documentStats.words} words</span>
+          <span>{documentStats.characters} characters</span>
+          <span>{documentStats.paragraphs} paragraphs</span>
         </div>
         
         <div className="status-center">
-          <div className="paragraph-info">
-            <i className="ri-paragraph"></i>
-            <span>{documentStats.paragraphs} paragraphs</span>
-          </div>
+          <span>Page {currentPage} of {documentStats.pages}</span>
         </div>
         
         <div className="status-right">
-          <div className="zoom-inline-controls">
-            <button 
-              className="zoom-inline-btn"
-              onClick={handleZoomOut}
-              disabled={zoomLevel <= 50}
-            >
+          <div className="zoom-controls">
+            <button onClick={handleZoomOut} disabled={zoomLevel <= 50}>
               <i className="ri-subtract-line"></i>
             </button>
-            <span className="zoom-level-display">{zoomLevel}%</span>
-            <button 
-              className="zoom-inline-btn"
-              onClick={handleZoomIn}
-              disabled={zoomLevel >= 200}
-            >
+            <span>{zoomLevel}%</span>
+            <button onClick={handleZoomIn} disabled={zoomLevel >= 200}>
               <i className="ri-add-line"></i>
             </button>
-            <button 
-              className="zoom-reset-btn"
-              onClick={resetZoom}
-              disabled={zoomLevel === 100}
-            >
+            <button onClick={resetZoom} disabled={zoomLevel === 100}>
               Reset
             </button>
           </div>

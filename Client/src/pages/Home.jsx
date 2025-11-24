@@ -27,7 +27,7 @@ const Home = () => {
     { icon: 'ri-folder-line', label: 'All Documents', mobileVisible: true },
     { icon: 'ri-team-line', label: 'Collaboration', mobileVisible: true },
     { icon: 'ri-star-line', label: 'Favorites', mobileVisible: true },
-    { icon: 'ri-delete-bin-line', label: 'Trash', mobileVisible: true },
+  { icon: 'ri-delete-bin-line', label: 'Recycle Bin', mobileVisible: true },
     { icon: 'ri-settings-3-line', label: 'Settings', mobileVisible: true, action: () => navigate('/settings') }
   ];
 
@@ -118,6 +118,8 @@ const Home = () => {
       fetchUserDocuments();
     } else if (selectedSection === 'Favorites') {
       fetchFavoriteDocuments();
+    } else if (selectedSection === 'Recycle Bin') {
+      fetchTrashDocuments();
     }
   }, [selectedSection]);
   
@@ -202,18 +204,18 @@ const Home = () => {
       });
       
       if (response.ok) {
-        showNotification('Document moved to trash (will be deleted in 1 hour)', 'success');
+  showNotification('Document moved to Recycle Bin (will be deleted in 1 hour)', 'success');
         
         // Refresh current section
         if (selectedSection === 'All Documents') fetchUserDocuments();
         if (selectedSection === 'Favorites') fetchFavoriteDocuments();
         if (selectedSection === 'Quick Access') loadRecentDocuments();
       } else {
-        showNotification('Failed to move document to trash', 'error');
+  showNotification('Failed to move document to Recycle Bin', 'error');
       }
     } catch (error) {
-      console.error('Error moving to trash:', error);
-      showNotification('Error moving document to trash', 'error');
+  console.error('Error moving to trash:', error);
+  showNotification('Error moving document to Recycle Bin', 'error');
     }
   };
   
@@ -227,14 +229,14 @@ const Home = () => {
       });
       
       if (response.ok) {
-        showNotification('Document restored successfully', 'success');
+  showNotification('Document restored successfully', 'success');
         fetchTrashDocuments();
       } else {
         showNotification('Failed to restore document', 'error');
       }
     } catch (error) {
-      console.error('Error restoring from trash:', error);
-      showNotification('Error restoring document', 'error');
+  console.error('Error restoring from trash:', error);
+  showNotification('Error restoring document', 'error');
     }
   };
   
@@ -391,7 +393,6 @@ const Home = () => {
                   <div 
                     key={index} 
                     className={`document-card ${animateCards ? 'animate' : ''}`}
-                    style={{ '--doc-accent': accentColor }}
                     onClick={() => {
                       // Add to recent documents
                       const recentDocs = JSON.parse(localStorage.getItem('recentDocuments') || '[]');
@@ -846,23 +847,23 @@ const Home = () => {
           </div>
         )}
         
-        {/* Trash Section */}
-        {selectedSection === 'Trash' && (
+        {/* Recycle Bin Section */}
+        {selectedSection === 'Recycle Bin' && (
           <div className="workspace-section">
             <div className="section-header">
-              <h2>Trash</h2>
+              <h2>Recycle Bin</h2>
             </div>
             
             {trashDocuments.length === 0 ? (
               <div className="empty-state">
                 <i className="ri-delete-bin-line"></i>
-                <h3>Trash is empty</h3>
+                <h3>Recycle Bin is empty</h3>
                 <p>Deleted documents will appear here</p>
               </div>
             ) : (
               <div className="documents-grid">
                 {trashDocuments.map((doc) => (
-                  <div key={doc._id} className="document-card trash-card">
+                  <div key={doc._id} className="document-card recycle-card">
                     <div className="card-header">
                       <h3>{doc.title}</h3>
                       <div className="card-badges">
@@ -880,7 +881,7 @@ const Home = () => {
                         Deleted: {new Date(doc.deletedAt).toLocaleDateString()}
                       </span>
                     </div>
-                    <div className="card-actions">
+                      <div className="card-actions">
                       <button 
                         className="action-btn restore-btn"
                         onClick={() => restoreFromTrash(doc._id)}
@@ -904,7 +905,7 @@ const Home = () => {
         )}
 
         {/* Other sections */}
-        {!['Quick Access', 'New Document', 'All Documents', 'Collaboration', 'Favorites', 'Trash'].includes(selectedSection) && (
+        {!['Quick Access', 'New Document', 'All Documents', 'Collaboration', 'Favorites', 'Recycle Bin'].includes(selectedSection) && (
           <div className="workspace-section">
             <h2>{selectedSection}</h2>
             <p>Content for {selectedSection} coming soon...</p>
