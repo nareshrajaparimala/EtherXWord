@@ -4,10 +4,10 @@
 export const PAGE_METRICS = {
   width: 210, // mm
   height: 297, // mm
-  margins: { top: 20, bottom: 20, left: 20, right: 20 },
+  margins: { top: 0, bottom: 0, left: 0, right: 0 }, // No margins for full page content
   mmToPx: 3.7795275591,
   get contentHeight() {
-    return (this.height - this.margins.top - this.margins.bottom) * this.mmToPx;
+    return this.height * this.mmToPx; // Full A4 height
   }
 };
 
@@ -52,8 +52,10 @@ export class MSWordPagination {
     content.className = 'page-content';
     content.contentEditable = true;
     content.style.cssText = `
+      width: calc(100% - 2mm);
+      height: calc(297mm - 2mm);
       padding: 20mm;
-      height: auto;
+      margin: 0;
       box-sizing: border-box;
       outline: none;
       font-family: Georgia, serif;
@@ -64,6 +66,9 @@ export class MSWordPagination {
       word-wrap: break-word;
       direction: ltr;
       text-align: left;
+      position: absolute;
+      top: 0;
+      left: 0;
     `;
 
     if (this.pages.length === 0) {
@@ -161,7 +166,7 @@ export class MSWordPagination {
     if (pageIndex === -1) return;
 
     const contentHeight = pageContent.scrollHeight;
-    const maxHeight = PAGE_METRICS.contentHeight;
+    const maxHeight = 1123; // Full A4 height in pixels (297mm * 3.78)
     
     // If content exceeds page height, move cursor to next page
     if (contentHeight > maxHeight) {
@@ -221,7 +226,7 @@ export class MSWordPagination {
     if (!page) return;
 
     const contentHeight = page.content.scrollHeight;
-    const maxHeight = PAGE_METRICS.contentHeight;
+    const maxHeight = 1123; // Full A4 height in pixels
     
     if (contentHeight > maxHeight) {
       this.handleOverflow(pageIndex);

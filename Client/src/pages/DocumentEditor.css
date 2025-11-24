@@ -25,14 +25,14 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 60px;
+  height: 48px; /* reduced height for sleeker header */
   background: var(--bg-secondary);
-  backdrop-filter: blur(20px);
+  backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 16px;
   z-index: 1000;
 }
 
@@ -40,7 +40,7 @@
 .navbar-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .navbar-center {
@@ -48,8 +48,8 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  max-width: 400px;
-  margin: 0 20px;
+  max-width: 360px;
+  margin: 0 12px;
 }
 
 .logo {
@@ -58,18 +58,18 @@
   gap: 8px;
   font-weight: 600;
   color: var(--primary-yellow);
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .document-title {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
   cursor: pointer;
-  padding: 6px 12px;
+  padding: 4px 10px;
   border-radius: 6px;
-  transition: all 0.2s ease;
+  transition: all 0.18s ease;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -128,21 +128,57 @@
 
 /* Toolbar */
 .toolbar {
-  position: fixed;
-  top: 60px;
-  left: 0;
-  right: 0;
-  height: 80px;
-  background: var(--bg-secondary);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border-color);
+  /* moved below the navbar and in normal flow */
+  position: relative;
+  margin-top: 48px; /* sit just below the shortened navbar */
+  height: 56px;
+  background: transparent; /* keep toolbar integrated with navbar look */
   display: flex;
   align-items: center;
-  padding: 0 20px;
-  gap: 16px;
+  padding: 8px 16px;
+  gap: 12px;
   z-index: 900;
   overflow-x: auto;
   overflow-y: hidden;
+}
+
+/* Editor horizontal menu inside the toolbar */
+.editor-menu {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-right: 16px;
+  margin-left: 8px;
+}
+
+.editor-menu-item {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.12s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editor-menu-item:hover {
+  background: linear-gradient(90deg, rgba(255,207,64,0.08), transparent);
+  color: var(--primary-yellow);
+  transform: translateY(-2px);
+}
+
+.editor-menu-item:focus {
+  outline: 2px solid rgba(255,207,64,0.18);
+  outline-offset: 2px;
+}
+
+@media (max-width: 800px) {
+  .editor-menu { gap: 6px; }
+  .editor-menu-item { padding: 6px 10px; font-size: 12px; }
 }
 
 .toolbar-group {
@@ -243,11 +279,11 @@
   flex: 1;
   display: flex;
   justify-content: center;
-  margin-top: 140px; /* navbar + toolbar */
+  margin-top: 112px; /* adjusted for reduced navbar + toolbar heights */
   margin-bottom: 40px; /* status bar */
   overflow: auto;
   background: #f5f5f5;
-  padding: 40px 20px;
+  padding: 32px 20px;
 }
 
 [data-theme="dark"] .editor-layout {

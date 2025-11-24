@@ -262,6 +262,14 @@ const DocumentEditor = () => {
       {/* Toolbar */}
       {showToolbar && (
         <div className="toolbar">
+          {/* Editor menu (File, Home, Insert, Layout, References, Review, View, Help) */}
+          <div className="editor-menu" role="menubar" aria-label="Editor menu">
+            {['File','Home','Insert','Layout','References','Review','View','Help'].map(item => (
+              <button key={item} className="editor-menu-item" role="menuitem" onClick={() => { /* placeholder */ }}>
+                {item}
+              </button>
+            ))}
+          </div>
           {/* File Operations */}
           <div className="toolbar-group">
             <input
