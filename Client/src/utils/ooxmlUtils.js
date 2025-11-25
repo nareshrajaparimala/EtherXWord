@@ -31,13 +31,13 @@ export const importDocxOOXML = async (fileBuffer) => {
 };
 
 // OOXML Export Function
-export const exportDocxOOXML = async (htmlContent, filename = 'document.docx') => {
+export const exportDocxOOXML = async (htmlContent, filename = 'document.docx', headerFooterConfig = null) => {
   try {
     const zip = new JSZip();
     const imageData = [];
     
     // Convert HTML to OOXML and extract images/links
-    const { ooxml, images, links } = convertHTMLToOOXML(htmlContent);
+    const { ooxml, images, links } = convertHTMLToOOXML(htmlContent, headerFooterConfig);
     
     // Add images to zip
     images.forEach((img, index) => {
@@ -47,15 +47,25 @@ export const exportDocxOOXML = async (htmlContent, filename = 'document.docx') =
     
     // Create DOCX structure
     zip.file('word/document.xml', ooxml);
-    zip.file('[Content_Types].xml', getContentTypesXml(images));
+    zip.file('[Content_Types].xml', getContentTypesXml(images, headerFooterConfig));
     zip.file('_rels/.rels', getRelsXml());
-    zip.file('word/_rels/document.xml.rels', getDocumentRelsXml(images, links));
+    zip.file('word/_rels/document.xml.rels', getDocumentRelsXml(images, links, headerFooterConfig));
     zip.file('docProps/app.xml', getAppPropsXml());
     zip.file('docProps/core.xml', getCorePropsXml());
     zip.file('word/styles.xml', getStylesXml());
     zip.file('word/settings.xml', getSettingsXml());
     zip.file('word/webSettings.xml', getWebSettingsXml());
     zip.file('word/fontTable.xml', getFontTableXml());
+    
+    // Add header/footer files if configured
+    if (headerFooterConfig) {
+      if (headerFooterConfig.headerText || (headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('header'))) {
+        zip.file('word/header1.xml', getHeaderXml(headerFooterConfig));
+      }
+      if (headerFooterConfig.footerText || (headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('footer'))) {
+        zip.file('word/footer1.xml', getFooterXml(headerFooterConfig));
+      }
+    }
     
     // Generate DOCX buffer
     const buffer = await zip.generateAsync({ type: 'arraybuffer' });
@@ -208,7 +218,7 @@ const insertPageBreaks = (htmlContent) => {
 };
 
 // Convert HTML to OOXML
-const convertHTMLToOOXML = (htmlContent) => {
+const convertHTMLToOOXML = (htmlContent, headerFooterConfig = null) => {
   // Ensure we have content
   if (!htmlContent || htmlContent.trim() === '') {
     htmlContent = '<p>Document content</p>';
@@ -467,8 +477,20 @@ const convertHTMLToOOXML = (htmlContent) => {
     ooxml += '</w:tbl>';
   });
   
-  // Add section properties so Word recognizes document boundaries
-  ooxml += `    <w:sectPr/>
+  // Add section properties with header/footer references
+  ooxml += '    <w:sectPr>';
+  
+  if (headerFooterConfig) {
+    if (headerFooterConfig.headerText || (headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('header'))) {
+      ooxml += '<w:headerReference w:type="default" r:id="rIdHeader1"/>';
+    }
+    if (headerFooterConfig.footerText || (headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('footer'))) {
+      ooxml += '<w:footerReference w:type="default" r:id="rIdFooter1"/>';
+    }
+  }
+  
+  ooxml += '</w:sectPr>';
+  ooxml += `
   </w:body>
 </w:document>`;
   
@@ -487,7 +509,7 @@ const escapeXml = (unsafe) => {
 };
 
 // DOCX XML Templates
-const getContentTypesXml = (images = []) => {
+const getContentTypesXml = (images = [], headerFooterConfig = null) => {
   let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
@@ -498,8 +520,19 @@ const getContentTypesXml = (images = []) => {
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
   <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
   <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
-  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
-</Types>`;
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>`;
+  
+  if (headerFooterConfig) {
+    if (headerFooterConfig.headerText || (headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('header'))) {
+      xml += '\n  <Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>';
+    }
+    if (headerFooterConfig.footerText || (headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('footer'))) {
+      xml += '\n  <Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>';
+    }
+  }
+  
+  xml += '\n</Types>';
+  return xml;
   return xml;
 };
 
@@ -510,7 +543,7 @@ const getRelsXml = () => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?
   <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
 </Relationships>`;
 
-const getDocumentRelsXml = (images = [], links = []) => {
+const getDocumentRelsXml = (images = [], links = [], headerFooterConfig = null) => {
   let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`;
@@ -524,6 +557,15 @@ const getDocumentRelsXml = (images = [], links = []) => {
     xml += `
   <Relationship Id="${link.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${escapeXml(link.url)}" TargetMode="External"/>`;
   });
+  
+  if (headerFooterConfig) {
+    if (headerFooterConfig.headerText || (headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('header'))) {
+      xml += '\n  <Relationship Id="rIdHeader1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>';
+    }
+    if (headerFooterConfig.footerText || (headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('footer'))) {
+      xml += '\n  <Relationship Id="rIdFooter1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>';
+    }
+  }
   
   xml += `
 </Relationships>`;
@@ -573,3 +615,110 @@ const getFontTableXml = () => `<?xml version="1.0" encoding="UTF-8" standalone="
     <w:family w:val="roman"/>
   </w:font>
 </w:fonts>`;
+// Header XML generation
+const getHeaderXml = (headerFooterConfig) => {
+  let headerContent = '';
+  let alignment = 'left';
+  
+  if (headerFooterConfig.headerAlignment) {
+    alignment = headerFooterConfig.headerAlignment;
+  }
+  
+  // Build header text with page numbers if needed
+  let text = headerFooterConfig.headerText || '';
+  
+  if (headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('header')) {
+    const pageNumXml = getPageNumberXml(headerFooterConfig.pageNumbers.type);
+    const format = headerFooterConfig.pageNumbers.format || 'Page {n}';
+    
+    if (headerFooterConfig.pageNumbers.position === 'header-left') {
+      text = format.replace('{n}', pageNumXml) + (text ? ' ' + text : '');
+    } else if (headerFooterConfig.pageNumbers.position === 'header-right') {
+      text = (text ? text + ' ' : '') + format.replace('{n}', pageNumXml);
+    } else if (headerFooterConfig.pageNumbers.position === 'header-center') {
+      text = text ? `${text} ${format.replace('{n}', pageNumXml)}` : format.replace('{n}', pageNumXml);
+    }
+  }
+  
+  const alignmentXml = alignment === 'center' ? '<w:jc w:val="center"/>' : 
+                      alignment === 'right' ? '<w:jc w:val="right"/>' : '';
+  
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:pPr>
+      ${alignmentXml}
+      <w:spacing w:before="0" w:after="120"/>
+    </w:pPr>
+    <w:r>
+      <w:rPr>
+        <w:rFonts w:ascii="Georgia" w:hAnsi="Georgia"/>
+        <w:sz w:val="20"/>
+      </w:rPr>
+      <w:t xml:space="preserve">${escapeXml(text)}</w:t>
+    </w:r>
+  </w:p>
+</w:hdr>`;
+};
+
+// Footer XML generation
+const getFooterXml = (headerFooterConfig) => {
+  let footerContent = '';
+  let alignment = 'left';
+  
+  if (headerFooterConfig.footerAlignment) {
+    alignment = headerFooterConfig.footerAlignment;
+  }
+  
+  // Build footer text with page numbers if needed
+  let text = headerFooterConfig.footerText || '';
+  
+  if (headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('footer')) {
+    const pageNumXml = getPageNumberXml(headerFooterConfig.pageNumbers.type);
+    const format = headerFooterConfig.pageNumbers.format || 'Page {n}';
+    
+    if (headerFooterConfig.pageNumbers.position === 'footer-left') {
+      text = format.replace('{n}', pageNumXml) + (text ? ' ' + text : '');
+    } else if (headerFooterConfig.pageNumbers.position === 'footer-right') {
+      text = (text ? text + ' ' : '') + format.replace('{n}', pageNumXml);
+    } else if (headerFooterConfig.pageNumbers.position === 'footer-center') {
+      text = text ? `${text} ${format.replace('{n}', pageNumXml)}` : format.replace('{n}', pageNumXml);
+    }
+  }
+  
+  const alignmentXml = alignment === 'center' ? '<w:jc w:val="center"/>' : 
+                      alignment === 'right' ? '<w:jc w:val="right"/>' : '';
+  
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:pPr>
+      ${alignmentXml}
+      <w:spacing w:before="0" w:after="120"/>
+    </w:pPr>
+    <w:r>
+      <w:rPr>
+        <w:rFonts w:ascii="Georgia" w:hAnsi="Georgia"/>
+        <w:sz w:val="20"/>
+      </w:rPr>
+      <w:t xml:space="preserve">${escapeXml(text)}</w:t>
+    </w:r>
+  </w:p>
+</w:ftr>`;
+};
+
+// Page number XML generation
+const getPageNumberXml = (type) => {
+  switch (type) {
+    case 'roman-lower':
+      return '<w:fldSimple w:instr="PAGE \\* ROMAN \\* Lower"/>';
+    case 'roman-upper':
+      return '<w:fldSimple w:instr="PAGE \\* ROMAN \\* Upper"/>';
+    case 'alpha-lower':
+      return '<w:fldSimple w:instr="PAGE \\* alphabetic \\* Lower"/>';
+    case 'alpha-upper':
+      return '<w:fldSimple w:instr="PAGE \\* ALPHABETIC \\* Upper"/>';
+    default:
+      return '<w:fldSimple w:instr="PAGE"/>';
+  }
+};

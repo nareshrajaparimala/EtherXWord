@@ -20,6 +20,7 @@ export class MSWordPagination {
     this.isProcessing = false;
     this.observer = null;
     this.onStatsUpdate = onStatsUpdate;
+    this.headerFooterConfig = null;
     this.init();
   }
 
@@ -48,14 +49,50 @@ export class MSWordPagination {
       overflow: hidden;
     `;
 
+    // Create header
+    const header = document.createElement('div');
+    header.className = 'page-header';
+    header.style.cssText = `
+      position: absolute;
+      top: 10mm;
+      left: 20mm;
+      right: 20mm;
+      height: 15mm;
+      display: flex;
+      align-items: center;
+      font-family: Georgia, serif;
+      font-size: 10pt;
+      color: #333;
+      border-bottom: none;
+      z-index: 1;
+    `;
+
+    // Create footer
+    const footer = document.createElement('div');
+    footer.className = 'page-footer';
+    footer.style.cssText = `
+      position: absolute;
+      bottom: 10mm;
+      left: 20mm;
+      right: 20mm;
+      height: 15mm;
+      display: flex;
+      align-items: center;
+      font-family: Georgia, serif;
+      font-size: 10pt;
+      color: #333;
+      border-top: none;
+      z-index: 1;
+    `;
+
     const content = document.createElement('div');
     content.className = 'page-content';
     content.contentEditable = true;
     content.style.cssText = `
-      width: calc(100% - 2mm);
-      height: calc(297mm - 2mm);
-      padding: 20mm;
-      margin: 0;
+      width: calc(100% - 40mm);
+      height: calc(297mm - 60mm);
+      padding: 0;
+      margin: 35mm 20mm 35mm 20mm;
       box-sizing: border-box;
       outline: none;
       font-family: Georgia, serif;
@@ -71,11 +108,18 @@ export class MSWordPagination {
       left: 0;
     `;
 
+    pageElement.appendChild(header);
     pageElement.appendChild(content);
+    pageElement.appendChild(footer);
     this.container.appendChild(pageElement);
     
-    const page = { element: pageElement, content, pageNumber, pageId };
+    const page = { element: pageElement, content, header, footer, pageNumber, pageId };
     this.pages.push(page);
+    
+    // Apply current header/footer config if exists
+    if (this.headerFooterConfig) {
+      this.applyHeaderFooterToPage(page);
+    }
     
     this.setupPageEvents(content);
     return page;
@@ -288,6 +332,10 @@ export class MSWordPagination {
         subtree: true,
         characterData: true
       });
+      // Apply header/footer to new page
+      if (this.headerFooterConfig) {
+        this.applyHeaderFooterToPage(newPage);
+      }
       // Update stats when new page is created
       setTimeout(() => this.updateStats(), 100);
     }
@@ -407,5 +455,173 @@ export class MSWordPagination {
     
     // Trigger pagination
     setTimeout(() => this.checkPagination(), 100);
+  }
+
+  setHeaderFooter(config) {
+    this.headerFooterConfig = config;
+    
+    // Apply to all existing pages
+    this.pages.forEach(page => {
+      this.applyHeaderFooterToPage(page);
+    });
+  }
+
+  applyHeaderFooterToPage(page) {
+    if (!this.headerFooterConfig) return;
+    
+    const config = this.headerFooterConfig;
+    
+    // Apply header
+    if (config.headerText || (config.pageNumbers.enabled && config.pageNumbers.position.startsWith('header'))) {
+      page.header.style.display = 'flex';
+      
+      let headerContent = '';
+      let headerAlignment = config.headerAlignment;
+      
+      // Handle page numbers in header
+      if (config.pageNumbers.enabled && config.pageNumbers.position.startsWith('header')) {
+        const pageNum = this.formatPageNumber(page.pageNumber, config.pageNumbers.type);
+        const formattedPageNum = config.pageNumbers.format.replace('{n}', pageNum).replace('{total}', this.pages.length);
+        
+        if (config.pageNumbers.position === 'header-left') {
+          headerContent = `<span style="margin-right: auto;">${formattedPageNum}</span>`;
+          if (config.headerText) {
+            headerContent += `<span style="text-align: ${headerAlignment};">${config.headerText}</span>`;
+          }
+          page.header.style.justifyContent = 'space-between';
+        } else if (config.pageNumbers.position === 'header-right') {
+          if (config.headerText) {
+            headerContent = `<span style="text-align: ${headerAlignment};">${config.headerText}</span>`;
+          }
+          headerContent += `<span style="margin-left: auto;">${formattedPageNum}</span>`;
+          page.header.style.justifyContent = 'space-between';
+        } else if (config.pageNumbers.position === 'header-center') {
+          headerContent = config.headerText ? `${config.headerText} ${formattedPageNum}` : formattedPageNum;
+          page.header.style.justifyContent = 'center';
+        }
+      } else {
+        headerContent = config.headerText;
+        page.header.style.justifyContent = this.getAlignmentStyle(headerAlignment);
+      }
+      
+      page.header.innerHTML = headerContent;
+    } else {
+      page.header.style.display = 'none';
+    }
+    
+    // Apply footer
+    if (config.footerText || (config.pageNumbers.enabled && config.pageNumbers.position.startsWith('footer'))) {
+      page.footer.style.display = 'flex';
+      
+      let footerContent = '';
+      let footerAlignment = config.footerAlignment;
+      
+      // Handle page numbers in footer
+      if (config.pageNumbers.enabled && config.pageNumbers.position.startsWith('footer')) {
+        const pageNum = this.formatPageNumber(page.pageNumber, config.pageNumbers.type);
+        const formattedPageNum = config.pageNumbers.format.replace('{n}', pageNum).replace('{total}', this.pages.length);
+        
+        if (config.pageNumbers.position === 'footer-left') {
+          footerContent = `<span style="margin-right: auto;">${formattedPageNum}</span>`;
+          if (config.footerText) {
+            footerContent += `<span style="text-align: ${footerAlignment};">${config.footerText}</span>`;
+          }
+          page.footer.style.justifyContent = 'space-between';
+        } else if (config.pageNumbers.position === 'footer-right') {
+          if (config.footerText) {
+            footerContent = `<span style="text-align: ${footerAlignment};">${config.footerText}</span>`;
+          }
+          footerContent += `<span style="margin-left: auto;">${formattedPageNum}</span>`;
+          page.footer.style.justifyContent = 'space-between';
+        } else if (config.pageNumbers.position === 'footer-center') {
+          footerContent = config.footerText ? `${config.footerText} ${formattedPageNum}` : formattedPageNum;
+          page.footer.style.justifyContent = 'center';
+        }
+      } else {
+        footerContent = config.footerText;
+        page.footer.style.justifyContent = this.getAlignmentStyle(footerAlignment);
+      }
+      
+      page.footer.innerHTML = footerContent;
+    } else {
+      page.footer.style.display = 'none';
+    }
+    
+    // Apply borders
+    this.applyBorders(page);
+  }
+
+  applyBorders(page) {
+    if (!this.headerFooterConfig) return;
+    
+    const config = this.headerFooterConfig;
+    const borderStyle = `${config.borderWidth} solid ${config.borderColor}`;
+    
+    // Reset borders
+    page.element.style.border = 'none';
+    page.header.style.borderBottom = 'none';
+    page.footer.style.borderTop = 'none';
+    
+    switch (config.borderType) {
+      case 'top':
+        page.element.style.borderTop = borderStyle;
+        break;
+      case 'bottom':
+        page.element.style.borderBottom = borderStyle;
+        break;
+      case 'top-bottom':
+        page.element.style.borderTop = borderStyle;
+        page.element.style.borderBottom = borderStyle;
+        break;
+      case 'all':
+        page.element.style.border = borderStyle;
+        break;
+    }
+    
+    // Add separator lines for header/footer if they have content
+    if (page.header.innerHTML.trim()) {
+      page.header.style.borderBottom = `1px solid ${config.borderColor}`;
+    }
+    if (page.footer.innerHTML.trim()) {
+      page.footer.style.borderTop = `1px solid ${config.borderColor}`;
+    }
+  }
+
+  getAlignmentStyle(alignment) {
+    switch (alignment) {
+      case 'center': return 'center';
+      case 'right': return 'flex-end';
+      default: return 'flex-start';
+    }
+  }
+
+  formatPageNumber(pageNum, type) {
+    switch (type) {
+      case 'roman-lower':
+        return this.toRoman(pageNum).toLowerCase();
+      case 'roman-upper':
+        return this.toRoman(pageNum);
+      case 'alpha-lower':
+        return String.fromCharCode(96 + pageNum); // a, b, c...
+      case 'alpha-upper':
+        return String.fromCharCode(64 + pageNum); // A, B, C...
+      default:
+        return pageNum.toString();
+    }
+  }
+
+  toRoman(num) {
+    const values = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1];
+    const symbols = ['M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I'];
+    let result = '';
+    
+    for (let i = 0; i < values.length; i++) {
+      while (num >= values[i]) {
+        result += symbols[i];
+        num -= values[i];
+      }
+    }
+    
+    return result;
   }
 }

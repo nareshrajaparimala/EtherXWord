@@ -28,6 +28,7 @@ const DocumentEditor = () => {
     paragraphs: 0,
     pages: 1
   });
+  const [headerFooterSettings, setHeaderFooterSettings] = useState(null);
   
   // Editor state
   const [zoomLevel, setZoomLevel] = useState(100);
@@ -635,6 +636,16 @@ Keyboard Shortcuts:
                   range.collapse(true);
                   selection.removeAllRanges();
                   selection.addRange(range);
+                }
+              } else if (cmd === 'headerFooter') {
+                if (value && paginationRef.current) {
+                  try {
+                    paginationRef.current.setHeaderFooter(value);
+                    showNotification('Header and footer applied successfully!', 'success');
+                  } catch (error) {
+                    console.error('Header/Footer error:', error);
+                    showNotification('Failed to apply header/footer: ' + error.message, 'error');
+                  }
                 }
               } else if (cmd === 'applyTextStyle') {
                 const selection = window.getSelection();

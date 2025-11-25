@@ -351,6 +351,18 @@ export const exportToPDF = async (paginationEngine, documentTitle = 'document') 
         link.style.color = '#0000FF';
         link.style.textDecoration = 'underline';
       });
+      
+      // Ensure headers and footers are visible for PDF
+      const header = page.header;
+      const footer = page.footer;
+      if (header) {
+        header.style.display = 'flex';
+        header.style.visibility = 'visible';
+      }
+      if (footer) {
+        footer.style.display = 'flex';
+        footer.style.visibility = 'visible';
+      }
 
       // Create canvas from page content
       const canvas = await html2canvas(page.element, {
@@ -369,6 +381,14 @@ export const exportToPDF = async (paginationEngine, documentTitle = 'document') 
         link.style.color = originalStyles[index].color;
         link.style.textDecoration = originalStyles[index].textDecoration;
       });
+      
+      // Restore header/footer visibility if they were hidden
+      if (header && !header.innerHTML.trim()) {
+        header.style.display = 'none';
+      }
+      if (footer && !footer.innerHTML.trim()) {
+        footer.style.display = 'none';
+      }
 
       // Calculate dimensions to fit A4
       const imgWidth = 210; // A4 width in mm
@@ -428,9 +448,12 @@ export const exportToDOCX = async (paginationEngine, documentTitle = 'document')
       fullContent = '<p>Document content</p>';
     }
     
+    // Extract header/footer configuration if available
+    const headerFooterConfig = paginationEngine.headerFooterConfig;
+    
     console.log('Exporting DOCX with content:', fullContent.substring(0, 200) + '...');
     
-    const buffer = await exportDocxOOXML(fullContent, documentTitle);
+    const buffer = await exportDocxOOXML(fullContent, documentTitle, headerFooterConfig);
     const blob = new Blob([buffer], { 
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
     });

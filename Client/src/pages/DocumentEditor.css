@@ -926,3 +926,81 @@
 [data-theme="dark"] {
   --hover-bg: rgba(255, 255, 255, 0.05);
 }
+/* Page Header and Footer Styles */
+.page-header,
+.page-footer {
+  font-family: Georgia, serif;
+  font-size: 10pt;
+  color: #333 !important;
+  background: transparent;
+  user-select: none;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.page-header {
+  border-bottom: none;
+}
+
+.page-footer {
+  border-top: none;
+}
+
+/* Header and Footer with borders */
+.page-header.with-border {
+  border-bottom: 1px solid #333;
+  padding-bottom: 5mm;
+}
+
+.page-footer.with-border {
+  border-top: 1px solid #333;
+  padding-top: 5mm;
+}
+
+/* Page number styling within headers/footers */
+.page-header .page-number,
+.page-footer .page-number {
+  font-weight: 600;
+  color: #666;
+}
+
+/* Ensure headers/footers are visible in print */
+@media print {
+  .page-header,
+  .page-footer {
+    display: flex !important;
+    color: #333 !important;
+    background: transparent !important;
+  }
+  
+  .page-header.with-border {
+    border-bottom: 1px solid #333 !important;
+  }
+  
+  .page-footer.with-border {
+    border-top: 1px solid #333 !important;
+  }
+}
+
+/* Dark theme adjustments for headers/footers */
+[data-theme="dark"] .page-header,
+[data-theme="dark"] .page-footer {
+  color: #333 !important; /* Keep dark text on white page */
+}
+
+/* Responsive header/footer text */
+@media (max-width: 768px) {
+  .page-header,
+  .page-footer {
+    font-size: 9pt;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header,
+  .page-footer {
+    font-size: 8pt;
+  }
+}

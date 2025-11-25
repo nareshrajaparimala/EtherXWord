@@ -32,6 +32,24 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const [drawingColor, setDrawingColor] = useState('#000000');
   const [brushSize, setBrushSize] = useState(2);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [showHeaderFooterPopup, setShowHeaderFooterPopup] = useState(false);
+  const [headerFooterConfig, setHeaderFooterConfig] = useState({
+    headerText: '',
+    headerAlignment: 'left',
+    headerApplyToAll: true,
+    footerText: '',
+    footerAlignment: 'left',
+    footerApplyToAll: true,
+    borderType: 'none',
+    borderColor: '#000000',
+    borderWidth: '1px',
+    pageNumbers: {
+      enabled: false,
+      type: 'numeric',
+      position: 'footer-right',
+      format: 'Page {n}'
+    }
+  });
   const canvasRef = useRef(null);
   const textColorRef = useRef(null);
   const bgColorRef = useRef(null);
@@ -39,6 +57,7 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const tableRef = useRef(null);
   const imageRef = useRef(null);
   const linkRef = useRef(null);
+  const headerFooterRef = useRef(null);
 
   useEffect(() => {
     if (selectedToolProp && selectedToolProp !== selectedTool) {
@@ -67,6 +86,9 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
       if (linkRef.current && !linkRef.current.contains(event.target) && !event.target.closest('.drawing-overlay')) {
         setShowLinkPopup(false);
       }
+      if (headerFooterRef.current && !headerFooterRef.current.contains(event.target)) {
+        setShowHeaderFooterPopup(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -86,6 +108,28 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
     } else {
       console.error('onApply function not provided');
     }
+  };
+
+  const handleHeaderFooterSubmit = () => {
+    apply('headerFooter', headerFooterConfig);
+    setShowHeaderFooterPopup(false);
+  };
+
+  const updateHeaderFooterConfig = (key, value) => {
+    setHeaderFooterConfig(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  const updatePageNumberConfig = (key, value) => {
+    setHeaderFooterConfig(prev => ({
+      ...prev,
+      pageNumbers: {
+        ...prev.pageNumbers,
+        [key]: value
+      }
+    }));
   };
 
   return (
@@ -430,6 +474,13 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                   <i className="ri-link"></i>
                   <span className="btn-label">Link</span>
                 </button>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section" ref={headerFooterRef}>
+                <button className="etb-btn etb-btn-vertical" onClick={() => setShowHeaderFooterPopup(!showHeaderFooterPopup)} title="Header & Footer - Configure page headers and footers">
+                  <i className="ri-layout-top-2-line"></i>
+                  <span className="btn-label">Header/Footer</span>
+                </button>
                 {showLinkPopup && (
                   <div className="insert-popup">
                     <div className="popup-header">
@@ -592,6 +643,309 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
               </div>
             )}
 
+            {showHeaderFooterPopup && (
+              <div className="drawing-overlay" onClick={() => setShowHeaderFooterPopup(false)}>
+                <div className="header-footer-container" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                  <div className="popup-header">
+                    <h3>Header & Footer Configuration</h3>
+                    <button onClick={() => setShowHeaderFooterPopup(false)} className="close-btn">×</button>
+                  </div>
+                  
+                  <div className="header-footer-content">
+                    {/* Header Section */}
+                    <div className="config-section">
+                      <h4><i className="ri-layout-top-line"></i> Header Settings</h4>
+                      <div className="config-row">
+                        <div className="config-group">
+                          <label>Header Text:</label>
+                          <input 
+                            type="text" 
+                            value={headerFooterConfig.headerText}
+                            onChange={(e) => updateHeaderFooterConfig('headerText', e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            placeholder="Enter header text"
+                          />
+                        </div>
+                        <div className="config-group">
+                          <label>Alignment:</label>
+                          <select 
+                            value={headerFooterConfig.headerAlignment}
+                            onChange={(e) => updateHeaderFooterConfig('headerAlignment', e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
+                            <option value="left">Left</option>
+                            <option value="center">Center</option>
+                            <option value="right">Right</option>
+                          </select>
+                        </div>
+                        <div className="config-group">
+                          <label>
+                            <input 
+                              type="checkbox" 
+                              checked={headerFooterConfig.headerApplyToAll}
+                              onChange={(e) => updateHeaderFooterConfig('headerApplyToAll', e.target.checked)}
+                              onClick={(e) => e.stopPropagation()}
+                              onMouseDown={(e) => e.stopPropagation()}
+                            />
+                            Apply to all pages
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer Section */}
+                    <div className="config-section">
+                      <h4><i className="ri-layout-bottom-line"></i> Footer Settings</h4>
+                      <div className="config-row">
+                        <div className="config-group">
+                          <label>Footer Text:</label>
+                          <input 
+                            type="text" 
+                            value={headerFooterConfig.footerText}
+                            onChange={(e) => updateHeaderFooterConfig('footerText', e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            placeholder="Enter footer text"
+                          />
+                        </div>
+                        <div className="config-group">
+                          <label>Alignment:</label>
+                          <select 
+                            value={headerFooterConfig.footerAlignment}
+                            onChange={(e) => updateHeaderFooterConfig('footerAlignment', e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
+                            <option value="left">Left</option>
+                            <option value="center">Center</option>
+                            <option value="right">Right</option>
+                          </select>
+                        </div>
+                        <div className="config-group">
+                          <label>
+                            <input 
+                              type="checkbox" 
+                              checked={headerFooterConfig.footerApplyToAll}
+                              onChange={(e) => updateHeaderFooterConfig('footerApplyToAll', e.target.checked)}
+                              onClick={(e) => e.stopPropagation()}
+                              onMouseDown={(e) => e.stopPropagation()}
+                            />
+                            Apply to all pages
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Border Settings */}
+                    <div className="config-section">
+                      <h4><i className="ri-border-line"></i> Border Settings</h4>
+                      <div className="config-row">
+                        <div className="config-group">
+                          <label>Border Type:</label>
+                          <select 
+                            value={headerFooterConfig.borderType}
+                            onChange={(e) => updateHeaderFooterConfig('borderType', e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
+                            <option value="none">No Border</option>
+                            <option value="top">Top Only</option>
+                            <option value="bottom">Bottom Only</option>
+                            <option value="top-bottom">Top & Bottom</option>
+                            <option value="all">All Sides</option>
+                          </select>
+                        </div>
+                        <div className="config-group">
+                          <label>Border Color:</label>
+                          <div className="color-input-group">
+                            <input 
+                              type="color" 
+                              value={headerFooterConfig.borderColor}
+                              onChange={(e) => updateHeaderFooterConfig('borderColor', e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                              onMouseDown={(e) => e.stopPropagation()}
+                            />
+                            <input 
+                              type="text" 
+                              value={headerFooterConfig.borderColor}
+                              onChange={(e) => updateHeaderFooterConfig('borderColor', e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              placeholder="#000000"
+                            />
+                          </div>
+                        </div>
+                        <div className="config-group">
+                          <label>Border Width:</label>
+                          <select 
+                            value={headerFooterConfig.borderWidth}
+                            onChange={(e) => updateHeaderFooterConfig('borderWidth', e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
+                            <option value="0.5px">Thin (0.5px)</option>
+                            <option value="1px">Normal (1px)</option>
+                            <option value="2px">Thick (2px)</option>
+                            <option value="3px">Extra Thick (3px)</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Page Numbers */}
+                    <div className="config-section">
+                      <h4><i className="ri-hashtag"></i> Page Numbers</h4>
+                      <div className="config-row">
+                        <div className="config-group">
+                          <label>
+                            <input 
+                              type="checkbox" 
+                              checked={headerFooterConfig.pageNumbers.enabled}
+                              onChange={(e) => updatePageNumberConfig('enabled', e.target.checked)}
+                              onClick={(e) => e.stopPropagation()}
+                              onMouseDown={(e) => e.stopPropagation()}
+                            />
+                            Enable Page Numbers
+                          </label>
+                        </div>
+                        {headerFooterConfig.pageNumbers.enabled && (
+                          <>
+                            <div className="config-group">
+                              <label>Number Type:</label>
+                              <select 
+                                value={headerFooterConfig.pageNumbers.type}
+                                onChange={(e) => updatePageNumberConfig('type', e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                onMouseDown={(e) => e.stopPropagation()}
+                              >
+                                <option value="numeric">1, 2, 3...</option>
+                                <option value="roman-lower">i, ii, iii...</option>
+                                <option value="roman-upper">I, II, III...</option>
+                                <option value="alpha-lower">a, b, c...</option>
+                                <option value="alpha-upper">A, B, C...</option>
+                              </select>
+                            </div>
+                            <div className="config-group">
+                              <label>Position:</label>
+                              <select 
+                                value={headerFooterConfig.pageNumbers.position}
+                                onChange={(e) => updatePageNumberConfig('position', e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                onMouseDown={(e) => e.stopPropagation()}
+                              >
+                                <option value="header-left">Header Left</option>
+                                <option value="header-center">Header Center</option>
+                                <option value="header-right">Header Right</option>
+                                <option value="footer-left">Footer Left</option>
+                                <option value="footer-center">Footer Center</option>
+                                <option value="footer-right">Footer Right</option>
+                              </select>
+                            </div>
+                            <div className="config-group">
+                              <label>Format:</label>
+                              <input 
+                                type="text" 
+                                value={headerFooterConfig.pageNumbers.format}
+                                onChange={(e) => updatePageNumberConfig('format', e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                placeholder="Page {n} of {total}"
+                              />
+                              <small>Use {'{n}'} for page number, {'{total}'} for total pages</small>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Preview */}
+                    <div className="config-section">
+                      <h4><i className="ri-eye-line"></i> Preview</h4>
+                      <div className="preview-container">
+                        <div className="preview-page" style={{
+                          border: headerFooterConfig.borderType !== 'none' ? `${headerFooterConfig.borderWidth} solid ${headerFooterConfig.borderColor}` : 'none',
+                          borderTop: ['top', 'top-bottom', 'all'].includes(headerFooterConfig.borderType) ? `${headerFooterConfig.borderWidth} solid ${headerFooterConfig.borderColor}` : 'none',
+                          borderBottom: ['bottom', 'top-bottom', 'all'].includes(headerFooterConfig.borderType) ? `${headerFooterConfig.borderWidth} solid ${headerFooterConfig.borderColor}` : 'none',
+                          borderLeft: headerFooterConfig.borderType === 'all' ? `${headerFooterConfig.borderWidth} solid ${headerFooterConfig.borderColor}` : 'none',
+                          borderRight: headerFooterConfig.borderType === 'all' ? `${headerFooterConfig.borderWidth} solid ${headerFooterConfig.borderColor}` : 'none'
+                        }}>
+                          {(headerFooterConfig.headerText || headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('header')) && (
+                            <div className="preview-header" style={{ 
+                              display: 'flex',
+                              justifyContent: headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('header') && headerFooterConfig.pageNumbers.position !== 'header-center' ? 'space-between' : 
+                                             headerFooterConfig.headerAlignment === 'center' ? 'center' : 
+                                             headerFooterConfig.headerAlignment === 'right' ? 'flex-end' : 'flex-start'
+                            }}>
+                              {headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position === 'header-left' && (
+                                <span style={{ marginRight: 'auto' }}>
+                                  {headerFooterConfig.pageNumbers.format.replace('{n}', '1').replace('{total}', '5')}
+                                </span>
+                              )}
+                              {headerFooterConfig.headerText && (
+                                <span>{headerFooterConfig.headerText}</span>
+                              )}
+                              {headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position === 'header-center' && (
+                                <span>
+                                  {headerFooterConfig.headerText ? ` ${headerFooterConfig.pageNumbers.format.replace('{n}', '1').replace('{total}', '5')}` : headerFooterConfig.pageNumbers.format.replace('{n}', '1').replace('{total}', '5')}
+                                </span>
+                              )}
+                              {headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position === 'header-right' && (
+                                <span style={{ marginLeft: 'auto' }}>
+                                  {headerFooterConfig.pageNumbers.format.replace('{n}', '1').replace('{total}', '5')}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          <div className="preview-content">
+                            <div className="preview-text-line"></div>
+                            <div className="preview-text-line"></div>
+                            <div className="preview-text-line short"></div>
+                          </div>
+                          {(headerFooterConfig.footerText || headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('footer')) && (
+                            <div className="preview-footer" style={{ 
+                              display: 'flex',
+                              justifyContent: headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('footer') && headerFooterConfig.pageNumbers.position !== 'footer-center' ? 'space-between' : 
+                                             headerFooterConfig.footerAlignment === 'center' ? 'center' : 
+                                             headerFooterConfig.footerAlignment === 'right' ? 'flex-end' : 'flex-start'
+                            }}>
+                              {headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position === 'footer-left' && (
+                                <span style={{ marginRight: 'auto' }}>
+                                  {headerFooterConfig.pageNumbers.format.replace('{n}', '1').replace('{total}', '5')}
+                                </span>
+                              )}
+                              {headerFooterConfig.footerText && (
+                                <span>{headerFooterConfig.footerText}</span>
+                              )}
+                              {headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position === 'footer-center' && (
+                                <span>
+                                  {headerFooterConfig.footerText ? ` ${headerFooterConfig.pageNumbers.format.replace('{n}', '1').replace('{total}', '5')}` : headerFooterConfig.pageNumbers.format.replace('{n}', '1').replace('{total}', '5')}
+                                </span>
+                              )}
+                              {headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position === 'footer-right' && (
+                                <span style={{ marginLeft: 'auto' }}>
+                                  {headerFooterConfig.pageNumbers.format.replace('{n}', '1').replace('{total}', '5')}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="popup-actions">
+                    <button onClick={handleHeaderFooterSubmit} className="apply-btn">
+                      <i className="ri-check-line"></i> Apply Header & Footer
+                    </button>
+                    <button onClick={() => setShowHeaderFooterPopup(false)} className="cancel-btn">
+                      <i className="ri-close-line"></i> Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             
             {showLinkPopup && (
               <div className="drawing-overlay" onClick={() => setShowLinkPopup(false)}>
