@@ -491,7 +491,7 @@ const Home = () => {
                   <i className="ri-file-text-line template-icon"></i>
                   <span>Blank Document</span>
                 </div>
-                <div className="template-card" onClick={() => navigate('/templates')}>
+                <div className="template-card" onClick={() => setSelectedSection('Collaboration')}>
                   <i className="ri-team-line template-icon"></i>
                   <span>Collaboration</span>
                 </div>
