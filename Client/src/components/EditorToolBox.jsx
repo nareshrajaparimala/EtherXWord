@@ -35,6 +35,13 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const [showHeaderFooterPopup, setShowHeaderFooterPopup] = useState(false);
   const [showSymbolsPopup, setShowSymbolsPopup] = useState(false);
   const [showEmojiPopup, setShowEmojiPopup] = useState(false);
+  const [margins, setMargins] = useState({
+    top: 1,
+    bottom: 1,
+    left: 1,
+    right: 1
+  });
+  const [orientation, setOrientation] = useState('portrait');
   const [headerFooterConfig, setHeaderFooterConfig] = useState({
     headerText: '',
     headerAlignment: 'left',
@@ -117,6 +124,45 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
       onApply(cmd, value);
     } else {
       console.error('onApply function not provided');
+    }
+  };
+
+  const insertSymbolOrEmoji = (content) => {
+    try {
+      // Focus the active editor page first
+      const activeEditor = document.querySelector('.page-content[contenteditable="true"]:focus') || 
+                          document.querySelector('.page-content[contenteditable="true"]');
+      
+      if (activeEditor) {
+        activeEditor.focus();
+        
+        // Use insertText for better compatibility
+        if (document.execCommand) {
+          document.execCommand('insertText', false, content);
+        } else {
+          // Fallback for modern browsers
+          const selection = window.getSelection();
+          if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            range.deleteContents();
+            range.insertNode(document.createTextNode(content));
+            range.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
+        }
+      } else {
+        // Fallback: use the apply function
+        apply('insertHTML', content);
+      }
+    } catch (error) {
+      console.error('Error inserting symbol/emoji:', error);
+      // Final fallback
+      try {
+        apply('insertHTML', content);
+      } catch (fallbackError) {
+        console.error('Fallback insertion failed:', fallbackError);
+      }
     }
   };
 
@@ -702,7 +748,7 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                           key={index}
                           className="symbol-backstage-btn"
                           onClick={() => {
-                            apply('insertHTML', symbol);
+                            insertSymbolOrEmoji(symbol);
                             setShowSymbolsPopup(false);
                           }}
                           title={`Insert ${symbol}`}
@@ -738,7 +784,7 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                           key={index}
                           className="symbol-backstage-btn"
                           onClick={() => {
-                            apply('insertHTML', emoji);
+                            insertSymbolOrEmoji(emoji);
                             setShowEmojiPopup(false);
                           }}
                           title={`Insert ${emoji}`}
@@ -1127,7 +1173,87 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
           </>
         )}
 
-        {(selectedTool === 'View' || selectedTool === 'Help' || selectedTool === 'Layout' || selectedTool === 'References' || selectedTool === 'Review') && (
+        {selectedTool === 'Layout' && (
+          <>
+            <div className="etb-row">
+              <div className="etb-section">
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('margins')} title="Margins">
+                  <i className="ri-layout-line"></i>
+                  <span className="btn-label">Margins</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('orientation')} title="Orientation">
+                  <i className="ri-smartphone-line"></i>
+                  <span className="btn-label">Orientation</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('size')} title="Size">
+                  <i className="ri-aspect-ratio-line"></i>
+                  <span className="btn-label">Size</span>
+                </button>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section">
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('break')} title="Break">
+                  <i className="ri-split-cells-horizontal"></i>
+                  <span className="btn-label">Break</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('lineNumber')} title="Line Number">
+                  <i className="ri-list-ordered"></i>
+                  <span className="btn-label">Line Number</span>
+                </button>
+              </div>
+            </div>
+            <div className="etb-divider"></div>
+            <div className="etb-row">
+              <div className="etb-section">
+                <label className="etb-label">Indentation</label>
+                <div className="indent-controls">
+                  <div className="indent-group" style={{marginRight: '15px'}}>
+                    <span className="indent-text" style={{width: '40px', display: 'inline-block', color: '#999', fontSize: '11px'}}>Left</span>
+                    <select className="etb-select etb-select-small" style={{width: '60px'}} onChange={(e) => apply('leftIndentOptions', e.target.value)}>
+                      <option value="0">0"</option>
+                      <option value="0.5">0.5"</option>
+                      <option value="1">1"</option>
+                    </select>
+                  </div>
+                  <div className="indent-group">
+                    <span className="indent-text" style={{width: '40px', display: 'inline-block', color: '#999', fontSize: '11px'}}>Right</span>
+                    <select className="etb-select etb-select-small" style={{width: '60px'}} onChange={(e) => apply('rightIndentOptions', e.target.value)}>
+                      <option value="0">0"</option>
+                      <option value="0.5">0.5"</option>
+                      <option value="1">1"</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="etb-divider"></div>
+            <div className="etb-row">
+              <div className="etb-section">
+                <label className="etb-label">Spacing</label>
+                <div className="spacing-controls">
+                  <div className="spacing-group" style={{marginRight: '15px'}}>
+                    <span className="spacing-text" style={{width: '40px', display: 'inline-block', color: '#999', fontSize: '11px'}}>Before</span>
+                    <select className="etb-select etb-select-small" style={{width: '60px'}} onChange={(e) => apply('spacingBefore', e.target.value)}>
+                      <option value="0">0pt</option>
+                      <option value="6">6pt</option>
+                      <option value="12">12pt</option>
+                    </select>
+                  </div>
+                  <div className="spacing-group">
+                    <span className="spacing-text" style={{width: '40px', display: 'inline-block', color: '#999', fontSize: '11px'}}>After</span>
+                    <select className="etb-select etb-select-small" style={{width: '60px'}} onChange={(e) => apply('spacingAfter', e.target.value)}>
+                      <option value="0">0pt</option>
+                      <option value="6">6pt</option>
+                      <option value="12">12pt</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {(selectedTool === 'View' || selectedTool === 'Help' || selectedTool === 'References' || selectedTool === 'Review') && (
           <div className="etb-row">
             <span style={{ fontSize: '13px', fontStyle: 'italic', opacity: 0.6 }}>Options for {selectedTool} (coming soon)</span>
           </div>
