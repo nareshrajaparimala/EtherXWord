@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './EditorToolBox.css';
 
-const categories = ['File','Home','Insert','Layout','References','Review','View','Help','Alignment'];
+const categories = ['File','Home','Insert','Layout','References','Review','View','Help'];
 
 const presetColors = [
   '#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF',
@@ -409,6 +409,21 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                 </button>
               </div>
               <div className="etb-divider"></div>
+              <div className="etb-section etb-alignment-section">
+                <button className="etb-btn etb-btn-small" onClick={() => apply('justifyLeft')} title="Align Left - Aligns text to the left margin">
+                  <i className="ri-align-left"></i>
+                </button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('justifyCenter')} title="Align Center - Centers text between margins">
+                  <i className="ri-align-center"></i>
+                </button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('justifyRight')} title="Align Right - Aligns text to the right margin">
+                  <i className="ri-align-right"></i>
+                </button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('justifyFull')} title="Justify - Aligns text to both left and right margins">
+                  <i className="ri-align-justify"></i>
+                </button>
+              </div>
+              <div className="etb-divider"></div>
               <div className="etb-section etb-find-section" ref={findReplaceRef}>
                 <button className="etb-btn etb-btn-small" onClick={() => setShowFindReplace(!showFindReplace)} title="Find - Search for text in document (Ctrl+F)">
                   <i className="ri-search-line"></i>
@@ -449,14 +464,7 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
           </>
         )}
 
-        {selectedTool === 'Alignment' && (
-          <div className="etb-row">
-            <button className="etb-btn" onClick={() => apply('justifyLeft')} title="Align left">Left</button>
-            <button className="etb-btn" onClick={() => apply('justifyCenter')} title="Align center">Center</button>
-            <button className="etb-btn" onClick={() => apply('justifyRight')} title="Align right">Right</button>
-            <button className="etb-btn" onClick={() => apply('justifyFull')} title="Justify">Justify</button>
-          </div>
-        )}
+
 
         {selectedTool === 'Insert' && (
           <>
@@ -1131,53 +1139,66 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
           <>
             <div className="etb-row">
               <div className="etb-section">
-                <button className="etb-btn" onClick={() => apply('fileNew')} title="New document">
-                  <i className="ri-file-add-line"></i> New
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('fileNew')} title="New document">
+                  <i className="ri-file-add-line"></i>
+                  <span className="btn-label">New</span>
                 </button>
-                <button className="etb-btn" onClick={() => apply('fileOpen')} title="Open document">
-                  <i className="ri-folder-open-line"></i> Open
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('fileOpen')} title="Open document">
+                  <i className="ri-folder-open-line"></i>
+                  <span className="btn-label">Open</span>
                 </button>
-                <button className="etb-btn" onClick={() => apply('fileSave')} title="Save document">
-                  <i className="ri-save-line"></i> Save
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('fileSave')} title="Save document">
+                  <i className="ri-save-line"></i>
+                  <span className="btn-label">Save</span>
                 </button>
-                <button className="etb-btn" onClick={() => apply('fileSaveAs')} title="Save as new document">
-                  <i className="ri-save-2-line"></i> Save As
-                </button>
-              </div>
-              <div className="etb-divider"></div>
-              <div className="etb-section">
-                <button className="etb-btn" onClick={() => apply('fileShare')} title="Share document">
-                  <i className="ri-share-line"></i> Share
-                </button>
-                <button className="etb-btn" onClick={() => apply('fileCopy')} title="Create a copy">
-                  <i className="ri-file-copy-line"></i> Copy
-                </button>
-                <button className="etb-btn" onClick={() => apply('fileRename')} title="Rename document">
-                  <i className="ri-edit-line"></i> Rename
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('fileSaveAs')} title="Save as new document">
+                  <i className="ri-save-2-line"></i>
+                  <span className="btn-label">Save As</span>
                 </button>
               </div>
               <div className="etb-divider"></div>
               <div className="etb-section">
-                <button className="etb-btn" onClick={() => apply('fileExport')} title="Export document (choose format)">
-                  <i className="ri-download-line"></i> Export
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('fileShare')} title="Share document">
+                  <i className="ri-share-line"></i>
+                  <span className="btn-label">Share</span>
                 </button>
-                <button className="etb-btn" onClick={() => apply('fileExportPdf')} title="Export as PDF">
-                  <i className="ri-file-pdf-line"></i> Export PDF
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('fileCopy')} title="Create a copy">
+                  <i className="ri-file-copy-line"></i>
+                  <span className="btn-label">Copy</span>
                 </button>
-                <button className="etb-btn" onClick={() => apply('fileExportDocx')} title="Export as DOCX">
-                  <i className="ri-file-word-line"></i> Export DOCX
-                </button>
-                <button className="etb-btn" onClick={() => apply('filePrint')} title="Print document">
-                  <i className="ri-printer-line"></i> Print
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('fileRename')} title="Rename document">
+                  <i className="ri-edit-line"></i>
+                  <span className="btn-label">Rename</span>
                 </button>
               </div>
               <div className="etb-divider"></div>
               <div className="etb-section">
-                <button className="etb-btn" onClick={() => apply('fileDelete')} title="Delete document">
-                  <i className="ri-delete-bin-line"></i> Delete
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('fileExport')} title="Export document (choose format)">
+                  <i className="ri-download-line"></i>
+                  <span className="btn-label">Export</span>
                 </button>
-                <button className="etb-btn" onClick={() => apply('fileClose')} title="Close document">
-                  <i className="ri-close-line"></i> Close
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('fileExportPdf')} title="Export as PDF">
+                  <i className="ri-file-pdf-line"></i>
+                  <span className="btn-label">Export PDF</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('fileExportDocx')} title="Export as DOCX">
+                  <i className="ri-file-word-line"></i>
+                  <span className="btn-label">Export DOCX</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('filePrint')} title="Print document">
+                  <i className="ri-printer-line"></i>
+                  <span className="btn-label">Print</span>
+                </button>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section">
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('fileDelete')} title="Delete document">
+                  <i className="ri-delete-bin-line"></i>
+                  <span className="btn-label">Delete</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('fileClose')} title="Close document">
+                  <i className="ri-close-line"></i>
+                  <span className="btn-label">Close</span>
                 </button>
               </div>
             </div>
@@ -1373,7 +1394,36 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
           </>
         )}
 
-        {(selectedTool === 'View' || selectedTool === 'Help' || selectedTool === 'References' || selectedTool === 'Review') && (
+        {selectedTool === 'Help' && (
+          <>
+            <div className="etb-row">
+              <div className="etb-section">
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('showHelp')} title="Help - Get help and documentation">
+                  <i className="ri-question-line"></i>
+                  <span className="btn-label">Help</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('contactSupport')} title="Contact Support - Get technical assistance">
+                  <i className="ri-customer-service-line"></i>
+                  <span className="btn-label">Contact Support</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('sendFeedback')} title="Feedback - Send us your feedback">
+                  <i className="ri-feedback-line"></i>
+                  <span className="btn-label">Feedback</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('keyboardShortcuts')} title="Keyboard Shortcuts - View all keyboard shortcuts">
+                  <i className="ri-keyboard-line"></i>
+                  <span className="btn-label">Keyboard Shortcuts</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('whatsNew')} title="What's New - See latest features and updates">
+                  <i className="ri-notification-badge-line"></i>
+                  <span className="btn-label">What's New</span>
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {(selectedTool === 'View' || selectedTool === 'References' || selectedTool === 'Review') && (
           <div className="etb-row">
             <span style={{ fontSize: '13px', fontStyle: 'italic', opacity: 0.6 }}>Options for {selectedTool} (coming soon)</span>
           </div>

@@ -500,6 +500,16 @@ Keyboard Shortcuts:
                 if (confirm('Close document? Any unsaved changes will be lost.')) {
                   navigate('/');
                 }
+              } else if (cmd === 'showHelp') {
+                window.open('https://docs.etherxword.com', '_blank');
+              } else if (cmd === 'contactSupport') {
+                window.open('mailto:support@etherxword.com?subject=EtherXWord Support Request', '_blank');
+              } else if (cmd === 'sendFeedback') {
+                window.open('mailto:feedback@etherxword.com?subject=EtherXWord Feedback', '_blank');
+              } else if (cmd === 'keyboardShortcuts') {
+                alert('Keyboard Shortcuts:\n\nCtrl+B - Bold\nCtrl+I - Italic\nCtrl+U - Underline\nCtrl+Z - Undo\nCtrl+Y - Redo\nCtrl+C - Copy\nCtrl+V - Paste\nCtrl+X - Cut\nCtrl+A - Select All\nCtrl+F - Find\nCtrl+S - Save\nCtrl+P - Print');
+              } else if (cmd === 'whatsNew') {
+                alert('What\'s New in EtherXWord:\n\n• Enhanced text alignment tools\n• Improved image insertion and editing\n• Better header/footer configuration\n• New drawing tools\n• Enhanced collaboration features\n• Performance improvements');
               } else if (cmd === 'insertPageBreak') {
                 insertPageBreak();
               } else if (cmd === 'insertTable') {

@@ -41,6 +41,8 @@
   flex-wrap: wrap;
   padding-bottom: 4px;
   border-bottom: 1px solid var(--etb-border, var(--etb-border-light));
+  width: 100%;
+  min-width: 800px;
 }
 
 .etb-cat-btn {
@@ -113,6 +115,20 @@
 /* Font section specific styling */
 .etb-font-section {
   gap: 4px;
+}
+
+/* Alignment section specific styling */
+.etb-alignment-section {
+  gap: 3px;
+}
+
+.etb-alignment-section .etb-btn-small {
+  min-width: 28px;
+  height: 28px;
+}
+
+.etb-alignment-section .etb-btn-small i {
+  font-size: 14px;
 }
 
 /* Section divider */
