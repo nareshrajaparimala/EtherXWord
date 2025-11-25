@@ -22,6 +22,10 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const [showTablePopup, setShowTablePopup] = useState(false);
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(3);
+  const [tableStyle, setTableStyle] = useState('basic');
+  const [tableBorderWidth, setTableBorderWidth] = useState(1);
+  const [tableBorderColor, setTableBorderColor] = useState('#000000');
+  const [tableHeaderBg, setTableHeaderBg] = useState('#f0f0f0');
   const [showImagePopup, setShowImagePopup] = useState(false);
   const [showDrawing, setShowDrawing] = useState(false);
   const [showLinkPopup, setShowLinkPopup] = useState(false);
@@ -32,6 +36,11 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const [drawingColor, setDrawingColor] = useState('#000000');
   const [brushSize, setBrushSize] = useState(2);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [showHeaderFooterPopup, setShowHeaderFooterPopup] = useState(false);
+  const [showPageNumberPopup, setShowPageNumberPopup] = useState(false);
+  const [headerText, setHeaderText] = useState('');
+  const [footerText, setFooterText] = useState('');
+  const [pageNumberPosition, setPageNumberPosition] = useState('bottom-center');
   const canvasRef = useRef(null);
   const textColorRef = useRef(null);
   const bgColorRef = useRef(null);
@@ -39,6 +48,8 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const tableRef = useRef(null);
   const imageRef = useRef(null);
   const linkRef = useRef(null);
+  const headerFooterRef = useRef(null);
+  const pageNumberRef = useRef(null);
 
   useEffect(() => {
     if (selectedToolProp && selectedToolProp !== selectedTool) {
@@ -66,6 +77,12 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
       // Don't close link popup on outside clicks - it has its own overlay handler
       if (linkRef.current && !linkRef.current.contains(event.target) && !event.target.closest('.drawing-overlay')) {
         setShowLinkPopup(false);
+      }
+      if (headerFooterRef.current && !headerFooterRef.current.contains(event.target)) {
+        setShowHeaderFooterPopup(false);
+      }
+      if (pageNumberRef.current && !pageNumberRef.current.contains(event.target)) {
+        setShowPageNumberPopup(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -358,49 +375,10 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
               </div>
               <div className="etb-divider"></div>
               <div className="etb-section" ref={tableRef}>
-                <button className="etb-btn etb-btn-vertical" onClick={() => setShowTablePopup(!showTablePopup)} title="Table - Insert a table">
+                <button className="etb-btn etb-btn-vertical" onClick={() => setShowTablePopup(true)} title="Table - Insert a table">
                   <i className="ri-table-line"></i>
                   <span className="btn-label">Table</span>
                 </button>
-                {showTablePopup && (
-                  <div className="table-selector-popup">
-                    <div className="table-grid">
-                      {Array.from({ length: 10 }, (_, row) => (
-                        Array.from({ length: 8 }, (_, col) => (
-                          <div
-                            key={`${row}-${col}`}
-                            className={`table-cell ${
-                              row < tableRows && col < tableCols ? 'selected' : ''
-                            }`}
-                            onMouseEnter={() => {
-                              setTableRows(row + 1);
-                              setTableCols(col + 1);
-                            }}
-                            onClick={() => {
-                              apply('insertTable', { rows: row + 1, cols: col + 1 });
-                              setShowTablePopup(false);
-                              setTableRows(3);
-                              setTableCols(3);
-                            }}
-                          />
-                        ))
-                      )).flat()}
-                    </div>
-                    <div className="table-info">
-                      {tableRows} x {tableCols} Table
-                    </div>
-                    <div className="table-actions">
-                      <button onClick={() => {
-                        const customRows = parseInt(prompt('Enter number of rows (1-50):', tableRows));
-                        const customCols = parseInt(prompt('Enter number of columns (1-20):', tableCols));
-                        if (customRows > 0 && customRows <= 50 && customCols > 0 && customCols <= 20) {
-                          apply('insertTable', { rows: customRows, cols: customCols });
-                          setShowTablePopup(false);
-                        }
-                      }}>Custom Size...</button>
-                    </div>
-                  </div>
-                )}
               </div>
               <div className="etb-divider"></div>
               <div className="etb-section" ref={imageRef}>
@@ -426,32 +404,24 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
               </div>
               <div className="etb-divider"></div>
               <div className="etb-section" ref={linkRef}>
-                <button className="etb-btn etb-btn-vertical" onClick={() => setShowLinkPopup(!showLinkPopup)} title="Link - Insert hyperlink">
+                <button className="etb-btn etb-btn-vertical" onClick={() => setShowLinkPopup(true)} title="Link - Insert hyperlink">
                   <i className="ri-link"></i>
                   <span className="btn-label">Link</span>
                 </button>
-                {showLinkPopup && (
-                  <div className="insert-popup">
-                    <div className="popup-header">
-                      <h4>Insert Link</h4>
-                      <button onClick={() => setShowLinkPopup(false)} className="close-btn">×</button>
-                    </div>
-                    <div className="popup-content">
-                      <div className="input-group">
-                        <label>URL:</label>
-                        <input type="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://example.com" />
-                      </div>
-                      <div className="input-group">
-                        <label>Text:</label>
-                        <input type="text" value={linkText} onChange={(e) => setLinkText(e.target.value)} placeholder="Link text" />
-                      </div>
-                      <div className="popup-actions">
-                        <button onClick={() => { apply('insertLink', { url: linkUrl, text: linkText }); setShowLinkPopup(false); setLinkUrl(''); setLinkText(''); }} disabled={!linkUrl}>Insert</button>
-                        <button onClick={() => { setShowLinkPopup(false); setLinkUrl(''); setLinkText(''); }}>Cancel</button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section" ref={headerFooterRef}>
+                <button className="etb-btn etb-btn-vertical" onClick={() => setShowHeaderFooterPopup(true)} title="Header & Footer - Insert header and footer">
+                  <i className="ri-layout-top-2-line"></i>
+                  <span className="btn-label">Header & Footer</span>
+                </button>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section" ref={pageNumberRef}>
+                <button className="etb-btn etb-btn-vertical" onClick={() => setShowPageNumberPopup(true)} title="Page Numbers - Insert page numbers">
+                  <i className="ri-hashtag"></i>
+                  <span className="btn-label">Page Numbers</span>
+                </button>
               </div>
             </div>
             {showDrawing && (
@@ -631,9 +601,206 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                       />
                     </div>
                   </div>
-                  <div className="drawing-actions" onClick={(e) => e.stopPropagation()}>
+                  <div className="drawing-actions">
                     <button onClick={() => { apply('insertLink', { url: linkUrl, text: linkText }); setShowLinkPopup(false); setLinkUrl(''); setLinkText(''); }} disabled={!linkUrl}>Insert</button>
                     <button onClick={() => { setShowLinkPopup(false); setLinkUrl(''); setLinkText(''); }}>Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {showHeaderFooterPopup && (
+              <div className="drawing-overlay" onClick={() => setShowHeaderFooterPopup(false)}>
+                <div className="drawing-canvas-container" style={{width: '600px', height: '400px'}} onClick={(e) => e.stopPropagation()}>
+                  <div className="drawing-header">
+                    <h3>Header & Footer</h3>
+                    <button onClick={() => setShowHeaderFooterPopup(false)} className="close-btn">×</button>
+                  </div>
+                  <div className="popup-content" style={{padding: '20px'}}>
+                    <div className="input-group" style={{marginBottom: '20px'}}>
+                      <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold'}}>Header Text:</label>
+                      <input 
+                        type="text" 
+                        value={headerText} 
+                        onChange={(e) => setHeaderText(e.target.value)} 
+                        placeholder="Enter header text" 
+                        style={{width: '100%', padding: '10px', fontSize: '14px', border: '1px solid #ccc', borderRadius: '4px', outline: 'none', boxSizing: 'border-box'}} 
+                      />
+                    </div>
+                    <div className="input-group" style={{marginBottom: '20px'}}>
+                      <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold'}}>Footer Text:</label>
+                      <input 
+                        type="text" 
+                        value={footerText} 
+                        onChange={(e) => setFooterText(e.target.value)} 
+                        placeholder="Enter footer text" 
+                        style={{width: '100%', padding: '10px', fontSize: '14px', border: '1px solid #ccc', borderRadius: '4px', outline: 'none', boxSizing: 'border-box'}} 
+                      />
+                    </div>
+                    <div className="input-group" style={{marginBottom: '20px'}}>
+                      <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold'}}>Quick Options:</label>
+                      <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
+                        <button onClick={() => { setHeaderText('Document Title'); apply('insertHeaderFooter', { header: 'Document Title', footer: footerText }); }} style={{padding: '5px 10px', fontSize: '12px'}}>Document Title</button>
+                        <button onClick={() => { const date = new Date().toLocaleDateString(); setHeaderText(date); apply('insertHeaderFooter', { header: date, footer: footerText }); }} style={{padding: '5px 10px', fontSize: '12px'}}>Current Date</button>
+                        <button onClick={() => { setFooterText('Page [Page] of [Pages]'); apply('insertHeaderFooter', { header: headerText, footer: 'Page [Page] of [Pages]' }); }} style={{padding: '5px 10px', fontSize: '12px'}}>Page Numbers</button>
+                        <button onClick={() => { const copyright = '© ' + new Date().getFullYear() + ' Company Name'; setFooterText(copyright); apply('insertHeaderFooter', { header: headerText, footer: copyright }); }} style={{padding: '5px 10px', fontSize: '12px'}}>Copyright</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="drawing-actions">
+                    <button onClick={() => { 
+                      apply('insertHeaderFooter', { header: headerText, footer: footerText }); 
+                      setShowHeaderFooterPopup(false); 
+                      setHeaderText(''); 
+                      setFooterText(''); 
+                    }}>Insert</button>
+                    <button onClick={() => { setShowHeaderFooterPopup(false); setHeaderText(''); setFooterText(''); }}>Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {showTablePopup && (
+              <div className="drawing-overlay" onClick={() => setShowTablePopup(false)}>
+                <div className="drawing-canvas-container" style={{width: '600px', height: '500px'}} onClick={(e) => e.stopPropagation()}>
+                  <div className="drawing-header">
+                    <h3>Insert Table</h3>
+                    <button onClick={() => setShowTablePopup(false)} className="close-btn">×</button>
+                  </div>
+                  <div className="popup-content" style={{padding: '20px'}}>
+                    <div className="input-group" style={{marginBottom: '20px'}}>
+                      <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold'}}>Table Size:</label>
+                      <div style={{display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '15px'}}>
+                        <div>
+                          <label style={{fontSize: '12px', marginRight: '5px'}}>Rows:</label>
+                          <input type="number" min="1" max="50" value={tableRows} onChange={(e) => setTableRows(parseInt(e.target.value) || 1)} style={{width: '60px', padding: '5px', border: '1px solid #ccc', borderRadius: '4px'}} />
+                        </div>
+                        <div>
+                          <label style={{fontSize: '12px', marginRight: '5px'}}>Columns:</label>
+                          <input type="number" min="1" max="20" value={tableCols} onChange={(e) => setTableCols(parseInt(e.target.value) || 1)} style={{width: '60px', padding: '5px', border: '1px solid #ccc', borderRadius: '4px'}} />
+                        </div>
+                      </div>
+                      <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '15px'}}>
+                        <button onClick={() => { setTableRows(2); setTableCols(2); }} style={{padding: '5px 10px', fontSize: '12px', border: '1px solid #ccc', borderRadius: '4px'}}>2×2</button>
+                        <button onClick={() => { setTableRows(3); setTableCols(3); }} style={{padding: '5px 10px', fontSize: '12px', border: '1px solid #ccc', borderRadius: '4px'}}>3×3</button>
+                        <button onClick={() => { setTableRows(4); setTableCols(4); }} style={{padding: '5px 10px', fontSize: '12px', border: '1px solid #ccc', borderRadius: '4px'}}>4×4</button>
+                        <button onClick={() => { setTableRows(5); setTableCols(3); }} style={{padding: '5px 10px', fontSize: '12px', border: '1px solid #ccc', borderRadius: '4px'}}>5×3</button>
+                      </div>
+                    </div>
+                    <div className="input-group" style={{marginBottom: '20px'}}>
+                      <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold'}}>Table Style:</label>
+                      <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '15px'}}>
+                        <button onClick={() => setTableStyle('basic')} style={{padding: '10px', border: tableStyle === 'basic' ? '2px solid #007acc' : '1px solid #ccc', borderRadius: '4px', background: tableStyle === 'basic' ? '#e6f3ff' : 'white', color: '#000'}}>Basic</button>
+                        <button onClick={() => setTableStyle('striped')} style={{padding: '10px', border: tableStyle === 'striped' ? '2px solid #007acc' : '1px solid #ccc', borderRadius: '4px', background: tableStyle === 'striped' ? '#e6f3ff' : 'white', color: '#000'}}>Striped</button>
+                        <button onClick={() => setTableStyle('bordered')} style={{padding: '10px', border: tableStyle === 'bordered' ? '2px solid #007acc' : '1px solid #ccc', borderRadius: '4px', background: tableStyle === 'bordered' ? '#e6f3ff' : 'white', color: '#000'}}>Bordered</button>
+                      </div>
+                    </div>
+                    <div className="input-group" style={{marginBottom: '20px'}}>
+                      <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold'}}>Border Options:</label>
+                      <div style={{display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '10px'}}>
+                        <div>
+                          <label style={{fontSize: '12px', marginRight: '5px'}}>Width:</label>
+                          <select value={tableBorderWidth} onChange={(e) => setTableBorderWidth(parseInt(e.target.value))} style={{padding: '5px', border: '1px solid #ccc', borderRadius: '4px'}}>
+                            <option value={0}>None</option>
+                            <option value={1}>1px</option>
+                            <option value={2}>2px</option>
+                            <option value={3}>3px</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{fontSize: '12px', marginRight: '5px'}}>Color:</label>
+                          <input type="color" value={tableBorderColor} onChange={(e) => setTableBorderColor(e.target.value)} style={{width: '40px', height: '30px', border: '1px solid #ccc', borderRadius: '4px'}} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="input-group" style={{marginBottom: '20px'}}>
+                      <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold'}}>Header Background:</label>
+                      <input type="color" value={tableHeaderBg} onChange={(e) => setTableHeaderBg(e.target.value)} style={{width: '60px', height: '30px', border: '1px solid #ccc', borderRadius: '4px'}} />
+                    </div>
+                  </div>
+                  <div className="drawing-actions">
+                    <button onClick={() => { 
+                      apply('insertTable', { 
+                        rows: tableRows, 
+                        cols: tableCols, 
+                        style: tableStyle, 
+                        borderWidth: tableBorderWidth, 
+                        borderColor: tableBorderColor, 
+                        headerBg: tableHeaderBg 
+                      }); 
+                      setShowTablePopup(false); 
+                    }}>Insert Table</button>
+                    <button onClick={() => { setShowTablePopup(false); }}>Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {showPageNumberPopup && (
+              <div className="drawing-overlay" onClick={() => setShowPageNumberPopup(false)}>
+                <div className="drawing-canvas-container" style={{width: '500px', height: '450px'}} onClick={(e) => e.stopPropagation()}>
+                  <div className="drawing-header">
+                    <h3>Page Numbers</h3>
+                    <button onClick={() => setShowPageNumberPopup(false)} className="close-btn">×</button>
+                  </div>
+                  <div className="popup-content" style={{padding: '20px'}}>
+                    <div className="input-group" style={{marginBottom: '20px'}}>
+                      <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold'}}>Position:</label>
+                      <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '15px'}}>
+                        <button 
+                          onClick={() => setPageNumberPosition('top-left')} 
+                          style={{padding: '10px', border: pageNumberPosition === 'top-left' ? '2px solid #007acc' : '1px solid #ccc', borderRadius: '4px', background: pageNumberPosition === 'top-left' ? '#e6f3ff' : 'white', color: '#000'}}
+                        >
+                          Top Left
+                        </button>
+                        <button 
+                          onClick={() => setPageNumberPosition('top-center')} 
+                          style={{padding: '10px', border: pageNumberPosition === 'top-center' ? '2px solid #007acc' : '1px solid #ccc', borderRadius: '4px', background: pageNumberPosition === 'top-center' ? '#e6f3ff' : 'white', color: '#000'}}
+                        >
+                          Top Center
+                        </button>
+                        <button 
+                          onClick={() => setPageNumberPosition('top-right')} 
+                          style={{padding: '10px', border: pageNumberPosition === 'top-right' ? '2px solid #007acc' : '1px solid #ccc', borderRadius: '4px', background: pageNumberPosition === 'top-right' ? '#e6f3ff' : 'white', color: '#000'}}
+                        >
+                          Top Right
+                        </button>
+                        <button 
+                          onClick={() => setPageNumberPosition('bottom-left')} 
+                          style={{padding: '10px', border: pageNumberPosition === 'bottom-left' ? '2px solid #007acc' : '1px solid #ccc', borderRadius: '4px', background: pageNumberPosition === 'bottom-left' ? '#e6f3ff' : 'white', color: '#000'}}
+                        >
+                          Bottom Left
+                        </button>
+                        <button 
+                          onClick={() => setPageNumberPosition('bottom-center')} 
+                          style={{padding: '10px', border: pageNumberPosition === 'bottom-center' ? '2px solid #007acc' : '1px solid #ccc', borderRadius: '4px', background: pageNumberPosition === 'bottom-center' ? '#e6f3ff' : 'white', color: '#000'}}
+                        >
+                          Bottom Center
+                        </button>
+                        <button 
+                          onClick={() => setPageNumberPosition('bottom-right')} 
+                          style={{padding: '10px', border: pageNumberPosition === 'bottom-right' ? '2px solid #007acc' : '1px solid #ccc', borderRadius: '4px', background: pageNumberPosition === 'bottom-right' ? '#e6f3ff' : 'white', color: '#000'}}
+                        >
+                          Bottom Right
+                        </button>
+                      </div>
+                    </div>
+                    <div className="input-group" style={{marginBottom: '20px'}}>
+                      <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold'}}>Format Options:</label>
+                      <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
+                        <button onClick={() => { apply('insertPageNumbers', { position: pageNumberPosition, format: 'number' }); setShowPageNumberPopup(false); }} style={{padding: '8px 12px', fontSize: '12px', border: '1px solid #ccc', borderRadius: '4px'}}>1, 2, 3...</button>
+                        <button onClick={() => { apply('insertPageNumbers', { position: pageNumberPosition, format: 'roman' }); setShowPageNumberPopup(false); }} style={{padding: '8px 12px', fontSize: '12px', border: '1px solid #ccc', borderRadius: '4px'}}>i, ii, iii...</button>
+                        <button onClick={() => { apply('insertPageNumbers', { position: pageNumberPosition, format: 'alpha' }); setShowPageNumberPopup(false); }} style={{padding: '8px 12px', fontSize: '12px', border: '1px solid #ccc', borderRadius: '4px'}}>a, b, c...</button>
+                        <button onClick={() => { apply('insertPageNumbers', { position: pageNumberPosition, format: 'pageOf' }); setShowPageNumberPopup(false); }} style={{padding: '8px 12px', fontSize: '12px', border: '1px solid #ccc', borderRadius: '4px'}}>Page 1 of 5</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="drawing-actions">
+                    <button onClick={() => { 
+                      apply('insertPageNumbers', { position: pageNumberPosition, format: 'number' }); 
+                      setShowPageNumberPopup(false); 
+                    }}>Insert Numbers</button>
+                    <button onClick={() => { setShowPageNumberPopup(false); }}>Cancel</button>
                   </div>
                 </div>
               </div>
