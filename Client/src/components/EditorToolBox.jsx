@@ -42,6 +42,9 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
     right: 1
   });
   const [orientation, setOrientation] = useState('portrait');
+  const [showPageBorderPopup, setShowPageBorderPopup] = useState(false);
+  const [showPageColorPopup, setShowPageColorPopup] = useState(false);
+  const [customPageColor, setCustomPageColor] = useState('#ffffff');
   const [headerFooterConfig, setHeaderFooterConfig] = useState({
     headerText: '',
     headerAlignment: 'left',
@@ -69,6 +72,8 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const headerFooterRef = useRef(null);
   const symbolsRef = useRef(null);
   const emojiRef = useRef(null);
+  const pageBorderRef = useRef(null);
+  const pageColorRef = useRef(null);
 
   useEffect(() => {
     if (selectedToolProp && selectedToolProp !== selectedTool) {
@@ -105,6 +110,12 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
       }
       if (emojiRef.current && !emojiRef.current.contains(event.target)) {
         setShowEmojiPopup(false);
+      }
+      if (pageBorderRef.current && !pageBorderRef.current.contains(event.target)) {
+        setShowPageBorderPopup(false);
+      }
+      if (pageColorRef.current && !pageColorRef.current.contains(event.target)) {
+        setShowPageColorPopup(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -1248,6 +1259,115 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                     </select>
                   </div>
                 </div>
+              </div>
+            </div>
+            <div className="etb-divider"></div>
+            <div className="etb-row">
+              <div className="etb-section">
+                <div className="etb-color-container" ref={pageBorderRef}>
+                  <button className="etb-btn etb-btn-vertical" onClick={() => setShowPageBorderPopup(!showPageBorderPopup)} title="Page Border">
+                    <i className="ri-layout-4-line"></i>
+                    <span className="btn-label">Page Border</span>
+                  </button>
+                  {showPageBorderPopup && (
+                    <div className="color-picker-panel">
+                      <div className="border-styles-grid">
+                        <div className="border-style" onClick={() => { apply('pageBorder', 'solid'); setShowPageBorderPopup(false); }} title="Solid Border">
+                          <div style={{border: '2px solid #000', width: '40px', height: '25px'}}></div>
+                          <span>Solid</span>
+                        </div>
+                        <div className="border-style" onClick={() => { apply('pageBorder', 'dashed'); setShowPageBorderPopup(false); }} title="Dashed Border">
+                          <div style={{border: '2px dashed #000', width: '40px', height: '25px'}}></div>
+                          <span>Dashed</span>
+                        </div>
+                        <div className="border-style" onClick={() => { apply('pageBorder', 'dotted'); setShowPageBorderPopup(false); }} title="Dotted Border">
+                          <div style={{border: '2px dotted #000', width: '40px', height: '25px'}}></div>
+                          <span>Dotted</span>
+                        </div>
+                        <div className="border-style" onClick={() => { apply('pageBorder', 'double'); setShowPageBorderPopup(false); }} title="Double Border">
+                          <div style={{border: '3px double #000', width: '40px', height: '25px'}}></div>
+                          <span>Double</span>
+                        </div>
+                        <div className="border-style" onClick={() => { apply('pageBorder', 'groove'); setShowPageBorderPopup(false); }} title="Groove Border">
+                          <div style={{border: '3px groove #000', width: '40px', height: '25px'}}></div>
+                          <span>Groove</span>
+                        </div>
+                        <div className="border-style" onClick={() => { apply('pageBorder', 'ridge'); setShowPageBorderPopup(false); }} title="Ridge Border">
+                          <div style={{border: '3px ridge #000', width: '40px', height: '25px'}}></div>
+                          <span>Ridge</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="etb-color-container" ref={pageColorRef}>
+                  <button className="etb-btn etb-btn-vertical" onClick={() => setShowPageColorPopup(!showPageColorPopup)} title="Page Color">
+                    <i className="ri-palette-line"></i>
+                    <span className="btn-label">Page Color</span>
+                  </button>
+                  {showPageColorPopup && (
+                    <div className="color-picker-panel">
+                      <div className="color-preset-grid">
+                        {presetColors.map(color => (
+                          <div
+                            key={color}
+                            className="color-swatch"
+                            style={{backgroundColor: color}}
+                            onClick={() => {
+                              apply('pageBackgroundColor', color);
+                              setShowPageColorPopup(false);
+                            }}
+                            title={color}
+                          />
+                        ))}
+                      </div>
+                      <div className="custom-color-section">
+                        <label>Custom Color:</label>
+                        <div className="custom-color-input">
+                          <input
+                            type="color"
+                            value={customPageColor}
+                            onChange={(e) => setCustomPageColor(e.target.value)}
+                          />
+                          <input
+                            type="text"
+                            value={customPageColor}
+                            onChange={(e) => setCustomPageColor(e.target.value)}
+                            placeholder="#ffffff"
+                          />
+                          <button onClick={() => {
+                            apply('pageBackgroundColor', customPageColor);
+                            setShowPageColorPopup(false);
+                          }}>Apply</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {showPageBorderPopup && (
+                  <div className="page-border-popup">
+                    <div className="border-styles-grid">
+                      <div className="border-style" onClick={() => { apply('pageBorder', 'solid'); setShowPageBorderPopup(false); }} title="Solid Border">
+                        <div style={{border: '2px solid #000', width: '30px', height: '20px'}}></div>
+                      </div>
+                      <div className="border-style" onClick={() => { apply('pageBorder', 'dashed'); setShowPageBorderPopup(false); }} title="Dashed Border">
+                        <div style={{border: '2px dashed #000', width: '30px', height: '20px'}}></div>
+                      </div>
+                      <div className="border-style" onClick={() => { apply('pageBorder', 'dotted'); setShowPageBorderPopup(false); }} title="Dotted Border">
+                        <div style={{border: '2px dotted #000', width: '30px', height: '20px'}}></div>
+                      </div>
+                      <div className="border-style" onClick={() => { apply('pageBorder', 'double'); setShowPageBorderPopup(false); }} title="Double Border">
+                        <div style={{border: '3px double #000', width: '30px', height: '20px'}}></div>
+                      </div>
+                      <div className="border-style" onClick={() => { apply('pageBorder', 'groove'); setShowPageBorderPopup(false); }} title="Groove Border">
+                        <div style={{border: '3px groove #000', width: '30px', height: '20px'}}></div>
+                      </div>
+                      <div className="border-style" onClick={() => { apply('pageBorder', 'ridge'); setShowPageBorderPopup(false); }} title="Ridge Border">
+                        <div style={{border: '3px ridge #000', width: '30px', height: '20px'}}></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </>
