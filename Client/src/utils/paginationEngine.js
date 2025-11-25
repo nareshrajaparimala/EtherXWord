@@ -474,34 +474,22 @@ export class MSWordPagination {
     // Apply header
     if (config.headerText || (config.pageNumbers.enabled && config.pageNumbers.position.startsWith('header'))) {
       page.header.style.display = 'flex';
+      page.header.style.justifyContent = this.getAlignmentStyle(config.headerAlignment);
       
-      let headerContent = '';
-      let headerAlignment = config.headerAlignment;
+      let headerContent = config.headerText || '';
       
-      // Handle page numbers in header
+      // Add page numbers to header if configured
       if (config.pageNumbers.enabled && config.pageNumbers.position.startsWith('header')) {
         const pageNum = this.formatPageNumber(page.pageNumber, config.pageNumbers.type);
         const formattedPageNum = config.pageNumbers.format.replace('{n}', pageNum).replace('{total}', this.pages.length);
         
         if (config.pageNumbers.position === 'header-left') {
-          headerContent = `<span style="margin-right: auto;">${formattedPageNum}</span>`;
-          if (config.headerText) {
-            headerContent += `<span style="text-align: ${headerAlignment};">${config.headerText}</span>`;
-          }
-          page.header.style.justifyContent = 'space-between';
+          headerContent = formattedPageNum + (headerContent ? ' ' + headerContent : '');
         } else if (config.pageNumbers.position === 'header-right') {
-          if (config.headerText) {
-            headerContent = `<span style="text-align: ${headerAlignment};">${config.headerText}</span>`;
-          }
-          headerContent += `<span style="margin-left: auto;">${formattedPageNum}</span>`;
-          page.header.style.justifyContent = 'space-between';
+          headerContent = (headerContent ? headerContent + ' ' : '') + formattedPageNum;
         } else if (config.pageNumbers.position === 'header-center') {
-          headerContent = config.headerText ? `${config.headerText} ${formattedPageNum}` : formattedPageNum;
-          page.header.style.justifyContent = 'center';
+          headerContent = headerContent ? `${headerContent} ${formattedPageNum}` : formattedPageNum;
         }
-      } else {
-        headerContent = config.headerText;
-        page.header.style.justifyContent = this.getAlignmentStyle(headerAlignment);
       }
       
       page.header.innerHTML = headerContent;
@@ -512,34 +500,22 @@ export class MSWordPagination {
     // Apply footer
     if (config.footerText || (config.pageNumbers.enabled && config.pageNumbers.position.startsWith('footer'))) {
       page.footer.style.display = 'flex';
+      page.footer.style.justifyContent = this.getAlignmentStyle(config.footerAlignment);
       
-      let footerContent = '';
-      let footerAlignment = config.footerAlignment;
+      let footerContent = config.footerText || '';
       
-      // Handle page numbers in footer
+      // Add page numbers to footer if configured
       if (config.pageNumbers.enabled && config.pageNumbers.position.startsWith('footer')) {
         const pageNum = this.formatPageNumber(page.pageNumber, config.pageNumbers.type);
         const formattedPageNum = config.pageNumbers.format.replace('{n}', pageNum).replace('{total}', this.pages.length);
         
         if (config.pageNumbers.position === 'footer-left') {
-          footerContent = `<span style="margin-right: auto;">${formattedPageNum}</span>`;
-          if (config.footerText) {
-            footerContent += `<span style="text-align: ${footerAlignment};">${config.footerText}</span>`;
-          }
-          page.footer.style.justifyContent = 'space-between';
+          footerContent = formattedPageNum + (footerContent ? ' ' + footerContent : '');
         } else if (config.pageNumbers.position === 'footer-right') {
-          if (config.footerText) {
-            footerContent = `<span style="text-align: ${footerAlignment};">${config.footerText}</span>`;
-          }
-          footerContent += `<span style="margin-left: auto;">${formattedPageNum}</span>`;
-          page.footer.style.justifyContent = 'space-between';
+          footerContent = (footerContent ? footerContent + ' ' : '') + formattedPageNum;
         } else if (config.pageNumbers.position === 'footer-center') {
-          footerContent = config.footerText ? `${config.footerText} ${formattedPageNum}` : formattedPageNum;
-          page.footer.style.justifyContent = 'center';
+          footerContent = footerContent ? `${footerContent} ${formattedPageNum}` : formattedPageNum;
         }
-      } else {
-        footerContent = config.footerText;
-        page.footer.style.justifyContent = this.getAlignmentStyle(footerAlignment);
       }
       
       page.footer.innerHTML = footerContent;

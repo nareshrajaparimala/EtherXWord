@@ -872,27 +872,10 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                           borderRight: headerFooterConfig.borderType === 'all' ? `${headerFooterConfig.borderWidth} solid ${headerFooterConfig.borderColor}` : 'none'
                         }}>
                           {(headerFooterConfig.headerText || headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('header')) && (
-                            <div className="preview-header" style={{ 
-                              display: 'flex',
-                              justifyContent: headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('header') && headerFooterConfig.pageNumbers.position !== 'header-center' ? 'space-between' : 
-                                             headerFooterConfig.headerAlignment === 'center' ? 'center' : 
-                                             headerFooterConfig.headerAlignment === 'right' ? 'flex-end' : 'flex-start'
-                            }}>
-                              {headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position === 'header-left' && (
-                                <span style={{ marginRight: 'auto' }}>
-                                  {headerFooterConfig.pageNumbers.format.replace('{n}', '1').replace('{total}', '5')}
-                                </span>
-                              )}
-                              {headerFooterConfig.headerText && (
-                                <span>{headerFooterConfig.headerText}</span>
-                              )}
-                              {headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position === 'header-center' && (
-                                <span>
-                                  {headerFooterConfig.headerText ? ` ${headerFooterConfig.pageNumbers.format.replace('{n}', '1').replace('{total}', '5')}` : headerFooterConfig.pageNumbers.format.replace('{n}', '1').replace('{total}', '5')}
-                                </span>
-                              )}
-                              {headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position === 'header-right' && (
-                                <span style={{ marginLeft: 'auto' }}>
+                            <div className="preview-header" style={{ textAlign: headerFooterConfig.headerAlignment }}>
+                              {headerFooterConfig.headerText}
+                              {headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('header') && (
+                                <span className={`page-number ${headerFooterConfig.pageNumbers.position.split('-')[1]}`}>
                                   {headerFooterConfig.pageNumbers.format.replace('{n}', '1').replace('{total}', '5')}
                                 </span>
                               )}
@@ -904,27 +887,10 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                             <div className="preview-text-line short"></div>
                           </div>
                           {(headerFooterConfig.footerText || headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('footer')) && (
-                            <div className="preview-footer" style={{ 
-                              display: 'flex',
-                              justifyContent: headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('footer') && headerFooterConfig.pageNumbers.position !== 'footer-center' ? 'space-between' : 
-                                             headerFooterConfig.footerAlignment === 'center' ? 'center' : 
-                                             headerFooterConfig.footerAlignment === 'right' ? 'flex-end' : 'flex-start'
-                            }}>
-                              {headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position === 'footer-left' && (
-                                <span style={{ marginRight: 'auto' }}>
-                                  {headerFooterConfig.pageNumbers.format.replace('{n}', '1').replace('{total}', '5')}
-                                </span>
-                              )}
-                              {headerFooterConfig.footerText && (
-                                <span>{headerFooterConfig.footerText}</span>
-                              )}
-                              {headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position === 'footer-center' && (
-                                <span>
-                                  {headerFooterConfig.footerText ? ` ${headerFooterConfig.pageNumbers.format.replace('{n}', '1').replace('{total}', '5')}` : headerFooterConfig.pageNumbers.format.replace('{n}', '1').replace('{total}', '5')}
-                                </span>
-                              )}
-                              {headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position === 'footer-right' && (
-                                <span style={{ marginLeft: 'auto' }}>
+                            <div className="preview-footer" style={{ textAlign: headerFooterConfig.footerAlignment }}>
+                              {headerFooterConfig.footerText}
+                              {headerFooterConfig.pageNumbers.enabled && headerFooterConfig.pageNumbers.position.startsWith('footer') && (
+                                <span className={`page-number ${headerFooterConfig.pageNumbers.position.split('-')[1]}`}>
                                   {headerFooterConfig.pageNumbers.format.replace('{n}', '1').replace('{total}', '5')}
                                 </span>
                               )}
