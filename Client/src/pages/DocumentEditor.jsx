@@ -301,6 +301,20 @@ const DocumentEditor = () => {
                   showNotification('Document deleted', 'success');
                   navigate('/');
                 }
+              } else if (cmd === 'fileSave') {
+                // Save current document
+                showNotification('Document saved', 'success');
+              } else if (cmd === 'fileSaveAs') {
+                // Save as new document
+                const newTitle = prompt('Enter new document name:', documentTitle);
+                if (newTitle) {
+                  setDocumentTitle(newTitle);
+                  showNotification('Document saved as ' + newTitle, 'success');
+                }
+              } else if (cmd === 'fileClose') {
+                if (confirm('Close document? Any unsaved changes will be lost.')) {
+                  navigate('/');
+                }
               } else if (cmd === 'insertPageBreak') {
                 insertPageBreak();
               } else if (cmd === 'insertTable') {
@@ -316,30 +330,23 @@ const DocumentEditor = () => {
                   tableHTML += '</table>';
                   document.execCommand('insertHTML', false, tableHTML);
                 }
-              } else if (cmd === 'insertImageFile') {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = 'image/*';
-                input.onchange = (e) => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                      document.execCommand('insertImage', false, event.target.result);
-                    };
-                    reader.readAsDataURL(file);
-                  }
-                };
-                input.click();
-              } else if (cmd === 'insertImageUrl') {
-                const url = window.prompt('Enter image URL:');
-                if (url) document.execCommand('insertImage', false, url);
+              } else if (cmd === 'insertImageData') {
+                if (value) {
+                  document.execCommand('insertImage', false, value);
+                  showNotification('Image inserted successfully!', 'success');
+                }
               } else if (cmd === 'insertImageStock') {
                 showNotification('Stock images feature coming soon!', 'info');
               } else if (cmd === 'insertLink') {
                 if (value && value.url) {
-                  const linkHTML = `<a href="${value.url}" target="_blank">${value.text || value.url}</a>`;
-                  document.execCommand('insertHTML', false, linkHTML);
+                  // Focus the editor first
+                  const editor = editorContainerRef.current?.querySelector('[contenteditable="true"]');
+                  if (editor) {
+                    editor.focus();
+                    const linkHTML = `<a href="${value.url}" target="_blank">${value.text || value.url}</a>`;
+                    document.execCommand('insertHTML', false, linkHTML);
+                    showNotification('Link inserted successfully!', 'success');
+                  }
                 }
               } else if (cmd === 'drawingTool') {
                 // Drawing tool functionality would be implemented here

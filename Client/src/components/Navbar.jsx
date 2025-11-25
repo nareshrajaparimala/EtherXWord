@@ -354,13 +354,13 @@ const Navbar = () => {
           
           <div className="sidebar-menu">
             {[
-              { label: 'Profile', icon: 'ri-user-3-line', accent: '#ffcf40', onClick: () => navigate('/profile') },
-              { label: 'Settings', icon: 'ri-equalizer-line', accent: '#a78bfa', onClick: () => navigate('/settings') },
-              { label: 'Dashboard', icon: 'ri-bar-chart-grouped-line', accent: '#38bdf8', onClick: () => navigate('/home') },
-              { label: 'Templates', icon: 'ri-layout-4-line', accent: '#c084fc', onClick: () => navigate('/templates') },
-              { label: 'My Documents', icon: 'ri-file-list-3-line', accent: '#34d399', onClick: () => navigate('/home') },
-              { label: 'Notifications', icon: 'ri-notification-2-line', accent: '#facc15', onClick: () => setShowNotifications(true) },
-              { label: 'IPFS Documents', icon: 'ri-folder-2-line', accent: '#f97316', onClick: () => navigate('/ipfs-documents') }
+              { label: 'Profile', icon: 'ri-user-line', onClick: () => navigate('/profile') },
+              { label: 'Settings', icon: 'ri-settings-3-line', onClick: () => navigate('/settings') },
+              { label: 'Dashboard', icon: 'ri-dashboard-line', onClick: () => navigate('/home') },
+              { label: 'Templates', icon: 'ri-layout-2-line', onClick: () => navigate('/templates') },
+              { label: 'My Documents', icon: 'ri-folder-line', onClick: () => navigate('/home') },
+              { label: 'Notifications', icon: 'ri-notification-3-line', onClick: () => setShowNotifications(true) },
+              { label: 'Collaboration', icon: 'ri-team-line', onClick: () => navigate('/home') }
             ].map((item, index) => (
               <button
                 key={item.label}
@@ -371,7 +371,7 @@ const Navbar = () => {
                 }}
                 style={{ '--item-order': index }}
               >
-                <span className="item-icon" style={{ '--item-accent': item.accent }}>
+                <span className="item-icon">
                   <i className={item.icon}></i>
                 </span>
                 <span>{item.label}</span>
@@ -379,7 +379,7 @@ const Navbar = () => {
             ))}
 
             <button className="sidebar-item logout" onClick={handleLogout}>
-              <span className="item-icon danger" style={{ '--item-accent': '#f87171' }}>
+              <span className="item-icon danger">
                 <i className="ri-logout-circle-line"></i>
               </span>
               <span>Logout</span>

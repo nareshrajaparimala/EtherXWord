@@ -27,6 +27,7 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const [showLinkPopup, setShowLinkPopup] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkText, setLinkText] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [drawingTool, setDrawingTool] = useState('pen');
   const [drawingColor, setDrawingColor] = useState('#000000');
   const [brushSize, setBrushSize] = useState(2);
@@ -356,24 +357,41 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                   <span className="btn-label">Table</span>
                 </button>
                 {showTablePopup && (
-                  <div className="insert-popup">
-                    <div className="popup-header">
-                      <h4>Insert Table</h4>
-                      <button onClick={() => setShowTablePopup(false)} className="close-btn">×</button>
+                  <div className="table-selector-popup">
+                    <div className="table-grid">
+                      {Array.from({ length: 10 }, (_, row) => (
+                        Array.from({ length: 8 }, (_, col) => (
+                          <div
+                            key={`${row}-${col}`}
+                            className={`table-cell ${
+                              row < tableRows && col < tableCols ? 'selected' : ''
+                            }`}
+                            onMouseEnter={() => {
+                              setTableRows(row + 1);
+                              setTableCols(col + 1);
+                            }}
+                            onClick={() => {
+                              apply('insertTable', { rows: row + 1, cols: col + 1 });
+                              setShowTablePopup(false);
+                              setTableRows(3);
+                              setTableCols(3);
+                            }}
+                          />
+                        ))
+                      )).flat()}
                     </div>
-                    <div className="popup-content">
-                      <div className="input-group">
-                        <label>Rows:</label>
-                        <input type="number" min="1" max="20" value={tableRows} onChange={(e) => setTableRows(e.target.value)} />
-                      </div>
-                      <div className="input-group">
-                        <label>Columns:</label>
-                        <input type="number" min="1" max="10" value={tableCols} onChange={(e) => setTableCols(e.target.value)} />
-                      </div>
-                      <div className="popup-actions">
-                        <button onClick={() => { apply('insertTable', { rows: tableRows, cols: tableCols }); setShowTablePopup(false); }}>Insert</button>
-                        <button onClick={() => setShowTablePopup(false)}>Cancel</button>
-                      </div>
+                    <div className="table-info">
+                      {tableRows} x {tableCols} Table
+                    </div>
+                    <div className="table-actions">
+                      <button onClick={() => {
+                        const customRows = parseInt(prompt('Enter number of rows (1-50):', tableRows));
+                        const customCols = parseInt(prompt('Enter number of columns (1-20):', tableCols));
+                        if (customRows > 0 && customRows <= 50 && customCols > 0 && customCols <= 20) {
+                          apply('insertTable', { rows: customRows, cols: customCols });
+                          setShowTablePopup(false);
+                        }
+                      }}>Custom Size...</button>
                     </div>
                   </div>
                 )}
@@ -395,12 +413,50 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                       <button onClick={() => setShowImagePopup(false)} className="close-btn">×</button>
                     </div>
                     <div className="popup-content">
-                      <button onClick={() => { apply('insertImageFile'); setShowImagePopup(false); }} className="image-option">
+                      <button onClick={() => { 
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = 'image/*';
+                        input.onchange = (e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              apply('insertImageData', event.target.result);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        };
+                        input.click();
+                        setShowImagePopup(false);
+                      }} className="image-option">
                         <i className="ri-folder-line"></i> From Computer
                       </button>
-                      <button onClick={() => { apply('insertImageUrl'); setShowImagePopup(false); }} className="image-option">
-                        <i className="ri-link"></i> From URL
-                      </button>
+                      <div className="url-input-section">
+                        <div className="input-group">
+                          <label>Image URL:</label>
+                          <input 
+                            type="url" 
+                            value={imageUrl} 
+                            onChange={(e) => setImageUrl(e.target.value)} 
+                            placeholder="https://example.com/image.jpg" 
+                          />
+                        </div>
+                        <div className="popup-actions">
+                          <button 
+                            onClick={() => { 
+                              if (imageUrl) {
+                                apply('insertImageData', imageUrl);
+                                setImageUrl('');
+                                setShowImagePopup(false);
+                              }
+                            }} 
+                            disabled={!imageUrl}
+                          >
+                            Insert from URL
+                          </button>
+                        </div>
+                      </div>
                       <button onClick={() => { apply('insertImageStock'); setShowImagePopup(false); }} className="image-option">
                         <i className="ri-gallery-line"></i> Stock Images
                       </button>
@@ -575,6 +631,43 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                 </div>
               </div>
             )}
+            {showLinkPopup && (
+              <div className="drawing-overlay" onClick={() => setShowLinkPopup(false)}>
+                <div className="drawing-canvas-container" style={{width: '500px', height: '300px'}} onClick={(e) => e.stopPropagation()}>
+                  <div className="drawing-header">
+                    <h3>Insert Link</h3>
+                    <button onClick={() => setShowLinkPopup(false)} className="close-btn">×</button>
+                  </div>
+                  <div className="popup-content" style={{padding: '20px'}}>
+                    <div className="input-group" style={{marginBottom: '20px'}}>
+                      <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold'}}>URL:</label>
+                      <input 
+                        type="text" 
+                        value={linkUrl} 
+                        onChange={(e) => setLinkUrl(e.target.value)} 
+                        placeholder="https://example.com" 
+                        style={{width: '100%', padding: '10px', fontSize: '14px', border: '1px solid #ccc', borderRadius: '4px', outline: 'none', boxSizing: 'border-box'}} 
+                        autoFocus
+                      />
+                    </div>
+                    <div className="input-group" style={{marginBottom: '20px'}}>
+                      <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold'}}>Text:</label>
+                      <input 
+                        type="text" 
+                        value={linkText} 
+                        onChange={(e) => setLinkText(e.target.value)} 
+                        placeholder="Link text" 
+                        style={{width: '100%', padding: '10px', fontSize: '14px', border: '1px solid #ccc', borderRadius: '4px', outline: 'none', boxSizing: 'border-box'}} 
+                      />
+                    </div>
+                  </div>
+                  <div className="drawing-actions">
+                    <button onClick={() => { apply('insertLink', { url: linkUrl, text: linkText }); setShowLinkPopup(false); setLinkUrl(''); setLinkText(''); }} disabled={!linkUrl}>Insert</button>
+                    <button onClick={() => { setShowLinkPopup(false); setLinkUrl(''); setLinkText(''); }}>Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -612,6 +705,8 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
             <span style={{ fontSize: '13px', fontStyle: 'italic', opacity: 0.6 }}>Options for {selectedTool} (coming soon)</span>
           </div>
         )}
+        
+
       </div>
     </div>
   );
