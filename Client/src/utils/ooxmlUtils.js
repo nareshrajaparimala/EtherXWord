@@ -34,15 +34,22 @@ export const importDocxOOXML = async (fileBuffer) => {
 export const exportDocxOOXML = async (htmlContent, filename = 'document.docx') => {
   try {
     const zip = new JSZip();
+    const imageData = [];
     
-    // Convert HTML to OOXML
-    const ooxml = convertHTMLToOOXML(htmlContent);
+    // Convert HTML to OOXML and extract images
+    const { ooxml, images } = convertHTMLToOOXML(htmlContent);
+    
+    // Add images to zip
+    images.forEach((img, index) => {
+      const imgPath = `word/media/image${index + 1}.${img.ext}`;
+      zip.file(imgPath, img.data, { base64: true });
+    });
     
     // Create DOCX structure
     zip.file('word/document.xml', ooxml);
-    zip.file('[Content_Types].xml', getContentTypesXml());
+    zip.file('[Content_Types].xml', getContentTypesXml(images));
     zip.file('_rels/.rels', getRelsXml());
-    zip.file('word/_rels/document.xml.rels', getDocumentRelsXml());
+    zip.file('word/_rels/document.xml.rels', getDocumentRelsXml(images));
     zip.file('docProps/app.xml', getAppPropsXml());
     zip.file('docProps/core.xml', getCorePropsXml());
     zip.file('word/styles.xml', getStylesXml());
@@ -214,6 +221,8 @@ const convertHTMLToOOXML = (htmlContent) => {
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body>`;
   
+  const extractedImages = [];
+  
   // Helper: detect alignment from a tag string (style attr or align attr)
   const getAlignmentXml = (tagString) => {
     const styleMatch = tagString.match(/style=["']([^"']*)["']/i);
@@ -240,6 +249,66 @@ const convertHTMLToOOXML = (htmlContent) => {
     
     pPr += '</w:pPr>';
     return pPr;
+  };
+
+  // Helper: convert image to OOXML drawing
+  const convertImageToOOXML = (imgTag, imageIndex) => {
+    const srcMatch = imgTag.match(/src=["']([^"']*)["']/i);
+    const styleMatch = imgTag.match(/style=["']([^"']*)["']/i);
+    
+    if (!srcMatch) return '';
+    
+    const src = srcMatch[1];
+    let style = styleMatch ? styleMatch[1] : '';
+    
+    // Extract alignment from style - check multiple patterns
+    let align = 'left'; // default
+    if (style.includes('float: right') || style.includes('float:right')) align = 'right';
+    else if (style.includes('float: left') || style.includes('float:left')) align = 'left';
+    else if ((style.includes('display: block') || style.includes('display:block')) && 
+             (style.includes('margin: 0 auto') || style.includes('margin:0 auto') || style.includes('margin-left: auto'))) {
+      align = 'center';
+    }
+    
+    // Extract dimensions with fallbacks
+    const widthMatch = style.match(/width\s*:\s*(\d+(?:\.\d+)?)px/i);
+    const heightMatch = style.match(/height\s*:\s*(\d+(?:\.\d+)?)px/i);
+    
+    let width = widthMatch ? Math.round(parseFloat(widthMatch[1])) : 200;
+    let height = heightMatch ? Math.round(parseFloat(heightMatch[1])) : 150;
+    
+    // Convert to EMUs (English Metric Units) - 1 pixel = 9525 EMUs
+    const widthEmu = width * 9525;
+    const heightEmu = height * 9525;
+    
+    // Extract image data and format
+    if (src.startsWith('data:')) {
+      const [header, data] = src.split(',');
+      const mimeMatch = header.match(/data:image\/(\w+)/i);
+      const ext = mimeMatch ? mimeMatch[1] : 'png';
+      
+      extractedImages.push({
+        data: data,
+        ext: ext,
+        width: width,
+        height: height
+      });
+    }
+    
+    // Build paragraph properties with proper alignment
+    let pPr = '<w:pPr>';
+    if (align === 'center') {
+      pPr += '<w:jc w:val="center"/>';
+    } else if (align === 'right') {
+      pPr += '<w:jc w:val="right"/>';
+    }
+    pPr += '<w:spacing w:before="0" w:after="120"/>';
+    pPr += '</w:pPr>';
+    
+    // Create OOXML drawing element with proper namespaces
+    const rId = `rId${imageIndex + 2}`;
+    
+    return `<w:p>${pPr}<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:extent cx="${widthEmu}" cy="${heightEmu}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="${imageIndex + 1}" name="Picture ${imageIndex + 1}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="Picture ${imageIndex + 1}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${widthEmu}" cy="${heightEmu}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
   };
 
   const createRunsFromHtml = (content) => {
@@ -284,6 +353,14 @@ const convertHTMLToOOXML = (htmlContent) => {
     }
     isFirstPage = false;
     
+    // First, handle standalone images
+    const images = part.match(/<img[^>]*>/gis) || [];
+    images.forEach(img => {
+      ooxml += convertImageToOOXML(img, extractedImages.length);
+      // Remove processed image from part
+      part = part.replace(img, '');
+    });
+    
     // Extract paragraphs, but also handle plain text
     const paragraphs = part.match(/<p[^>]*>(.*?)<\/p>/gis) || [];
     
@@ -299,6 +376,14 @@ const convertHTMLToOOXML = (htmlContent) => {
       paragraphs.forEach(paragraph => {
         const alignment = getAlignmentXml(paragraph);
         let content = paragraph.replace(/<p[^>]*>|<\/p>/gi, '');
+        
+        // Check for images within paragraphs
+        const paragraphImages = content.match(/<img[^>]*>/gis) || [];
+        paragraphImages.forEach(img => {
+          // Replace image with drawing element
+          const imgDrawing = convertImageToOOXML(img, extractedImages.length - 1).replace(/<w:p[^>]*>|<\/w:p>/gi, '').replace(/<w:pPr>.*?<\/w:pPr>/gi, '');
+          content = content.replace(img, imgDrawing);
+        });
 
         // Build paragraph with properties (alignment and/or spacing)
         let pPr = '';
@@ -365,7 +450,7 @@ const convertHTMLToOOXML = (htmlContent) => {
   </w:body>
 </w:document>`;
   
-  return ooxml;
+  return { ooxml, images: extractedImages };
 };
 
 // Escape XML special characters inside text nodes
@@ -380,15 +465,21 @@ const escapeXml = (unsafe) => {
 };
 
 // DOCX XML Templates
-const getContentTypesXml = () => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+const getContentTypesXml = (images = []) => {
+  let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
+  <Default Extension="png" ContentType="image/png"/>
+  <Default Extension="jpg" ContentType="image/jpeg"/>
+  <Default Extension="jpeg" ContentType="image/jpeg"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
   <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
   <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
   <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
 </Types>`;
+  return xml;
+};
 
 const getRelsXml = () => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
@@ -397,10 +488,20 @@ const getRelsXml = () => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?
   <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
 </Relationships>`;
 
-const getDocumentRelsXml = () => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+const getDocumentRelsXml = (images = []) => {
+  let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`;
+  
+  images.forEach((img, index) => {
+    xml += `
+  <Relationship Id="rId${index + 2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image${index + 1}.${img.ext}"/>`;
+  });
+  
+  xml += `
 </Relationships>`;
+  return xml;
+};
 
 const getAppPropsXml = () => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">
