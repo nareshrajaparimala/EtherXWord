@@ -152,21 +152,15 @@ const Home = () => {
     setFavoriteDocuments(favorites);
   };
   
-  const fetchTrashDocuments = async () => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/trash`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setTrashDocuments(data);
-      }
-    } catch (error) {
-      console.error('Error fetching trash documents:', error);
-    }
+  const fetchTrashDocuments = () => {
+    const trashDocs = JSON.parse(localStorage.getItem('trashDocuments') || '[]');
+    setTrashDocuments(trashDocs.map(doc => ({
+      _id: doc.id || doc._id,
+      title: doc.title,
+      content: doc.content,
+      deletedAt: doc.deletedAt,
+      wordCount: doc.wordCount
+    })));
   };
   
   const toggleFavorite = (docId, event) => {
@@ -194,72 +188,55 @@ const Home = () => {
     }
   };
   
-  const moveToTrash = async (docId) => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${docId}/trash`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        }
-      });
+  const moveToTrash = (docId) => {
+    const savedDocs = JSON.parse(localStorage.getItem('documents') || '[]');
+    const docIndex = savedDocs.findIndex(d => d.id === docId || d._id === docId);
+    
+    if (docIndex >= 0) {
+      const deletedDoc = { ...savedDocs[docIndex], deletedAt: new Date().toISOString() };
+      savedDocs.splice(docIndex, 1);
+      localStorage.setItem('documents', JSON.stringify(savedDocs));
       
-      if (response.ok) {
-  showNotification('Document moved to Recycle Bin (will be deleted in 1 hour)', 'success');
-        
-        // Refresh current section
-        if (selectedSection === 'All Documents') fetchUserDocuments();
-        if (selectedSection === 'Favorites') fetchFavoriteDocuments();
-        if (selectedSection === 'Quick Access') loadRecentDocuments();
-      } else {
-  showNotification('Failed to move document to Recycle Bin', 'error');
-      }
-    } catch (error) {
-  console.error('Error moving to trash:', error);
-  showNotification('Error moving document to Recycle Bin', 'error');
+      const trashDocs = JSON.parse(localStorage.getItem('trashDocuments') || '[]');
+      trashDocs.push(deletedDoc);
+      localStorage.setItem('trashDocuments', JSON.stringify(trashDocs));
+      
+      showNotification('Document moved to Recycle Bin', 'success');
+      
+      // Refresh current section
+      if (selectedSection === 'All Documents') fetchUserDocuments();
+      if (selectedSection === 'Favorites') fetchFavoriteDocuments();
+      if (selectedSection === 'Quick Access') loadRecentDocuments();
     }
   };
   
-  const restoreFromTrash = async (docId) => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${docId}/restore`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        }
-      });
+  const restoreFromTrash = (docId) => {
+    const trashDocs = JSON.parse(localStorage.getItem('trashDocuments') || '[]');
+    const docIndex = trashDocs.findIndex(d => d.id === docId || d._id === docId);
+    
+    if (docIndex >= 0) {
+      const restoredDoc = { ...trashDocs[docIndex] };
+      delete restoredDoc.deletedAt;
+      trashDocs.splice(docIndex, 1);
+      localStorage.setItem('trashDocuments', JSON.stringify(trashDocs));
       
-      if (response.ok) {
-  showNotification('Document restored successfully', 'success');
-        fetchTrashDocuments();
-      } else {
-        showNotification('Failed to restore document', 'error');
-      }
-    } catch (error) {
-  console.error('Error restoring from trash:', error);
-  showNotification('Error restoring document', 'error');
+      const savedDocs = JSON.parse(localStorage.getItem('documents') || '[]');
+      savedDocs.push(restoredDoc);
+      localStorage.setItem('documents', JSON.stringify(savedDocs));
+      
+      showNotification('Document restored successfully', 'success');
+      fetchTrashDocuments();
     }
   };
   
-  const permanentlyDelete = async (docId) => {
+  const permanentlyDelete = (docId) => {
     if (window.confirm('Are you sure? This action cannot be undone.')) {
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/${docId}/permanent`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-          }
-        });
-        
-        if (response.ok) {
-          showNotification('Document permanently deleted', 'success');
-          fetchTrashDocuments();
-        } else {
-          showNotification('Failed to delete document permanently', 'error');
-        }
-      } catch (error) {
-        console.error('Error permanently deleting:', error);
-        showNotification('Error deleting document permanently', 'error');
-      }
+      const trashDocs = JSON.parse(localStorage.getItem('trashDocuments') || '[]');
+      const filteredDocs = trashDocs.filter(d => d.id !== docId && d._id !== docId);
+      localStorage.setItem('trashDocuments', JSON.stringify(filteredDocs));
+      
+      showNotification('Document permanently deleted', 'success');
+      fetchTrashDocuments();
     }
   };
   
