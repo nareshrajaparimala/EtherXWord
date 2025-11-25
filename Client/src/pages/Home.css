@@ -12,7 +12,7 @@
   min-height: 100vh;
   background:
     radial-gradient(circle at 12% 20%, rgba(255, 207, 64, 0.15), transparent 45%),
-    radial-gradient(circle at 88% 80%, rgba(67, 97, 238, 0.18), transparent 55%),
+    radial-gradient(circle at 88% 80%, rgba(255, 207, 64, 0.18), transparent 55%),
     linear-gradient(135deg, #030303 0%, #090909 45%, #020202 100%);
   overflow: hidden;
   animation: fadeIn 0.8s ease-out;
@@ -24,7 +24,7 @@
 [data-theme="light"] .home-container {
   background:
     radial-gradient(circle at 15% 25%, rgba(255, 227, 170, 0.55), transparent 55%),
-    radial-gradient(circle at 82% 78%, rgba(184, 198, 255, 0.45), transparent 60%),
+    radial-gradient(circle at 82% 78%, rgba(255, 207, 64, 0.45), transparent 60%),
     linear-gradient(135deg, #f6f8ff 0%, #eef2ff 45%, #ffffff 100%);
 }
 
@@ -33,7 +33,7 @@
 }
 
 [data-theme="light"] .home-container::after {
-  background: radial-gradient(circle, rgba(173, 192, 255, 0.45), transparent 70%);
+  background: radial-gradient(circle, rgba(255, 207, 64, 0.45), transparent 70%);
 }
 
 .home-container::before,
@@ -57,7 +57,7 @@
 }
 
 .home-container::after {
-  background: radial-gradient(circle, rgba(67, 97, 238, 0.35), transparent 75%);
+  background: radial-gradient(circle, rgba(255, 207, 64, 0.35), transparent 75%);
   bottom: -250px;
   right: -180px;
   animation-delay: 4s;
@@ -466,7 +466,7 @@
 }
 
 [data-theme="light"] .workspace-section::after {
-  background: radial-gradient(circle, rgba(126, 180, 255, 0.4), transparent 70%);
+  background: radial-gradient(circle, rgba(255, 207, 64, 0.4), transparent 70%);
 }
 
 .workspace-section::before,
@@ -876,7 +876,7 @@
   right: 0;
   bottom: 0;
   background: radial-gradient(circle at 20% 20%, rgba(255, 215, 64, 0.18), transparent 55%),
-    radial-gradient(circle at 80% 80%, rgba(67, 97, 238, 0.2), transparent 60%),
+    radial-gradient(circle at 80% 80%, rgba(255, 207, 64, 0.2), transparent 60%),
     rgba(0, 0, 0, 0.72);
   display: flex;
   align-items: center;
@@ -905,7 +905,7 @@
 }
 
 .loading-overlay::after {
-  background: rgba(67, 97, 238, 0.4);
+  background: rgba(255, 207, 64, 0.4);
   bottom: -220px;
   right: -150px;
   animation-delay: 2.5s;
@@ -913,7 +913,7 @@
 
 [data-theme="light"] .loading-overlay {
   background: radial-gradient(circle at 20% 20%, rgba(255, 215, 90, 0.4), transparent 55%),
-    radial-gradient(circle at 80% 80%, rgba(107, 142, 255, 0.3), transparent 60%),
+    radial-gradient(circle at 80% 80%, rgba(255, 207, 64, 0.3), transparent 60%),
     rgba(255, 255, 255, 0.9);
 }
 
