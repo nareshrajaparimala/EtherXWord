@@ -41,6 +41,7 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const [headerText, setHeaderText] = useState('');
   const [footerText, setFooterText] = useState('');
   const [pageNumberPosition, setPageNumberPosition] = useState('bottom-center');
+  const [showSymbolsPopup, setShowSymbolsPopup] = useState(false);
   const canvasRef = useRef(null);
   const textColorRef = useRef(null);
   const bgColorRef = useRef(null);
@@ -50,6 +51,7 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const linkRef = useRef(null);
   const headerFooterRef = useRef(null);
   const pageNumberRef = useRef(null);
+  const symbolsRef = useRef(null);
 
   useEffect(() => {
     if (selectedToolProp && selectedToolProp !== selectedTool) {
@@ -83,6 +85,9 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
       }
       if (pageNumberRef.current && !pageNumberRef.current.contains(event.target)) {
         setShowPageNumberPopup(false);
+      }
+      if (symbolsRef.current && !symbolsRef.current.contains(event.target)) {
+        setShowSymbolsPopup(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -423,6 +428,17 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                   <span className="btn-label">Page Numbers</span>
                 </button>
               </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section" ref={symbolsRef}>
+                <button className="etb-btn etb-btn-vertical" onClick={() => setShowSymbolsPopup(true)} title="Symbols - Insert symbols and special characters">
+                  <i className="ri-omega"></i>
+                  <span className="btn-label">Symbols</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('insertEquation')} title="Equations - Insert mathematical equations">
+                  <i className="ri-functions"></i>
+                  <span className="btn-label">Equations</span>
+                </button>
+              </div>
             </div>
             {showDrawing && (
               <div className="drawing-overlay">
@@ -731,6 +747,60 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                       setShowTablePopup(false); 
                     }}>Insert Table</button>
                     <button onClick={() => { setShowTablePopup(false); }}>Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {showSymbolsPopup && (
+              <div className="drawing-overlay" onClick={() => setShowSymbolsPopup(false)}>
+                <div className="drawing-canvas-container" style={{width: '600px', height: '500px'}} onClick={(e) => e.stopPropagation()}>
+                  <div className="drawing-header">
+                    <h3>Insert Symbols</h3>
+                    <button onClick={() => setShowSymbolsPopup(false)} className="close-btn">×</button>
+                  </div>
+                  <div className="popup-content" style={{padding: '20px'}}>
+                    <div className="input-group" style={{marginBottom: '20px'}}>
+                      <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#000'}}>Click a symbol to insert:</label>
+                      <div style={{display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: '8px', maxHeight: '350px', overflowY: 'auto', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', background: '#f9f9f9'}}>
+                        {['•', '€', '£', '¥', '©', '®', '™', '±', '≠', '≤', '≥', '÷', '×', '∞', 'μ', 'α', 'β', 'π', 'Ω', 'Σ', '°', 'Δ', '☺', '♥', '₹', '¿', '¡', '—', '…', 'À', 'Á', 'Â', 'Ã', 'Ç', 'È', 'É', 'Ê', 'Ë', 'Ì', 'Í', 'Î', 'Ï', 'Ñ', 'Ò', 'Ó', 'Ô', 'Õ', 'Ö', 'Ù', 'Ú', 'Û', 'Ü', 'ß', 'à', 'á', 'â', 'ã', 'ä', 'å', 'æ', 'ç', 'è', 'é', 'ê', 'ë', 'ì', 'í', 'î', 'ï', 'ñ', 'ò', 'ó', 'ô', 'õ', 'ö', 'ù', 'ú', 'û', 'ü', 'ÿ', 'Ğ', 'ğ', 'İ', 'ı', 'Œ', 'œ', 'Ş', 'ş', 'Ÿ'].map((symbol, index) => (
+                          <button 
+                            key={index}
+                            onClick={() => { apply('insertSymbol', symbol); setShowSymbolsPopup(false); }}
+                            style={{
+                              padding: '10px', 
+                              fontSize: '18px', 
+                              border: '1px solid #ccc', 
+                              borderRadius: '4px', 
+                              background: 'white', 
+                              color: '#000',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              minHeight: '40px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.background = '#e6f3ff';
+                              e.target.style.borderColor = '#007acc';
+                              e.target.style.transform = 'scale(1.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.background = 'white';
+                              e.target.style.borderColor = '#ccc';
+                              e.target.style.transform = 'scale(1)';
+                            }}
+                            title={`Insert ${symbol}`}
+                          >
+                            {symbol}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="drawing-actions">
+                    <button onClick={() => { setShowSymbolsPopup(false); }}>Close</button>
                   </div>
                 </div>
               </div>
