@@ -601,25 +601,63 @@ Keyboard Shortcuts:
               } else if (cmd === 'redo') {
                 document.execCommand('redo');
               } else if (cmd === 'bulletStyleDisc') {
-                document.execCommand('insertUnorderedList');
                 const selection = window.getSelection();
-                if (selection.anchorNode) {
-                  const listElement = selection.anchorNode.closest ? selection.anchorNode.closest('ul') : null;
-                  if (listElement) listElement.style.listStyleType = 'disc';
+                if (selection.rangeCount > 0) {
+                  // First create or get the list
+                  document.execCommand('insertUnorderedList');
+                  
+                  // Wait a moment for the DOM to update, then apply style
+                  setTimeout(() => {
+                    const newSelection = window.getSelection();
+                    if (newSelection.anchorNode) {
+                      let listElement = newSelection.anchorNode.closest('ul');
+                      if (!listElement && newSelection.anchorNode.parentElement) {
+                        listElement = newSelection.anchorNode.parentElement.closest('ul');
+                      }
+                      if (listElement) {
+                        listElement.style.listStyleType = 'disc';
+                        listElement.style.paddingLeft = '20px';
+                      }
+                    }
+                  }, 10);
                 }
               } else if (cmd === 'bulletStyleCircle') {
-                document.execCommand('insertUnorderedList');
                 const selection = window.getSelection();
-                if (selection.anchorNode) {
-                  const listElement = selection.anchorNode.closest ? selection.anchorNode.closest('ul') : null;
-                  if (listElement) listElement.style.listStyleType = 'circle';
+                if (selection.rangeCount > 0) {
+                  document.execCommand('insertUnorderedList');
+                  
+                  setTimeout(() => {
+                    const newSelection = window.getSelection();
+                    if (newSelection.anchorNode) {
+                      let listElement = newSelection.anchorNode.closest('ul');
+                      if (!listElement && newSelection.anchorNode.parentElement) {
+                        listElement = newSelection.anchorNode.parentElement.closest('ul');
+                      }
+                      if (listElement) {
+                        listElement.style.listStyleType = 'circle';
+                        listElement.style.paddingLeft = '20px';
+                      }
+                    }
+                  }, 10);
                 }
               } else if (cmd === 'bulletStyleSquare') {
-                document.execCommand('insertUnorderedList');
                 const selection = window.getSelection();
-                if (selection.anchorNode) {
-                  const listElement = selection.anchorNode.closest ? selection.anchorNode.closest('ul') : null;
-                  if (listElement) listElement.style.listStyleType = 'square';
+                if (selection.rangeCount > 0) {
+                  document.execCommand('insertUnorderedList');
+                  
+                  setTimeout(() => {
+                    const newSelection = window.getSelection();
+                    if (newSelection.anchorNode) {
+                      let listElement = newSelection.anchorNode.closest('ul');
+                      if (!listElement && newSelection.anchorNode.parentElement) {
+                        listElement = newSelection.anchorNode.parentElement.closest('ul');
+                      }
+                      if (listElement) {
+                        listElement.style.listStyleType = 'square';
+                        listElement.style.paddingLeft = '20px';
+                      }
+                    }
+                  }, 10);
                 }
               } else if (cmd === 'createNestedBullet') {
                 const selection = window.getSelection();

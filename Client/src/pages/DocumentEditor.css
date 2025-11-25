@@ -381,6 +381,35 @@
   padding-left: 24px;
 }
 
+/* Ensure bullet styles are visible */
+.editor-content ul {
+  list-style-position: outside;
+}
+
+.editor-content ul[style*="list-style-type: disc"] {
+  list-style-type: disc !important;
+}
+
+.editor-content ul[style*="list-style-type: circle"] {
+  list-style-type: circle !important;
+}
+
+.editor-content ul[style*="list-style-type: square"] {
+  list-style-type: none !important;
+}
+
+.editor-content ul[style*="list-style-type: square"] li::before {
+  content: "■";
+  color: inherit;
+  margin-right: 8px;
+  margin-left: -20px;
+}
+
+.editor-content li {
+  margin: 4px 0;
+  padding-left: 4px;
+}
+
 .editor-content img {
   max-width: 100%;
   height: auto;
