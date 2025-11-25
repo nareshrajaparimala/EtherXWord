@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './EditorToolBox.css';
 
-const categories = ['File','Home','Insert','Layout','References','Review','View','Help','Formatting','Alignment'];
+const categories = ['File','Home','Insert','Layout','References','Review','View','Help','Alignment'];
 
 const presetColors = [
   '#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF',
@@ -16,8 +16,28 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const [currentBgColor, setCurrentBgColor] = useState('#ffff00');
   const [customTextColor, setCustomTextColor] = useState('#000000');
   const [customBgColor, setCustomBgColor] = useState('#ffff00');
+  const [showFindReplace, setShowFindReplace] = useState(false);
+  const [findText, setFindText] = useState('');
+  const [replaceText, setReplaceText] = useState('');
+  const [showTablePopup, setShowTablePopup] = useState(false);
+  const [tableRows, setTableRows] = useState(3);
+  const [tableCols, setTableCols] = useState(3);
+  const [showImagePopup, setShowImagePopup] = useState(false);
+  const [showDrawing, setShowDrawing] = useState(false);
+  const [showLinkPopup, setShowLinkPopup] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkText, setLinkText] = useState('');
+  const [drawingTool, setDrawingTool] = useState('pen');
+  const [drawingColor, setDrawingColor] = useState('#000000');
+  const [brushSize, setBrushSize] = useState(2);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const canvasRef = useRef(null);
   const textColorRef = useRef(null);
   const bgColorRef = useRef(null);
+  const findReplaceRef = useRef(null);
+  const tableRef = useRef(null);
+  const imageRef = useRef(null);
+  const linkRef = useRef(null);
 
   useEffect(() => {
     if (selectedToolProp && selectedToolProp !== selectedTool) {
@@ -32,6 +52,18 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
       }
       if (bgColorRef.current && !bgColorRef.current.contains(event.target)) {
         setShowBgColorPicker(false);
+      }
+      if (findReplaceRef.current && !findReplaceRef.current.contains(event.target)) {
+        setShowFindReplace(false);
+      }
+      if (tableRef.current && !tableRef.current.contains(event.target)) {
+        setShowTablePopup(false);
+      }
+      if (imageRef.current && !imageRef.current.contains(event.target)) {
+        setShowImagePopup(false);
+      }
+      if (linkRef.current && !linkRef.current.contains(event.target)) {
+        setShowLinkPopup(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -65,27 +97,62 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
       </div>
 
       <div className="etb-content">
-        {(selectedTool === 'Home' || selectedTool === 'Formatting') && (
+        {selectedTool === 'Home' && (
           <>
             <div className="etb-row">
               <div className="etb-section">
-                <button className="etb-btn etb-btn-small" onClick={() => apply('bold')} title="Bold (Ctrl+B)"><strong>B</strong></button>
-                <button className="etb-btn etb-btn-small" onClick={() => apply('italic')} title="Italic (Ctrl+I)"><em>I</em></button>
-                <button className="etb-btn etb-btn-small" onClick={() => apply('underline')} title="Underline (Ctrl+U)"><u>U</u></button>
-                <button className="etb-btn etb-btn-small" onClick={() => apply('strikeThrough')} title="Strikethrough"><s>S</s></button>
-                <button className="etb-btn etb-btn-small" onClick={() => apply('superscript')} title="Superscript">X<sup>2</sup></button>
-                <button className="etb-btn etb-btn-small" onClick={() => apply('subscript')} title="Subscript">X<sub>2</sub></button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('undo')} title="Undo - Reverses the last action (Ctrl+Z)">
+                  <i className="ri-arrow-go-back-line"></i>
+                </button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('redo')} title="Redo - Restores the last undone action (Ctrl+Y)">
+                  <i className="ri-arrow-go-forward-line"></i>
+                </button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('refresh')} title="Refresh - Reloads the document content (F5)">
+                  <i className="ri-refresh-line"></i>
+                </button>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section">
+                <button className="etb-btn etb-btn-small" onClick={() => apply('cut')} title="Cut - Removes selected content to clipboard (Ctrl+X)">
+                  <i className="ri-scissors-line"></i>
+                </button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('copy')} title="Copy - Copies selected content to clipboard (Ctrl+C)">
+                  <i className="ri-file-copy-line"></i>
+                </button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('paste')} title="Paste - Inserts clipboard content (Ctrl+V)">
+                  <i className="ri-clipboard-line"></i>
+                </button>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section">
+                <button className="etb-btn etb-btn-small" onClick={() => apply('bold')} title="Bold - Makes text bold (Ctrl+B)"><strong>B</strong></button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('italic')} title="Italic - Makes text italic (Ctrl+I)"><em>I</em></button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('underline')} title="Underline - Underlines text (Ctrl+U)"><u>U</u></button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('strikeThrough')} title="Strikethrough - Crosses out text"><s>S</s></button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('superscript')} title="Superscript - Raises text above baseline">X<sup>2</sup></button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('subscript')} title="Subscript - Lowers text below baseline">X<sub>2</sub></button>
               </div>
               <div className="etb-divider"></div>
               <div className="etb-section etb-font-section">
                 <label className="etb-label">Font</label>
-                <select className="etb-select etb-select-small etb-select-hover" value={currentFormat?.fontFamily || 'Georgia'} onChange={(e) => apply('fontName', e.target.value)} title="Change font family">
+                <select className="etb-select etb-select-small" value={currentFormat?.fontFamily || 'Georgia'} onChange={(e) => apply('fontName', e.target.value)} title="Change font family">
                   <option>Georgia</option>
                   <option>Arial</option>
                   <option>Times New Roman</option>
                   <option>Calibri</option>
+                  <option>Helvetica</option>
+                  <option>Verdana</option>
+                  <option>Tahoma</option>
+                  <option>Trebuchet MS</option>
+                  <option>Arial Black</option>
+                  <option>Impact</option>
+                  <option>Comic Sans MS</option>
+                  <option>Courier New</option>
+                  <option>Lucida Console</option>
+                  <option>Palatino</option>
+                  <option>Garamond</option>
                 </select>
-                <select className="etb-select etb-select-small etb-select-hover" value={currentFormat?.fontSize || '12pt'} onChange={(e) => apply('fontSize', e.target.value)} title="Change font size">
+                <select className="etb-select etb-select-small" value={currentFormat?.fontSize || '12pt'} onChange={(e) => apply('fontSize', e.target.value)} title="Change font size">
                   <option>8pt</option>
                   <option>10pt</option>
                   <option>12pt</option>
@@ -185,6 +252,81 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                   )}
                 </div>
               </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section etb-styles-section">
+                <label className="etb-label">Styles</label>
+                <select className="etb-select etb-select-small" onChange={(e) => apply('applyTextStyle', e.target.value)} title="Apply text style">
+                  <option value="">Select Style</option>
+                  <option value="heading1">Heading 1</option>
+                  <option value="heading2">Heading 2</option>
+                  <option value="heading3">Heading 3</option>
+                  <option value="heading4">Heading 4</option>
+                  <option value="title">Title</option>
+                  <option value="subtitle">Subtitle</option>
+                  <option value="body">Body Text</option>
+                  <option value="paragraph">Paragraph</option>
+                  <option value="quote">Quote</option>
+                  <option value="code">Code</option>
+                  <option value="caption">Caption</option>
+                  <option value="emphasis">Emphasis</option>
+                </select>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section etb-bullet-section">
+                <button className="etb-btn etb-btn-small" onClick={() => apply('insertUnorderedList')} title="Bullet List - Creates unordered list with bullet points">
+                  <i className="ri-list-unordered"></i>
+                </button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('insertOrderedList')} title="Numbered List - Creates ordered list with numbers">
+                  <i className="ri-list-ordered"></i>
+                </button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('bulletStyleDisc')} title="Disc Bullets - Solid circle bullet style">•</button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('bulletStyleCircle')} title="Circle Bullets - Hollow circle bullet style">○</button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('bulletStyleSquare')} title="Square Bullets - Square bullet style">■</button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('createNestedBullet')} title="Nested Bullet - Creates indented sub-bullet">⤷•</button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('indent')} title="Increase Indent - Moves text further right (Tab)">
+                  <i className="ri-indent-increase"></i>
+                </button>
+                <button className="etb-btn etb-btn-small" onClick={() => apply('outdent')} title="Decrease Indent - Moves text further left (Shift+Tab)">
+                  <i className="ri-indent-decrease"></i>
+                </button>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section etb-find-section" ref={findReplaceRef}>
+                <button className="etb-btn etb-btn-small" onClick={() => setShowFindReplace(!showFindReplace)} title="Find - Search for text in document (Ctrl+F)">
+                  <i className="ri-search-line"></i>
+                </button>
+                {showFindReplace && (
+                  <div className="find-replace-popup">
+                    <div className="find-replace-header">
+                      <h4>Find & Replace</h4>
+                      <button onClick={() => setShowFindReplace(false)} className="close-btn">×</button>
+                    </div>
+                    <div className="find-replace-content">
+                      <div className="input-group">
+                        <label>Find:</label>
+                        <input
+                          type="text"
+                          value={findText}
+                          onChange={(e) => setFindText(e.target.value)}
+                          placeholder="Enter text to find"
+                        />
+                        <button onClick={() => apply('findNext', findText)} disabled={!findText}>Find Next</button>
+                      </div>
+                      <div className="input-group">
+                        <label>Replace:</label>
+                        <input
+                          type="text"
+                          value={replaceText}
+                          onChange={(e) => setReplaceText(e.target.value)}
+                          placeholder="Enter replacement text"
+                        />
+                        <button onClick={() => apply('replaceOne', { find: findText, replace: replaceText })} disabled={!findText}>Replace</button>
+                        <button onClick={() => apply('replaceAll', { find: findText, replace: replaceText })} disabled={!findText}>Replace All</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </>
         )}
@@ -199,11 +341,241 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
         )}
 
         {selectedTool === 'Insert' && (
-          <div className="etb-row">
-            <button className="etb-btn" onClick={() => apply('insertParagraph')} title="Insert paragraph">Paragraph</button>
-            <button className="etb-btn" onClick={() => apply('insertPageBreak')} title="Insert page break">Page Break</button>
-            <button className="etb-btn" onClick={() => apply('insertImage')} title="Insert image">Image</button>
-          </div>
+          <>
+            <div className="etb-row">
+              <div className="etb-section">
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('insertPageBreak')} title="Page Break - Inserts a page break">
+                  <i className="ri-file-paper-line"></i>
+                  <span className="btn-label">Page Break</span>
+                </button>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section" ref={tableRef}>
+                <button className="etb-btn etb-btn-vertical" onClick={() => setShowTablePopup(!showTablePopup)} title="Table - Insert a table">
+                  <i className="ri-table-line"></i>
+                  <span className="btn-label">Table</span>
+                </button>
+                {showTablePopup && (
+                  <div className="insert-popup">
+                    <div className="popup-header">
+                      <h4>Insert Table</h4>
+                      <button onClick={() => setShowTablePopup(false)} className="close-btn">×</button>
+                    </div>
+                    <div className="popup-content">
+                      <div className="input-group">
+                        <label>Rows:</label>
+                        <input type="number" min="1" max="20" value={tableRows} onChange={(e) => setTableRows(e.target.value)} />
+                      </div>
+                      <div className="input-group">
+                        <label>Columns:</label>
+                        <input type="number" min="1" max="10" value={tableCols} onChange={(e) => setTableCols(e.target.value)} />
+                      </div>
+                      <div className="popup-actions">
+                        <button onClick={() => { apply('insertTable', { rows: tableRows, cols: tableCols }); setShowTablePopup(false); }}>Insert</button>
+                        <button onClick={() => setShowTablePopup(false)}>Cancel</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section" ref={imageRef}>
+                <button className="etb-btn etb-btn-vertical" onClick={() => setShowImagePopup(!showImagePopup)} title="Image - Insert image">
+                  <i className="ri-image-line"></i>
+                  <span className="btn-label">Image</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => setShowDrawing(true)} title="Drawing - Open drawing tool">
+                  <i className="ri-brush-line"></i>
+                  <span className="btn-label">Drawing</span>
+                </button>
+                {showImagePopup && (
+                  <div className="insert-popup">
+                    <div className="popup-header">
+                      <h4>Insert Image</h4>
+                      <button onClick={() => setShowImagePopup(false)} className="close-btn">×</button>
+                    </div>
+                    <div className="popup-content">
+                      <button onClick={() => { apply('insertImageFile'); setShowImagePopup(false); }} className="image-option">
+                        <i className="ri-folder-line"></i> From Computer
+                      </button>
+                      <button onClick={() => { apply('insertImageUrl'); setShowImagePopup(false); }} className="image-option">
+                        <i className="ri-link"></i> From URL
+                      </button>
+                      <button onClick={() => { apply('insertImageStock'); setShowImagePopup(false); }} className="image-option">
+                        <i className="ri-gallery-line"></i> Stock Images
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section" ref={linkRef}>
+                <button className="etb-btn etb-btn-vertical" onClick={() => setShowLinkPopup(!showLinkPopup)} title="Link - Insert hyperlink">
+                  <i className="ri-link"></i>
+                  <span className="btn-label">Link</span>
+                </button>
+                {showLinkPopup && (
+                  <div className="insert-popup">
+                    <div className="popup-header">
+                      <h4>Insert Link</h4>
+                      <button onClick={() => setShowLinkPopup(false)} className="close-btn">×</button>
+                    </div>
+                    <div className="popup-content">
+                      <div className="input-group">
+                        <label>URL:</label>
+                        <input type="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://example.com" />
+                      </div>
+                      <div className="input-group">
+                        <label>Text:</label>
+                        <input type="text" value={linkText} onChange={(e) => setLinkText(e.target.value)} placeholder="Link text" />
+                      </div>
+                      <div className="popup-actions">
+                        <button onClick={() => { apply('insertLink', { url: linkUrl, text: linkText }); setShowLinkPopup(false); setLinkUrl(''); setLinkText(''); }} disabled={!linkUrl}>Insert</button>
+                        <button onClick={() => { setShowLinkPopup(false); setLinkUrl(''); setLinkText(''); }}>Cancel</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            {showDrawing && (
+              <div className="drawing-overlay">
+                <div className="drawing-canvas-container">
+                  <div className="drawing-header">
+                    <h3>Drawing Tool</h3>
+                    <button onClick={() => setShowDrawing(false)} className="close-btn">×</button>
+                  </div>
+                  <div className="drawing-tools">
+                    <button 
+                      className={drawingTool === 'pen' ? 'active' : ''} 
+                      onClick={() => setDrawingTool('pen')} 
+                      title="Pen"
+                    >
+                      <i className="ri-pencil-line"></i>
+                    </button>
+                    <button 
+                      className={drawingTool === 'brush' ? 'active' : ''} 
+                      onClick={() => setDrawingTool('brush')} 
+                      title="Brush"
+                    >
+                      <i className="ri-brush-line"></i>
+                    </button>
+                    <button 
+                      className={drawingTool === 'eraser' ? 'active' : ''} 
+                      onClick={() => setDrawingTool('eraser')} 
+                      title="Eraser"
+                    >
+                      <i className="ri-eraser-line"></i>
+                    </button>
+                    <button 
+                      className={drawingTool === 'line' ? 'active' : ''} 
+                      onClick={() => setDrawingTool('line')} 
+                      title="Line"
+                    >
+                      <i className="ri-subtract-line"></i>
+                    </button>
+                    <button 
+                      className={drawingTool === 'rectangle' ? 'active' : ''} 
+                      onClick={() => setDrawingTool('rectangle')} 
+                      title="Rectangle"
+                    >
+                      <i className="ri-rectangle-line"></i>
+                    </button>
+                    <button 
+                      className={drawingTool === 'circle' ? 'active' : ''} 
+                      onClick={() => setDrawingTool('circle')} 
+                      title="Circle"
+                    >
+                      <i className="ri-circle-line"></i>
+                    </button>
+                    <input 
+                      type="color" 
+                      value={drawingColor} 
+                      onChange={(e) => setDrawingColor(e.target.value)} 
+                      title="Color" 
+                    />
+                    <input 
+                      type="range" 
+                      min="1" 
+                      max="20" 
+                      value={brushSize} 
+                      onChange={(e) => setBrushSize(e.target.value)} 
+                      title="Brush Size" 
+                    />
+                    <span className="brush-size-label">{brushSize}px</span>
+                  </div>
+                  <canvas 
+                    ref={canvasRef}
+                    width="600" 
+                    height="400" 
+                    style={{border: '1px solid #ccc', background: 'white', cursor: 'crosshair'}}
+                    onMouseDown={(e) => {
+                      setIsDrawing(true);
+                      const canvas = canvasRef.current;
+                      const rect = canvas.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      const y = e.clientY - rect.top;
+                      const ctx = canvas.getContext('2d');
+                      
+                      if (drawingTool === 'pen' || drawingTool === 'brush') {
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                      }
+                    }}
+                    onMouseMove={(e) => {
+                      if (!isDrawing) return;
+                      const canvas = canvasRef.current;
+                      const rect = canvas.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      const y = e.clientY - rect.top;
+                      const ctx = canvas.getContext('2d');
+                      
+                      ctx.lineWidth = brushSize;
+                      ctx.lineCap = 'round';
+                      
+                      if (drawingTool === 'pen') {
+                        ctx.globalCompositeOperation = 'source-over';
+                        ctx.strokeStyle = drawingColor;
+                        ctx.lineTo(x, y);
+                        ctx.stroke();
+                      } else if (drawingTool === 'brush') {
+                        ctx.globalCompositeOperation = 'source-over';
+                        ctx.strokeStyle = drawingColor;
+                        ctx.lineWidth = brushSize * 2;
+                        ctx.lineTo(x, y);
+                        ctx.stroke();
+                      } else if (drawingTool === 'eraser') {
+                        ctx.globalCompositeOperation = 'destination-out';
+                        ctx.lineWidth = brushSize * 3;
+                        ctx.lineTo(x, y);
+                        ctx.stroke();
+                      }
+                    }}
+                    onMouseUp={() => setIsDrawing(false)}
+                    onMouseLeave={() => setIsDrawing(false)}
+                  ></canvas>
+                  <div className="drawing-actions">
+                    <button onClick={() => {
+                      const canvas = canvasRef.current;
+                      if (canvas) {
+                        const dataURL = canvas.toDataURL();
+                        apply('insertDrawing', dataURL);
+                        setShowDrawing(false);
+                      }
+                    }}>Insert Drawing</button>
+                    <button onClick={() => {
+                      const canvas = canvasRef.current;
+                      if (canvas) {
+                        const ctx = canvas.getContext('2d');
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                      }
+                    }}>Clear</button>
+                    <button onClick={() => setShowDrawing(false)}>Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {selectedTool === 'File' && (

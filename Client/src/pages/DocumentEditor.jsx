@@ -246,7 +246,7 @@ const DocumentEditor = () => {
               autoFocus
             />
           ) : (
-            <h1 className="document-title" onClick={() => setIsEditing(true)}>
+            <h1 className="document-title">
               {documentTitle}
             </h1>
           )}
@@ -303,11 +303,213 @@ const DocumentEditor = () => {
                 }
               } else if (cmd === 'insertPageBreak') {
                 insertPageBreak();
+              } else if (cmd === 'insertTable') {
+                if (value && value.rows && value.cols) {
+                  let tableHTML = '<table border="1" style="border-collapse: collapse; width: 100%; margin: 10px 0;">';
+                  for (let i = 0; i < value.rows; i++) {
+                    tableHTML += '<tr>';
+                    for (let j = 0; j < value.cols; j++) {
+                      tableHTML += '<td style="padding: 8px; border: 1px solid #ccc;">&nbsp;</td>';
+                    }
+                    tableHTML += '</tr>';
+                  }
+                  tableHTML += '</table>';
+                  document.execCommand('insertHTML', false, tableHTML);
+                }
+              } else if (cmd === 'insertImageFile') {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = (e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      document.execCommand('insertImage', false, event.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                };
+                input.click();
+              } else if (cmd === 'insertImageUrl') {
+                const url = window.prompt('Enter image URL:');
+                if (url) document.execCommand('insertImage', false, url);
+              } else if (cmd === 'insertImageStock') {
+                showNotification('Stock images feature coming soon!', 'info');
+              } else if (cmd === 'insertLink') {
+                if (value && value.url) {
+                  const linkHTML = `<a href="${value.url}" target="_blank">${value.text || value.url}</a>`;
+                  document.execCommand('insertHTML', false, linkHTML);
+                }
+              } else if (cmd === 'drawingTool') {
+                // Drawing tool functionality would be implemented here
+                console.log('Drawing tool:', value);
+              } else if (cmd === 'insertDrawing') {
+                if (value) {
+                  document.execCommand('insertImage', false, value);
+                  showNotification('Drawing inserted successfully!', 'success');
+                }
               } else if (cmd === 'insertParagraph') {
                 document.execCommand('insertHTML', false, '<p></p>');
               } else if (cmd === 'insertImage') {
                 const url = window.prompt('Image URL');
                 if (url) document.execCommand('insertImage', false, url);
+              } else if (cmd === 'refresh') {
+                if (confirm('Refresh document? Any unsaved changes will be lost.')) {
+                  window.location.reload();
+                }
+              } else if (cmd === 'cut') {
+                document.execCommand('cut');
+              } else if (cmd === 'copy') {
+                document.execCommand('copy');
+              } else if (cmd === 'paste') {
+                document.execCommand('paste');
+              } else if (cmd === 'findNext') {
+                if (value) {
+                  window.find(value, false, false, true);
+                }
+              } else if (cmd === 'replaceOne') {
+                if (value && value.find && value.replace !== undefined) {
+                  const selection = window.getSelection();
+                  if (selection.toString() === value.find) {
+                    document.execCommand('insertText', false, value.replace);
+                  } else {
+                    window.find(value.find, false, false, true);
+                  }
+                }
+              } else if (cmd === 'replaceAll') {
+                if (value && value.find && value.replace !== undefined) {
+                  const content = paginationRef.current ? paginationRef.current.getAllContent() : '';
+                  const newContent = content.replace(new RegExp(value.find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value.replace);
+                  if (paginationRef.current) {
+                    paginationRef.current.setContent(newContent);
+                    showNotification(`Replaced all instances of "${value.find}"`, 'success');
+                  }
+                }
+              } else if (cmd === 'selectAll') {
+                document.execCommand('selectAll');
+              } else if (cmd === 'undo') {
+                document.execCommand('undo');
+              } else if (cmd === 'redo') {
+                document.execCommand('redo');
+              } else if (cmd === 'bulletStyleDisc') {
+                document.execCommand('insertUnorderedList');
+                const selection = window.getSelection();
+                if (selection.anchorNode) {
+                  const listElement = selection.anchorNode.closest ? selection.anchorNode.closest('ul') : null;
+                  if (listElement) listElement.style.listStyleType = 'disc';
+                }
+              } else if (cmd === 'bulletStyleCircle') {
+                document.execCommand('insertUnorderedList');
+                const selection = window.getSelection();
+                if (selection.anchorNode) {
+                  const listElement = selection.anchorNode.closest ? selection.anchorNode.closest('ul') : null;
+                  if (listElement) listElement.style.listStyleType = 'circle';
+                }
+              } else if (cmd === 'bulletStyleSquare') {
+                document.execCommand('insertUnorderedList');
+                const selection = window.getSelection();
+                if (selection.anchorNode) {
+                  const listElement = selection.anchorNode.closest ? selection.anchorNode.closest('ul') : null;
+                  if (listElement) listElement.style.listStyleType = 'square';
+                }
+              } else if (cmd === 'createNestedBullet') {
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                  const range = selection.getRangeAt(0);
+                  const nestedList = document.createElement('ul');
+                  nestedList.style.listStyleType = 'circle';
+                  nestedList.style.marginLeft = '20px';
+                  const listItem = document.createElement('li');
+                  listItem.innerHTML = '&nbsp;';
+                  nestedList.appendChild(listItem);
+                  range.insertNode(nestedList);
+                  range.setStart(listItem, 0);
+                  range.collapse(true);
+                  selection.removeAllRanges();
+                  selection.addRange(range);
+                }
+              } else if (cmd === 'applyTextStyle') {
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0 && value) {
+                  const range = selection.getRangeAt(0);
+                  let element;
+                  
+                  switch(value) {
+                    case 'heading1':
+                      document.execCommand('formatBlock', false, 'h1');
+                      break;
+                    case 'heading2':
+                      document.execCommand('formatBlock', false, 'h2');
+                      break;
+                    case 'heading3':
+                      document.execCommand('formatBlock', false, 'h3');
+                      break;
+                    case 'heading4':
+                      document.execCommand('formatBlock', false, 'h4');
+                      break;
+                    case 'title':
+                      document.execCommand('formatBlock', false, 'h1');
+                      const titleEl = selection.anchorNode.closest ? selection.anchorNode.closest('h1') : null;
+                      if (titleEl) {
+                        titleEl.style.fontSize = '28px';
+                        titleEl.style.fontWeight = 'bold';
+                        titleEl.style.textAlign = 'center';
+                      }
+                      break;
+                    case 'subtitle':
+                      document.execCommand('formatBlock', false, 'h2');
+                      const subtitleEl = selection.anchorNode.closest ? selection.anchorNode.closest('h2') : null;
+                      if (subtitleEl) {
+                        subtitleEl.style.fontSize = '18px';
+                        subtitleEl.style.fontStyle = 'italic';
+                        subtitleEl.style.textAlign = 'center';
+                      }
+                      break;
+                    case 'body':
+                    case 'paragraph':
+                      document.execCommand('formatBlock', false, 'p');
+                      break;
+                    case 'quote':
+                      document.execCommand('formatBlock', false, 'blockquote');
+                      const quoteEl = selection.anchorNode.closest ? selection.anchorNode.closest('blockquote') : null;
+                      if (quoteEl) {
+                        quoteEl.style.fontStyle = 'italic';
+                        quoteEl.style.borderLeft = '4px solid #ccc';
+                        quoteEl.style.paddingLeft = '16px';
+                        quoteEl.style.margin = '16px 0';
+                      }
+                      break;
+                    case 'code':
+                      document.execCommand('formatBlock', false, 'pre');
+                      const codeEl = selection.anchorNode.closest ? selection.anchorNode.closest('pre') : null;
+                      if (codeEl) {
+                        codeEl.style.fontFamily = 'Courier New, monospace';
+                        codeEl.style.backgroundColor = '#f5f5f5';
+                        codeEl.style.padding = '8px';
+                        codeEl.style.borderRadius = '4px';
+                      }
+                      break;
+                    case 'caption':
+                      document.execCommand('formatBlock', false, 'p');
+                      const captionEl = selection.anchorNode.closest ? selection.anchorNode.closest('p') : null;
+                      if (captionEl) {
+                        captionEl.style.fontSize = '12px';
+                        captionEl.style.fontStyle = 'italic';
+                        captionEl.style.textAlign = 'center';
+                        captionEl.style.color = '#666';
+                      }
+                      break;
+                    case 'emphasis':
+                      document.execCommand('formatBlock', false, 'p');
+                      const emphasisEl = selection.anchorNode.closest ? selection.anchorNode.closest('p') : null;
+                      if (emphasisEl) {
+                        emphasisEl.style.fontWeight = 'bold';
+                        emphasisEl.style.fontSize = '16px';
+                      }
+                      break;
+                  }
+                }
               } else if (mappingToFormat.includes(cmd)) {
                 formatText(cmd, value);
               } else {
