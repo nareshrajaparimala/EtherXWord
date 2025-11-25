@@ -71,10 +71,6 @@ export class MSWordPagination {
       left: 0;
     `;
 
-    if (this.pages.length === 0) {
-      content.innerHTML = '<p>Start writing your document here...</p>';
-    }
-
     pageElement.appendChild(content);
     this.container.appendChild(pageElement);
     

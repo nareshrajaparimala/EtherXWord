@@ -389,7 +389,7 @@
   cursor: pointer;
 }
 
-.editor-content:empty:before {
+.page-content:empty:before {
   content: 'Start writing your document here...';
   color: #999;
   font-style: italic;

@@ -8,6 +8,7 @@ import { useNotification } from '../context/NotificationContext';
 import { ThemeContext } from '../context/ThemeContext';
 import { importDocxOOXML, exportDocxOOXML } from '../utils/ooxmlUtils';
 import { MSWordPagination } from '../utils/paginationEngine';
+import { exportDocument, exportToPDF, exportToDOCX } from '../utils/exportUtils';
 import EditorToolBox from '../components/EditorToolBox';
 
 const DocumentEditor = () => {
@@ -70,8 +71,7 @@ const DocumentEditor = () => {
         };
         
         const handleExportPdf = (event) => {
-          // TODO: Implement PDF export
-          showNotification('PDF export coming soon!', 'info');
+          handleExportPdf();
         };
         
         document.addEventListener('exportDocx', handleExportDocx);
@@ -178,25 +178,56 @@ const DocumentEditor = () => {
     event.target.value = '';
   };
   
-  // DOCX Export with multi-page content
-  const handleExportDocx = async () => {
+  // Export with format selection
+  const handleExport = async () => {
+    if (!paginationRef.current) {
+      showNotification('Editor not ready for export', 'error');
+      return;
+    }
+    
     try {
-      showNotification('Exporting to DOCX...', 'info');
-      
-      const fullContent = (paginationRef.current && paginationRef.current.getAllContent) ? 
-        paginationRef.current.getAllContent() : 
-        '<p>No content</p>';
-      
-      const buffer = await exportDocxOOXML(fullContent, documentTitle);
-      const blob = new Blob([buffer], { 
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
-      });
-      
-      saveAs(blob, `${documentTitle}.docx`);
-      showNotification('DOCX exported successfully!', 'success');
+      await exportDocument(paginationRef.current, documentTitle, showNotification);
     } catch (error) {
       console.error('Export error:', error);
+    }
+  };
+  
+  // DOCX Export with multi-page content
+  const handleExportDocx = async () => {
+    if (!paginationRef.current) {
+      showNotification('Editor not ready for export', 'error');
+      return;
+    }
+    
+    try {
+      // Debug: log current content
+      const content = paginationRef.current.getAllContent();
+      console.log('Current content for DOCX export:', content);
+      
+      await exportToDOCX(paginationRef.current, documentTitle);
+      showNotification('DOCX exported successfully!', 'success');
+    } catch (error) {
+      console.error('DOCX export error:', error);
       showNotification('Failed to export DOCX: ' + error.message, 'error');
+    }
+  };
+  
+  // PDF Export with multi-page content
+  const handleExportPdf = async () => {
+    if (!paginationRef.current) {
+      showNotification('Editor not ready for export', 'error');
+      return;
+    }
+    
+    try {
+      // Debug: log current pages
+      console.log('Current pages for PDF export:', paginationRef.current.pages.length);
+      
+      await exportToPDF(paginationRef.current, documentTitle);
+      showNotification('PDF exported successfully!', 'success');
+    } catch (error) {
+      console.error('PDF export error:', error);
+      showNotification('Failed to export PDF: ' + error.message, 'error');
     }
   };
   
@@ -291,6 +322,10 @@ const DocumentEditor = () => {
                 setDocumentTitle(newTitle);
                 showNotification('Document copied', 'success');
               } else if (cmd === 'fileExport') {
+                handleExport();
+              } else if (cmd === 'fileExportPdf') {
+                handleExportPdf();
+              } else if (cmd === 'fileExportDocx') {
                 handleExportDocx();
               } else if (cmd === 'filePrint') {
                 window.print();

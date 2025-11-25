@@ -202,6 +202,11 @@ const insertPageBreaks = (htmlContent) => {
 
 // Convert HTML to OOXML
 const convertHTMLToOOXML = (htmlContent) => {
+  // Ensure we have content
+  if (!htmlContent || htmlContent.trim() === '') {
+    htmlContent = '<p>Document content</p>';
+  }
+  
   // Insert page break markers based on estimated content height
   const htmlWithPageBreaks = insertPageBreaks(htmlContent);
   
@@ -269,7 +274,7 @@ const convertHTMLToOOXML = (htmlContent) => {
 
   // Convert paragraphs (using content with page breaks marked)
   // First, handle explicit page break markers
-  const partsWithBreaks = htmlWithPageBreaks.split(/<div[^>]*page-break-before[^>]*><\/div>/);
+  const partsWithBreaks = htmlWithPageBreaks.split(/<div[^>]*page-break[^>]*><\/div>/);
   let isFirstPage = true;
   
   partsWithBreaks.forEach((part, pageIndex) => {
@@ -279,28 +284,46 @@ const convertHTMLToOOXML = (htmlContent) => {
     }
     isFirstPage = false;
     
+    // Extract paragraphs, but also handle plain text
     const paragraphs = part.match(/<p[^>]*>(.*?)<\/p>/gis) || [];
     
-    paragraphs.forEach(paragraph => {
-    const alignment = getAlignmentXml(paragraph);
-    let content = paragraph.replace(/<p[^>]*>|<\/p>/gi, '');
-
-    // Build paragraph with properties (alignment and/or spacing)
-    let pPr = '';
-    if (alignment) {
-      // alignment already includes <w:pPr>...</w:pPr> with spacing
-      pPr = alignment;
+    // If no paragraphs found but we have content, wrap it in a paragraph
+    if (paragraphs.length === 0 && part.trim()) {
+      const cleanContent = part.replace(/<[^>]+>/g, '').trim();
+      if (cleanContent) {
+        ooxml += '<w:p><w:pPr><w:spacing w:before="0" w:after="200" w:line="360" w:lineRule="auto"/></w:pPr>';
+        ooxml += createRunsFromHtml(cleanContent);
+        ooxml += '</w:p>';
+      }
     } else {
-      // No alignment: still add spacing for proper paragraph separation
-      pPr = '<w:pPr><w:spacing w:before="0" w:after="200" w:line="360" w:lineRule="auto"/></w:pPr>';
-    }
+      paragraphs.forEach(paragraph => {
+        const alignment = getAlignmentXml(paragraph);
+        let content = paragraph.replace(/<p[^>]*>|<\/p>/gi, '');
 
-    ooxml += `<w:p>${pPr}`;
-    // Create runs (handles inline formatting)
-    ooxml += createRunsFromHtml(content);
-    ooxml += '</w:p>';
-    });
+        // Build paragraph with properties (alignment and/or spacing)
+        let pPr = '';
+        if (alignment) {
+          // alignment already includes <w:pPr>...</w:pPr> with spacing
+          pPr = alignment;
+        } else {
+          // No alignment: still add spacing for proper paragraph separation
+          pPr = '<w:pPr><w:spacing w:before="0" w:after="200" w:line="360" w:lineRule="auto"/></w:pPr>';
+        }
+
+        ooxml += `<w:p>${pPr}`;
+        // Create runs (handles inline formatting)
+        ooxml += createRunsFromHtml(content);
+        ooxml += '</w:p>';
+      });
+    }
   });
+  
+  // Ensure we have at least one paragraph
+  if (!ooxml.includes('<w:p>')) {
+    ooxml += '<w:p><w:pPr><w:spacing w:before="0" w:after="200" w:line="360" w:lineRule="auto"/></w:pPr>';
+    ooxml += '<w:r><w:t xml:space="preserve">Document content</w:t></w:r>';
+    ooxml += '</w:p>';
+  }
   
   // Convert tables
   const tables = htmlWithPageBreaks.match(/<table[^>]*>(.*?)<\/table>/gs) || [];
