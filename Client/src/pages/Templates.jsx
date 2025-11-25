@@ -554,10 +554,6 @@ const Templates = () => {
       {/* Templates Header - Similar to Home Header */}
       <div className="templates-header">
         <div className="header-left">
-          <div className="logo-section">
-            <Logo size={32} className={isLogoAnimating ? 'animate' : ''} />
-            <span className="brand-text">EtherXWord</span>
-          </div>
         </div>
         <div className="header-center">
           <h1>Document Templates</h1>
