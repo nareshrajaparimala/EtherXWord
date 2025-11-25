@@ -1852,3 +1852,33 @@ ton:hover:not(:disabled) {
 .header-footer-content::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 215, 0, 0.8);
 }
+/* Symbols backstage panel */
+.symbols-backstage-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 8px;
+  padding: 20px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.symbol-backstage-btn {
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--etb-border, var(--etb-border-light));
+  border-radius: 6px;
+  background: var(--etb-bg, var(--etb-bg-light));
+  color: var(--etb-text, var(--etb-text-light));
+  cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.symbol-backstage-btn:hover {
+  background: var(--etb-hover, var(--etb-hover-light));
+  border-color: var(--etb-accent);
+  transform: scale(1.05);
+}

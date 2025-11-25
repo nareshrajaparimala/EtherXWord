@@ -33,6 +33,7 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const [brushSize, setBrushSize] = useState(2);
   const [isDrawing, setIsDrawing] = useState(false);
   const [showHeaderFooterPopup, setShowHeaderFooterPopup] = useState(false);
+  const [showSymbolsPopup, setShowSymbolsPopup] = useState(false);
   const [headerFooterConfig, setHeaderFooterConfig] = useState({
     headerText: '',
     headerAlignment: 'left',
@@ -44,7 +45,7 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
     borderColor: '#000000',
     borderWidth: '1px',
     pageNumbers: {
-      enabled: false,
+      enabled: true,
       type: 'numeric',
       position: 'footer-right',
       format: 'Page {n}'
@@ -58,6 +59,7 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const imageRef = useRef(null);
   const linkRef = useRef(null);
   const headerFooterRef = useRef(null);
+  const symbolsRef = useRef(null);
 
   useEffect(() => {
     if (selectedToolProp && selectedToolProp !== selectedTool) {
@@ -88,6 +90,9 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
       }
       if (headerFooterRef.current && !headerFooterRef.current.contains(event.target)) {
         setShowHeaderFooterPopup(false);
+      }
+      if (symbolsRef.current && !symbolsRef.current.contains(event.target)) {
+        setShowSymbolsPopup(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -481,6 +486,33 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                   <i className="ri-layout-top-2-line"></i>
                   <span className="btn-label">Header/Footer</span>
                 </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => {
+                  const quickPageConfig = {
+                    ...headerFooterConfig,
+                    pageNumbers: {
+                      enabled: true,
+                      type: 'numeric',
+                      position: 'footer-right',
+                      format: 'Page {n}'
+                    }
+                  };
+                  apply('headerFooter', quickPageConfig);
+                }} title="Page Numbers - Quickly add page numbers to footer">
+                  <i className="ri-hashtag"></i>
+                  <span className="btn-label">Page Numbers</span>
+                </button>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section" ref={symbolsRef}>
+                <button className="etb-btn etb-btn-vertical" onClick={() => setShowSymbolsPopup(!showSymbolsPopup)} title="Insert Symbol">
+                  <i className="ri-omega"></i>
+                  <span className="btn-label">Symbols</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('showNotification', 'Equations feature coming soon!')} title="Insert Equation">
+                  <i className="ri-functions"></i>
+                  <span className="btn-label">Equations</span>
+                </button>
+
                 {showLinkPopup && (
                   <div className="insert-popup">
                     <div className="popup-header">
@@ -638,6 +670,38 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                       }
                     }}>Clear</button>
                     <button onClick={() => setShowDrawing(false)}>Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {showSymbolsPopup && (
+              <div className="drawing-overlay" onClick={() => setShowSymbolsPopup(false)}>
+                <div className="header-footer-container" onClick={(e) => e.stopPropagation()}>
+                  <div className="popup-header">
+                    <h3>Insert Symbol</h3>
+                    <button onClick={() => setShowSymbolsPopup(false)} className="close-btn">×</button>
+                  </div>
+                  <div className="header-footer-content">
+                    <div className="symbols-backstage-grid">
+                      {[
+                        '•', '€', '£', '¥', '©', '®', '™', '±', '≠', '≤', '≥', '÷', '×', '∞', 'μ', 'α', 'β', 'π', 'Ω', 'Σ', '°', 'Δ', '☺', '♥', '₹', '¿', '¡', '—', '…',
+                        'À', 'Á', 'Â', 'Ã', 'Ç', 'È', 'É', 'Ê', 'Ë', 'Ì', 'Í', 'Î', 'Ï', 'Ñ', 'Ò', 'Ó', 'Ô', 'Õ', 'Ö', 'Ù', 'Ú', 'Û', 'Ü', 'ß',
+                        'à', 'á', 'â', 'ã', 'ä', 'å', 'æ', 'ç', 'è', 'é', 'ê', 'ë', 'ì', 'í', 'î', 'ï', 'ñ', 'ò', 'ó', 'ô', 'õ', 'ö', 'ù', 'ú', 'û', 'ü', 'ÿ', 'Ğ', 'ğ', 'İ', 'ı', 'Œ', 'œ', 'Ş', 'ş', 'Ÿ'
+                      ].map((symbol, index) => (
+                        <button
+                          key={index}
+                          className="symbol-backstage-btn"
+                          onClick={() => {
+                            apply('insertHTML', symbol);
+                            setShowSymbolsPopup(false);
+                          }}
+                          title={`Insert ${symbol}`}
+                        >
+                          {symbol}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
