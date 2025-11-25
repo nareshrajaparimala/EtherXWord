@@ -33,6 +33,7 @@ const DocumentEditor = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTool, setSelectedTool] = useState('Home');
+  const [showShareModal, setShowShareModal] = useState(false);
   
   // Formatting state
   const [currentFormat, setCurrentFormat] = useState({
@@ -224,8 +225,8 @@ const DocumentEditor = () => {
       {/* Navbar */}
       <nav className="editor-navbar">
         <div className="navbar-left">
-          <button className="nav-btn" onClick={() => navigate('/')}>
-            <i className="ri-arrow-left-line"></i> Back
+          <button className="nav-btn" onClick={() => navigate('/')} style={{border: 'none', background: 'transparent', cursor: 'pointer', transition: 'opacity 0.3s ease'}} onMouseEnter={(e) => e.target.style.opacity = '0.7'} onMouseLeave={(e) => e.target.style.opacity = '1'}>
+            <i className="ri-arrow-left-line"></i>
           </button>
           <div className="logo">
             <Logo size={20} className={isLogoAnimating ? 'animate' : ''} />
@@ -269,7 +270,38 @@ const DocumentEditor = () => {
             onSelectTool={setSelectedTool}
             onApply={(cmd, value) => {
               const mappingToFormat = ['bold','italic','underline','fontName','fontSize','justifyLeft','justifyCenter','justifyRight','justifyFull'];
-              if (cmd === 'insertPageBreak') {
+              
+              // File panel actions
+              if (cmd === 'fileNew') {
+                if (confirm('Create new document? Unsaved changes will be lost.')) {
+                  setDocumentTitle('Untitled Document');
+                  if (paginationRef.current) paginationRef.current.setContent('<p></p>');
+                  showNotification('New document created', 'success');
+                }
+              } else if (cmd === 'fileOpen') {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.docx';
+                input.onchange = handleImportDocx;
+                input.click();
+              } else if (cmd === 'fileShare') {
+                setShowShareModal(true);
+              } else if (cmd === 'fileCopy') {
+                const newTitle = documentTitle + ' (Copy)';
+                setDocumentTitle(newTitle);
+                showNotification('Document copied', 'success');
+              } else if (cmd === 'fileExport') {
+                handleExportDocx();
+              } else if (cmd === 'filePrint') {
+                window.print();
+              } else if (cmd === 'fileRename') {
+                setIsEditing(true);
+              } else if (cmd === 'fileDelete') {
+                if (confirm('Are you sure you want to delete this document?')) {
+                  showNotification('Document deleted', 'success');
+                  navigate('/');
+                }
+              } else if (cmd === 'insertPageBreak') {
                 insertPageBreak();
               } else if (cmd === 'insertParagraph') {
                 document.execCommand('insertHTML', false, '<p></p>');
@@ -330,6 +362,43 @@ const DocumentEditor = () => {
           </div>
         </div>
       </div>
+      
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="modal-overlay" onClick={() => setShowShareModal(false)}>
+          <div className="share-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Share Document</h3>
+              <button onClick={() => setShowShareModal(false)}>×</button>
+            </div>
+            <div className="modal-content">
+              <div className="share-option">
+                <label>Document Link:</label>
+                <div className="link-container">
+                  <input type="text" value={window.location.href} readOnly />
+                  <button onClick={() => {
+                    navigator.clipboard.writeText(window.location.href);
+                    showNotification('Link copied to clipboard', 'success');
+                  }}>Copy</button>
+                </div>
+              </div>
+              <div className="share-option">
+                <label>Share via Email:</label>
+                <input type="email" placeholder="Enter email address" />
+                <button onClick={() => showNotification('Email sent', 'success')}>Send</button>
+              </div>
+              <div className="share-option">
+                <label>Permission Level:</label>
+                <select>
+                  <option>Can View</option>
+                  <option>Can Edit</option>
+                  <option>Can Comment</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

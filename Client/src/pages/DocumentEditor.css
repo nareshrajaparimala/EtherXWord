@@ -85,7 +85,7 @@
   font-size: 18px;
   font-weight: 600;
   background: var(--bg-primary);
-  border: 2px solid var(--primary-yellow);
+  border: 1px solid var(--primary-yellow);
   border-radius: 6px;
   padding: 6px 12px;
   color: var(--text-primary);
@@ -102,7 +102,6 @@
   border-radius: 6px;
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -110,9 +109,7 @@
 }
 
 .nav-btn:hover {
-  background: var(--hover-bg);
-  border-color: var(--primary-yellow);
-  color: var(--primary-yellow);
+  opacity: 0.7;
 }
 
 .save-btn {
@@ -212,8 +209,7 @@
 
 .toolbar-btn:hover {
   background: var(--hover-bg);
-  border-color: var(--primary-yellow);
-  color: var(--primary-yellow);
+  opacity: 0.8;
 }
 
 .toolbar-btn.active {
@@ -712,21 +708,7 @@
   }
 }
 
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
-.editor-page {
-  animation: fadeIn 0.3s ease-out;
-}
 
 /* Focus States */
 .editor-content:focus {
@@ -761,31 +743,93 @@
   background: var(--primary-yellow);
 }
 
-/* Hover Effects */
-.nav-btn,
-.toolbar-btn,
-.zoom-inline-btn {
-  position: relative;
-  overflow: hidden;
-}
 
-.nav-btn::before,
-.toolbar-btn::before,
-.zoom-inline-btn::before {
-  content: '';
-  position: absolute;
+
+/* Share Modal */
+.modal-overlay {
+  position: fixed;
   top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.1), transparent);
-  transition: left 0.5s ease;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
 }
 
-.nav-btn:hover::before,
-.toolbar-btn:hover::before,
-.zoom-inline-btn:hover::before {
-  left: 100%;
+.share-modal {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 500px;
+  border: 1px solid var(--border-color);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.modal-header button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.share-option {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.share-option label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.link-container {
+  display: flex;
+  gap: 8px;
+}
+
+.share-option input,
+.share-option select {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.share-option button {
+  padding: 8px 16px;
+  background: var(--primary-yellow);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #000;
+}
+
+.share-option button:hover {
+  opacity: 0.8;
 }
 
 /* Theme Variables */

@@ -55,35 +55,17 @@
   color: var(--etb-text, var(--etb-text-light));
   font-size: 13px;
   font-weight: 500;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
 }
 
 .etb-cat-btn:hover {
   background: var(--etb-hover, var(--etb-hover-light));
-  border-color: var(--etb-border, var(--etb-border-light));
-  transform: translateY(-1px);
 }
 
 .etb-cat-btn.active {
-  background: var(--etb-active, var(--etb-active-light));
-  border-color: var(--etb-accent);
-  color: var(--etb-accent);
+  background: transparent;
+  border-color: #ffcf40;
+  color: #ffcf40;
   font-weight: 600;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
-  animation: slideInCategory 0.3s ease;
-}
-
-@keyframes slideInCategory {
-  from {
-    opacity: 0;
-    transform: translateY(-2px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* Content area */
@@ -93,16 +75,6 @@
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
-  animation: fadeInContent 0.3s ease;
-}
-
-@keyframes fadeInContent {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 /* Tools row container */
@@ -113,32 +85,77 @@
   flex-wrap: wrap;
 }
 
+/* Section grouping */
+.etb-section {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* Font section specific styling */
+.etb-font-section {
+  gap: 4px;
+}
+
+/* Section divider */
+.etb-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--etb-border, var(--etb-border-light));
+  margin: 0 4px;
+}
+
 /* Buttons */
 .etb-btn {
   padding: 8px 12px;
   border-radius: 6px;
-  border: 1px solid var(--etb-border, var(--etb-border-light));
-  background: var(--etb-hover, var(--etb-hover-light));
+  border: 1px solid transparent;
+  background: transparent;
   cursor: pointer;
   color: var(--etb-text, var(--etb-text-light));
   font-size: 13px;
   font-weight: 500;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
   white-space: nowrap;
+  transition: all 0.2s ease;
 }
 
 .etb-btn:hover {
-  background: var(--etb-active, var(--etb-active-light));
-  border-color: var(--etb-accent);
-  color: var(--etb-accent);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  border: 1px solid var(--etb-border, var(--etb-border-light));
+  background: var(--etb-hover, var(--etb-hover-light));
 }
 
-.etb-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+/* Small buttons for text formatting */
+.etb-btn-small {
+  padding: 4px 8px;
+  font-size: 12px;
+  min-width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Color buttons */
+.etb-color-btn {
+  position: relative;
+  flex-direction: column;
+  padding: 2px 4px;
+}
+
+.color-icon {
+  font-weight: bold;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.color-bar {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 3px;
+  border-radius: 1px;
 }
 
 /* Select dropdowns */
@@ -150,12 +167,132 @@
   color: var(--etb-text, var(--etb-text-light));
   font-size: 13px;
   cursor: pointer;
-  transition: all 0.2s ease;
+
   appearance: none;
   padding-right: 28px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%233b82f6' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 8px center;
+}
+
+/* Small select dropdowns for font section */
+.etb-select-small {
+  padding: 6px 8px;
+  padding-right: 24px;
+  font-size: 12px;
+  min-width: 80px;
+  max-width: 120px;
+}
+
+/* Hover-only borders for Home section selects */
+.etb-select-hover {
+  border: 1px solid transparent;
+  background: transparent;
+  transition: all 0.2s ease;
+}
+
+.etb-select-hover:hover {
+  border: 1px solid var(--etb-border, var(--etb-border-light));
+  background: var(--etb-hover, var(--etb-hover-light));
+}
+
+/* Color picker container */
+.etb-color-container {
+  position: relative;
+  display: inline-block;
+}
+
+/* Color picker panel */
+.color-picker-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--etb-bg, var(--etb-bg-light));
+  border: 1px solid var(--etb-border, var(--etb-border-light));
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  padding: 16px;
+  min-width: 280px;
+}
+
+/* Preset color grid */
+.color-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+/* Individual color swatches */
+.color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 2px solid var(--etb-border, var(--etb-border-light));
+  transition: all 0.2s ease;
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+  border-color: var(--etb-accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Custom color section */
+.custom-color-section {
+  border-top: 1px solid var(--etb-border, var(--etb-border-light));
+  padding-top: 12px;
+}
+
+.custom-color-section label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--etb-text, var(--etb-text-light));
+}
+
+/* Custom color input container */
+.custom-color-input {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.custom-color-input input[type="color"] {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.custom-color-input input[type="text"] {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--etb-border, var(--etb-border-light));
+  border-radius: 4px;
+  background: var(--etb-bg, var(--etb-bg-light));
+  color: var(--etb-text, var(--etb-text-light));
+  font-size: 12px;
+}
+
+.custom-color-input button {
+  padding: 6px 12px;
+  border: 1px solid var(--etb-border, var(--etb-border-light));
+  border-radius: 4px;
+  background: var(--etb-accent);
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.custom-color-input button:hover {
+  opacity: 0.8;
 }
 
 .etb-select:hover {
@@ -216,7 +353,4 @@
   outline-offset: 2px;
 }
 
-/* Smooth color transitions for theme switching */
-* {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
-}
+
