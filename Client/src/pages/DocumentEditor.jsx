@@ -67,6 +67,21 @@ const DocumentEditor = () => {
         
         paginationRef.current = new MSWordPagination(editorContainerRef.current, handleStatsUpdate);
         
+        // Check for template data and load it
+        const templateData = localStorage.getItem('selectedTemplate');
+        if (templateData) {
+          try {
+            const template = JSON.parse(templateData);
+            setDocumentTitle(template.title);
+            paginationRef.current.setContent(template.content);
+            localStorage.removeItem('selectedTemplate'); // Clear after use
+            showNotification('Template loaded successfully!', 'success');
+          } catch (error) {
+            console.error('Error loading template:', error);
+            showNotification('Failed to load template', 'error');
+          }
+        }
+        
         // Add drag and drop functionality to editor
         const handleDragOver = (e) => {
           e.preventDefault();

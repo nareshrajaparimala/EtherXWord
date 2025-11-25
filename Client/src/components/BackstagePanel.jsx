@@ -17,6 +17,11 @@ const BackstagePanel = ({ onClose, onApply }) => {
   ];
 
   const handleAction = (action, value) => {
+    if (action === 'openTemplates') {
+      window.location.href = '/templates';
+      return;
+    }
+    
     // Map backstage actions to the expected file actions
     const actionMap = {
       'fileSave': 'fileSave',
@@ -100,7 +105,7 @@ const BackstagePanel = ({ onClose, onApply }) => {
                   <h4>Blank Document</h4>
                   <p>Start with a clean slate</p>
                 </div>
-                <div className="backstage-card">
+                <div className="backstage-card" onClick={() => handleAction('openTemplates')}>
                   <i className="ri-layout-2-line"></i>
                   <h4>From Template</h4>
                   <p>Choose from templates</p>
