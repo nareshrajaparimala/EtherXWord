@@ -8,6 +8,7 @@ import { useNotification } from '../context/NotificationContext';
 import { ThemeContext } from '../context/ThemeContext';
 import { importDocxOOXML, exportDocxOOXML } from '../utils/ooxmlUtils';
 import { MSWordPagination } from '../utils/paginationEngine';
+import EditorToolBox from '../components/EditorToolBox';
 
 const DocumentEditor = () => {
   const navigate = useNavigate();
@@ -31,6 +32,7 @@ const DocumentEditor = () => {
   const [showToolbar, setShowToolbar] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedTool, setSelectedTool] = useState('Home');
   
   // Formatting state
   const [currentFormat, setCurrentFormat] = useState({
@@ -259,102 +261,34 @@ const DocumentEditor = () => {
         </div>
       </nav>
       
-      {/* Toolbar */}
+      {/* Toolbar with embedded toolbox */}
       {showToolbar && (
         <div className="toolbar">
-          {/* Editor menu (File, Home, Insert, Layout, References, Review, View, Help) */}
-          <div className="editor-menu" role="menubar" aria-label="Editor menu">
-            {['File','Home','Insert','Layout','References','Review','View','Help'].map(item => (
-              <button key={item} className="editor-menu-item" role="menuitem" onClick={() => { /* placeholder */ }}>
-                {item}
-              </button>
-            ))}
-          </div>
-          {/* File Operations */}
-          <div className="toolbar-group">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleImportDocx}
-              accept=".docx"
-              style={{ display: 'none' }}
-            />
-            <button 
-              className="toolbar-btn"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <i className="ri-file-upload-line"></i> Import
-            </button>
-            <button className="toolbar-btn" onClick={handleExportDocx}>
-              <i className="ri-file-download-line"></i> Export
-            </button>
-          </div>
-          
-          {/* Formatting */}
-          <div className="toolbar-group">
-            <select 
-              className="toolbar-select"
-              value={currentFormat.fontFamily}
-              onChange={(e) => formatText('fontName', e.target.value)}
-            >
-              <option value="Georgia">Georgia</option>
-              <option value="Arial">Arial</option>
-              <option value="Times New Roman">Times New Roman</option>
-              <option value="Calibri">Calibri</option>
-            </select>
-            
-            <select 
-              className="toolbar-select"
-              value={currentFormat.fontSize}
-              onChange={(e) => formatText('fontSize', e.target.value)}
-            >
-              <option value="8pt">8pt</option>
-              <option value="10pt">10pt</option>
-              <option value="12pt">12pt</option>
-              <option value="14pt">14pt</option>
-              <option value="16pt">16pt</option>
-              <option value="18pt">18pt</option>
-              <option value="24pt">24pt</option>
-            </select>
-            
-            <button 
-              className={`toolbar-btn ${currentFormat.bold ? 'active' : ''}`}
-              onClick={() => formatText('bold')}
-            >
-              <strong>B</strong>
-            </button>
-            <button 
-              className={`toolbar-btn ${currentFormat.italic ? 'active' : ''}`}
-              onClick={() => formatText('italic')}
-            >
-              <em>I</em>
-            </button>
-            <button 
-              className={`toolbar-btn ${currentFormat.underline ? 'active' : ''}`}
-              onClick={() => formatText('underline')}
-            >
-              <u>U</u>
-            </button>
-          </div>
-          
-          {/* Page Controls */}
-          <div className="toolbar-group">
-            <button className="toolbar-btn" onClick={insertPageBreak}>
-              <i className="ri-insert-row-bottom"></i> Page Break
-            </button>
-            <button className="toolbar-btn" onClick={() => paginationRef.current?.exportToDocx()}>
-              <i className="ri-file-word-line"></i> DOCX
-            </button>
-            <button className="toolbar-btn" onClick={() => paginationRef.current?.exportToPdf()}>
-              <i className="ri-file-pdf-line"></i> PDF
-            </button>
-            <span className="page-indicator">
-              Page {currentPage} of {documentStats.pages}
-            </span>
-          </div>
+          <EditorToolBox
+            selectedTool={selectedTool}
+            onSelectTool={setSelectedTool}
+            onApply={(cmd, value) => {
+              const mappingToFormat = ['bold','italic','underline','fontName','fontSize','justifyLeft','justifyCenter','justifyRight','justifyFull'];
+              if (cmd === 'insertPageBreak') {
+                insertPageBreak();
+              } else if (cmd === 'insertParagraph') {
+                document.execCommand('insertHTML', false, '<p></p>');
+              } else if (cmd === 'insertImage') {
+                const url = window.prompt('Image URL');
+                if (url) document.execCommand('insertImage', false, url);
+              } else if (mappingToFormat.includes(cmd)) {
+                formatText(cmd, value);
+              } else {
+                try { document.execCommand(cmd, false, value); } catch (e) { console.warn('execCommand failed', cmd, value, e); }
+              }
+              setTimeout(updateFormatState, 60);
+              setTimeout(updateDocumentStats, 160);
+            }}
+            currentFormat={currentFormat}
+          />
         </div>
       )}
-      
+
       {/* Editor Content */}
       <div className="editor-layout">
         <div className="editor-wrapper">

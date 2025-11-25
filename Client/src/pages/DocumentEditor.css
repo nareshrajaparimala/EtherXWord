@@ -130,12 +130,13 @@
 .toolbar {
   /* moved below the navbar and in normal flow */
   position: relative;
-  margin-top: 48px; /* sit just below the shortened navbar */
-  height: 56px;
+  margin-top: 45px; /* sit just below the shortened navbar */
+  height: auto;
   background: transparent; /* keep toolbar integrated with navbar look */
   display: flex;
+  width: 100%;
   align-items: center;
-  padding: 8px 16px;
+  padding: 5px 5px;
   gap: 12px;
   z-index: 900;
   overflow-x: auto;
@@ -279,7 +280,7 @@
   flex: 1;
   display: flex;
   justify-content: center;
-  margin-top: 112px; /* adjusted for reduced navbar + toolbar heights */
+  margin-top: 0px; /* adjusted for reduced navbar + toolbar heights */
   margin-bottom: 40px; /* status bar */
   overflow: auto;
   background: #f5f5f5;
