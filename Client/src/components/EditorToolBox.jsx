@@ -34,6 +34,7 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const [isDrawing, setIsDrawing] = useState(false);
   const [showHeaderFooterPopup, setShowHeaderFooterPopup] = useState(false);
   const [showSymbolsPopup, setShowSymbolsPopup] = useState(false);
+  const [showEmojiPopup, setShowEmojiPopup] = useState(false);
   const [headerFooterConfig, setHeaderFooterConfig] = useState({
     headerText: '',
     headerAlignment: 'left',
@@ -60,6 +61,7 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const linkRef = useRef(null);
   const headerFooterRef = useRef(null);
   const symbolsRef = useRef(null);
+  const emojiRef = useRef(null);
 
   useEffect(() => {
     if (selectedToolProp && selectedToolProp !== selectedTool) {
@@ -93,6 +95,9 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
       }
       if (symbolsRef.current && !symbolsRef.current.contains(event.target)) {
         setShowSymbolsPopup(false);
+      }
+      if (emojiRef.current && !emojiRef.current.contains(event.target)) {
+        setShowEmojiPopup(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -512,6 +517,10 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                   <i className="ri-functions"></i>
                   <span className="btn-label">Equations</span>
                 </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => setShowEmojiPopup(!showEmojiPopup)} title="Insert Emoji">
+                  <i className="ri-emotion-happy-line"></i>
+                  <span className="btn-label">Emoji</span>
+                </button>
 
                 {showLinkPopup && (
                   <div className="insert-popup">
@@ -699,6 +708,42 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                           title={`Insert ${symbol}`}
                         >
                           {symbol}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {showEmojiPopup && (
+              <div className="drawing-overlay" onClick={() => setShowEmojiPopup(false)}>
+                <div className="header-footer-container" onClick={(e) => e.stopPropagation()}>
+                  <div className="popup-header">
+                    <h3>Insert Emoji</h3>
+                    <button onClick={() => setShowEmojiPopup(false)} className="close-btn">×</button>
+                  </div>
+                  <div className="header-footer-content">
+                    <div className="symbols-backstage-grid">
+                      {[
+                        '😀', '😁', '😂', '😃', '😄', '😅', '😆', '😉', '😊', '😋', '😎', '😍', '😘', '😗', '😙', '😚',
+                        '🙂', '🙃', '😉', '😊', '😇', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜',
+                        '🤪', '🤨', '🧐', '🤓', '😎', '🥸', '😏', '😒', '😞', '😔', '😖', '😥', '😰', '😨', '😧', '😩',
+                        '😢', '😭', '😱', '😨', '😰', '😥', '😓', '😣', '😩', '😫', '😵', '😲', '🤐', '🥴', '🤢', '🤮',
+                        '👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '👇', '☝️', '✋', '🤚', '🖐️',
+                        '❤️', '💛', '💚', '💙', '💜', '🦤', '🖤', '🤍', '💔', '❣️', '💕', '💖', '💗', '💓', '💞', '💘',
+                        '🎉', '🎊', '🎈', '🎇', '🎆', '🎅', '🎄', '🎁', '🎀', '🎍', '🎎', '🎏', '🎐', '🎑', '🎒', '🎓'
+                      ].map((emoji, index) => (
+                        <button
+                          key={index}
+                          className="symbol-backstage-btn"
+                          onClick={() => {
+                            apply('insertHTML', emoji);
+                            setShowEmojiPopup(false);
+                          }}
+                          title={`Insert ${emoji}`}
+                        >
+                          {emoji}
                         </button>
                       ))}
                     </div>
