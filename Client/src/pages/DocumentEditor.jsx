@@ -538,7 +538,12 @@ Keyboard Shortcuts:
                   const editor = editorContainerRef.current?.querySelector('[contenteditable="true"]');
                   if (editor) {
                     editor.focus();
-                    const linkHTML = `<a href="${value.url}" target="_blank">${value.text || value.url}</a>`;
+                    // Ensure URL has protocol
+                    let url = value.url;
+                    if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('mailto:')) {
+                      url = 'https://' + url;
+                    }
+                    const linkHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer">${value.text || value.url}</a>`;
                     document.execCommand('insertHTML', false, linkHTML);
                     showNotification('Link inserted successfully!', 'success');
                   }

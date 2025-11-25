@@ -340,6 +340,18 @@ export const exportToPDF = async (paginationEngine, documentTitle = 'document') 
         pdf.addPage();
       }
 
+      // Temporarily style links for better PDF rendering
+      const links = page.element.querySelectorAll('a');
+      const originalStyles = [];
+      links.forEach((link, index) => {
+        originalStyles[index] = {
+          color: link.style.color,
+          textDecoration: link.style.textDecoration
+        };
+        link.style.color = '#0000FF';
+        link.style.textDecoration = 'underline';
+      });
+
       // Create canvas from page content
       const canvas = await html2canvas(page.element, {
         scale: 2,
@@ -352,6 +364,12 @@ export const exportToPDF = async (paginationEngine, documentTitle = 'document') 
         scrollY: 0
       });
 
+      // Restore original link styles
+      links.forEach((link, index) => {
+        link.style.color = originalStyles[index].color;
+        link.style.textDecoration = originalStyles[index].textDecoration;
+      });
+
       // Calculate dimensions to fit A4
       const imgWidth = 210; // A4 width in mm
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
@@ -359,6 +377,24 @@ export const exportToPDF = async (paginationEngine, documentTitle = 'document') 
       // Add image to PDF
       const imgData = canvas.toDataURL('image/png');
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, Math.min(imgHeight, 297));
+      
+      // Add clickable link annotations
+      const pageLinks = page.element.querySelectorAll('a[href]');
+      pageLinks.forEach(link => {
+        const rect = link.getBoundingClientRect();
+        const pageRect = page.element.getBoundingClientRect();
+        
+        // Calculate relative position within the page
+        const x = ((rect.left - pageRect.left) / pageRect.width) * imgWidth;
+        const y = ((rect.top - pageRect.top) / pageRect.height) * Math.min(imgHeight, 297);
+        const width = (rect.width / pageRect.width) * imgWidth;
+        const height = (rect.height / pageRect.height) * Math.min(imgHeight, 297);
+        
+        // Add link annotation
+        if (link.href && width > 0 && height > 0) {
+          pdf.link(x, y, width, height, { url: link.href });
+        }
+      });
     }
 
     // Save PDF

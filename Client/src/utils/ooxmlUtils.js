@@ -36,8 +36,8 @@ export const exportDocxOOXML = async (htmlContent, filename = 'document.docx') =
     const zip = new JSZip();
     const imageData = [];
     
-    // Convert HTML to OOXML and extract images
-    const { ooxml, images } = convertHTMLToOOXML(htmlContent);
+    // Convert HTML to OOXML and extract images/links
+    const { ooxml, images, links } = convertHTMLToOOXML(htmlContent);
     
     // Add images to zip
     images.forEach((img, index) => {
@@ -49,7 +49,7 @@ export const exportDocxOOXML = async (htmlContent, filename = 'document.docx') =
     zip.file('word/document.xml', ooxml);
     zip.file('[Content_Types].xml', getContentTypesXml(images));
     zip.file('_rels/.rels', getRelsXml());
-    zip.file('word/_rels/document.xml.rels', getDocumentRelsXml(images));
+    zip.file('word/_rels/document.xml.rels', getDocumentRelsXml(images, links));
     zip.file('docProps/app.xml', getAppPropsXml());
     zip.file('docProps/core.xml', getCorePropsXml());
     zip.file('word/styles.xml', getStylesXml());
@@ -313,9 +313,10 @@ const convertHTMLToOOXML = (htmlContent) => {
 
   const createRunsFromHtml = (content) => {
     let runs = '';
-    // Split keeping inline tags (case-insensitive)
-    const parts = content.split(/(<\/?(?:strong|b|em|i|u)[^>]*>)/i);
+    // Split keeping inline tags including links
+    const parts = content.split(/(<\/?(?:strong|b|em|i|u|a)[^>]*>)/i);
     let isBold = false, isItalic = false, isUnderline = false;
+    let currentLink = null;
 
     parts.forEach(part => {
       const lower = part.toLowerCase();
@@ -325,16 +326,37 @@ const convertHTMLToOOXML = (htmlContent) => {
       else if (lower === '</em>' || lower === '</i>') isItalic = false;
       else if (lower === '<u>') isUnderline = true;
       else if (lower === '</u>') isUnderline = false;
+      else if (part.toLowerCase().startsWith('<a ')) {
+        const hrefMatch = part.match(/href=["']([^"']*)["']/i);
+        if (hrefMatch) {
+          currentLink = hrefMatch[1];
+        }
+      }
+      else if (lower === '</a>') {
+        currentLink = null;
+      }
       else if (part && !part.startsWith('<')) {
         let rPr = '';
-        if (isBold || isItalic || isUnderline) {
+        if (isBold || isItalic || isUnderline || currentLink) {
           rPr = '<w:rPr>';
           if (isBold) rPr += '<w:b/>';
           if (isItalic) rPr += '<w:i/>';
-          if (isUnderline) rPr += '<w:u w:val="single"/>';
+          if (isUnderline || currentLink) rPr += '<w:u w:val="single"/>';
+          if (currentLink) rPr += '<w:color w:val="0000FF"/>';
           rPr += '</w:rPr>';
         }
-        runs += `<w:r>${rPr}<w:t xml:space="preserve">${escapeXml(part)}</w:t></w:r>`;
+        
+        if (currentLink) {
+          // Create hyperlink
+          const linkId = `link${extractedImages.length + Math.random().toString(36).substr(2, 9)}`;
+          runs += `<w:hyperlink r:id="${linkId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:r>${rPr}<w:t xml:space="preserve">${escapeXml(part)}</w:t></w:r></w:hyperlink>`;
+          
+          // Store link for relationships
+          if (!extractedImages.links) extractedImages.links = [];
+          extractedImages.links.push({ id: linkId, url: currentLink });
+        } else {
+          runs += `<w:r>${rPr}<w:t xml:space="preserve">${escapeXml(part)}</w:t></w:r>`;
+        }
       }
     });
 
@@ -450,7 +472,7 @@ const convertHTMLToOOXML = (htmlContent) => {
   </w:body>
 </w:document>`;
   
-  return { ooxml, images: extractedImages };
+  return { ooxml, images: extractedImages, links: extractedImages.links || [] };
 };
 
 // Escape XML special characters inside text nodes
@@ -488,7 +510,7 @@ const getRelsXml = () => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?
   <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
 </Relationships>`;
 
-const getDocumentRelsXml = (images = []) => {
+const getDocumentRelsXml = (images = [], links = []) => {
   let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`;
@@ -496,6 +518,11 @@ const getDocumentRelsXml = (images = []) => {
   images.forEach((img, index) => {
     xml += `
   <Relationship Id="rId${index + 2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image${index + 1}.${img.ext}"/>`;
+  });
+  
+  links.forEach((link) => {
+    xml += `
+  <Relationship Id="${link.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${escapeXml(link.url)}" TargetMode="External"/>`;
   });
   
   xml += `

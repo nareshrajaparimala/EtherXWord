@@ -63,7 +63,8 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
       if (imageRef.current && !imageRef.current.contains(event.target)) {
         setShowImagePopup(false);
       }
-      if (linkRef.current && !linkRef.current.contains(event.target)) {
+      // Don't close link popup on outside clicks - it has its own overlay handler
+      if (linkRef.current && !linkRef.current.contains(event.target) && !event.target.closest('.drawing-overlay')) {
         setShowLinkPopup(false);
       }
     };
@@ -599,13 +600,17 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                     <h3>Insert Link</h3>
                     <button onClick={() => setShowLinkPopup(false)} className="close-btn">×</button>
                   </div>
-                  <div className="popup-content" style={{padding: '20px'}}>
+                  <div className="popup-content" style={{padding: '20px'}} onClick={(e) => e.stopPropagation()}>
                     <div className="input-group" style={{marginBottom: '20px'}}>
                       <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold'}}>URL:</label>
                       <input 
                         type="text" 
                         value={linkUrl} 
                         onChange={(e) => setLinkUrl(e.target.value)} 
+                        onClick={(e) => e.stopPropagation()}
+                        onFocus={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
                         placeholder="https://example.com" 
                         style={{width: '100%', padding: '10px', fontSize: '14px', border: '1px solid #ccc', borderRadius: '4px', outline: 'none', boxSizing: 'border-box'}} 
                         autoFocus
@@ -617,12 +622,16 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                         type="text" 
                         value={linkText} 
                         onChange={(e) => setLinkText(e.target.value)} 
+                        onClick={(e) => e.stopPropagation()}
+                        onFocus={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
                         placeholder="Link text" 
                         style={{width: '100%', padding: '10px', fontSize: '14px', border: '1px solid #ccc', borderRadius: '4px', outline: 'none', boxSizing: 'border-box'}} 
                       />
                     </div>
                   </div>
-                  <div className="drawing-actions">
+                  <div className="drawing-actions" onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => { apply('insertLink', { url: linkUrl, text: linkText }); setShowLinkPopup(false); setLinkUrl(''); setLinkText(''); }} disabled={!linkUrl}>Insert</button>
                     <button onClick={() => { setShowLinkPopup(false); setLinkUrl(''); setLinkText(''); }}>Cancel</button>
                   </div>
