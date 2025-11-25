@@ -58,12 +58,12 @@
   gap: 8px;
   font-weight: 600;
   color: var(--primary-yellow);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .document-title {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--text-primary);
   cursor: pointer;
@@ -100,7 +100,7 @@
   color: var(--text-primary);
   padding: 8px 12px;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 16px;
   cursor: pointer;
   display: flex;
   align-items: center;

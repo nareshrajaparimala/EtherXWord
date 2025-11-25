@@ -42,6 +42,7 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const [footerText, setFooterText] = useState('');
   const [pageNumberPosition, setPageNumberPosition] = useState('bottom-center');
   const [showSymbolsPopup, setShowSymbolsPopup] = useState(false);
+  const [showEmojiPopup, setShowEmojiPopup] = useState(false);
   const canvasRef = useRef(null);
   const textColorRef = useRef(null);
   const bgColorRef = useRef(null);
@@ -52,6 +53,7 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const headerFooterRef = useRef(null);
   const pageNumberRef = useRef(null);
   const symbolsRef = useRef(null);
+  const emojiRef = useRef(null);
 
   useEffect(() => {
     if (selectedToolProp && selectedToolProp !== selectedTool) {
@@ -88,6 +90,9 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
       }
       if (symbolsRef.current && !symbolsRef.current.contains(event.target)) {
         setShowSymbolsPopup(false);
+      }
+      if (emojiRef.current && !emojiRef.current.contains(event.target)) {
+        setShowEmojiPopup(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -439,6 +444,13 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                   <span className="btn-label">Equations</span>
                 </button>
               </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section" ref={emojiRef}>
+                <button className="etb-btn etb-btn-vertical" onClick={() => setShowEmojiPopup(true)} title="Emojis - Insert emojis">
+                  <i className="ri-emotion-happy-line"></i>
+                  <span className="btn-label">Emojis</span>
+                </button>
+              </div>
             </div>
             {showDrawing && (
               <div className="drawing-overlay">
@@ -752,51 +764,96 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
               </div>
             )}
 
+            {showEmojiPopup && (
+              <div className="drawing-overlay" onClick={() => setShowEmojiPopup(false)}>
+                <div className="drawing-canvas-container" style={{width: '700px', height: '500px'}} onClick={(e) => e.stopPropagation()}>
+                  <div className="drawing-header">
+                    <h3>Insert Emojis</h3>
+                    <button onClick={() => setShowEmojiPopup(false)} className="close-btn">×</button>
+                  </div>
+                  <div className="popup-content" style={{padding: '20px'}}>
+                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: '8px', maxHeight: '380px', overflowY: 'auto', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', background: '#f9f9f9'}}>
+                      {['😀', '😁', '😂', '😃', '😄', '😅', '😆', '😉', '😊', '😋', '😎', '😍', '😘', '😗', '😙', '😚', '🙂', '🤗', '🤔', '😐', '😑', '😶', '🙄', '😏', '😣', '😥', '😮', '🤐', '😴', '😪', '😌', '😛', '😜', '😝', '🤤', '😒', '😓', '😔', '😕', '🙃', '🤑', '😲', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '😵', '😱', '😨', '😰', '😯', '😦', '😧', '😩', '😢', '😭', '😤', '😠', '😡', '😖', '😫', '😬', '😳', '😟', '🙁', '😿', '😾', '😈', '👿', '😇', '🥰', '🥳', '🥴', '🥶', '🥵', '🥸', '🥹', '🥺', '❤️', '💛', '💚', '💙', '💜', '🧡', '🖤', '🤍', '💔', '❣️', '💕', '💖', '💗', '💘', '💝', '💞', '💟', '♥️', '👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '👇', '☝️', '🖕', '👋', '🤚', '💪', '🦾', '🙏', '✍️', '💅', '🤳', '💁', '🙅', '🙆', '🙋', '🤦', '🤷', '🙎', '🙍', '💆', '💇', '🧍', '🚶', '🏃', '💃', '🕺', '👯', '🤺', '🤸', '🤼', '🤽', '🤾', '🤹', '🧘', '🧙', '🧚', '🧛', '🧜', '🧝', '🧞', '🧟', '👶', '👧', '👦', '👩', '👨', '👴', '👵', '👱', '👳', '👷', '💂', '🕵️', '👩‍⚕️', '👨‍⚕️', '👩‍🎓', '👨‍🎓', '👩‍🎤', '👨‍🎤', '👩‍🎨', '👨‍🎨', '👩‍✈️', '👨‍✈️', '👩‍🚀', '👨‍🚀', '👩‍🔬', '👨‍🔬', '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🦝', '🐻', '🐼', '🦘', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤', '🐣', '🐥', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜', '🦗', '🕷️', '🕸️', '🦂', '🦐', '🦑', '🐠', '🐟', '🐡', '🐙', '🐚', '🐍', '🐲', '🐉', '🦕', '🦖', '🌵', '🎄', '🌲', '🌳', '🌴', '🌱', '🌿', '☘️', '🍀', '🎍', '🌾', '🌼', '🌻', '🌹', '🥀', '🌷', '🌺', '🌸', '🌼', '🌿', '🍁', '🍂', '🍃', '🍄', '🌍', '🌎', '🌏', '🌐', '🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘', '🌙', '🌚', '🌛', '🌜', '🌝', '🌞', '🌟', '⭐', '🌠', '☁️', '⛅', '⛈️', '🌤️', '🌥️', '🌦️', '🌧️', '🌨️', '🌩️', '🌪️', '🌫️', '🌬️', '🌈', '🌌', '☔', '☃️', '⛄', '❄️', '🌨️', '💧', '💦', '🌊'].map((emoji, index) => (
+                        <button 
+                          key={index}
+                          onClick={() => { apply('insertEmoji', emoji); setShowEmojiPopup(false); }}
+                          style={{
+                            padding: '8px', 
+                            fontSize: '24px', 
+                            border: '1px solid #ccc', 
+                            borderRadius: '4px', 
+                            background: 'white', 
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            minHeight: '50px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.background = '#e6f3ff';
+                            e.target.style.borderColor = '#007acc';
+                            e.target.style.transform = 'scale(1.2)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.background = 'white';
+                            e.target.style.borderColor = '#ccc';
+                            e.target.style.transform = 'scale(1)';
+                          }}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="drawing-actions">
+                    <button onClick={() => { setShowEmojiPopup(false); }}>Close</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {showSymbolsPopup && (
               <div className="drawing-overlay" onClick={() => setShowSymbolsPopup(false)}>
-                <div className="drawing-canvas-container" style={{width: '600px', height: '500px'}} onClick={(e) => e.stopPropagation()}>
+                <div className="drawing-canvas-container" style={{width: '700px', height: '500px'}} onClick={(e) => e.stopPropagation()}>
                   <div className="drawing-header">
                     <h3>Insert Symbols</h3>
                     <button onClick={() => setShowSymbolsPopup(false)} className="close-btn">×</button>
                   </div>
                   <div className="popup-content" style={{padding: '20px'}}>
-                    <div className="input-group" style={{marginBottom: '20px'}}>
-                      <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#000'}}>Click a symbol to insert:</label>
-                      <div style={{display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: '8px', maxHeight: '350px', overflowY: 'auto', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', background: '#f9f9f9'}}>
-                        {['•', '€', '£', '¥', '©', '®', '™', '±', '≠', '≤', '≥', '÷', '×', '∞', 'μ', 'α', 'β', 'π', 'Ω', 'Σ', '°', 'Δ', '☺', '♥', '₹', '¿', '¡', '—', '…', 'À', 'Á', 'Â', 'Ã', 'Ç', 'È', 'É', 'Ê', 'Ë', 'Ì', 'Í', 'Î', 'Ï', 'Ñ', 'Ò', 'Ó', 'Ô', 'Õ', 'Ö', 'Ù', 'Ú', 'Û', 'Ü', 'ß', 'à', 'á', 'â', 'ã', 'ä', 'å', 'æ', 'ç', 'è', 'é', 'ê', 'ë', 'ì', 'í', 'î', 'ï', 'ñ', 'ò', 'ó', 'ô', 'õ', 'ö', 'ù', 'ú', 'û', 'ü', 'ÿ', 'Ğ', 'ğ', 'İ', 'ı', 'Œ', 'œ', 'Ş', 'ş', 'Ÿ'].map((symbol, index) => (
-                          <button 
-                            key={index}
-                            onClick={() => { apply('insertSymbol', symbol); setShowSymbolsPopup(false); }}
-                            style={{
-                              padding: '10px', 
-                              fontSize: '18px', 
-                              border: '1px solid #ccc', 
-                              borderRadius: '4px', 
-                              background: 'white', 
-                              color: '#000',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease',
-                              minHeight: '40px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.target.style.background = '#e6f3ff';
-                              e.target.style.borderColor = '#007acc';
-                              e.target.style.transform = 'scale(1.1)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.target.style.background = 'white';
-                              e.target.style.borderColor = '#ccc';
-                              e.target.style.transform = 'scale(1)';
-                            }}
-                            title={`Insert ${symbol}`}
-                          >
-                            {symbol}
-                          </button>
-                        ))}
-                      </div>
+                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '8px', maxHeight: '380px', overflowY: 'auto', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', background: '#f9f9f9'}}>
+                      {['•', '€', '£', '¥', '©', '®', '™', '±', '≠', '≤', '≥', '÷', '×', '∞', 'μ', 'α', 'β', 'π', 'Ω', 'Σ', '°', 'Δ', '☺', '♥', '₹', '¿', '¡', '—', '…', 'À', 'Á', 'Â', 'Ã', 'Ç', 'È', 'É', 'Ê', 'Ë', 'Ì', 'Í', 'Î', 'Ï', 'Ñ', 'Ò', 'Ó', 'Ô', 'Õ', 'Ö', 'Ù', 'Ú', 'Û', 'Ü', 'ß', 'à', 'á', 'â', 'ã', 'ä', 'å', 'æ', 'ç', 'è', 'é', 'ê', 'ë', 'ì', 'í', 'î', 'ï', 'ñ', 'ò', 'ó', 'ô', 'õ', 'ö', 'ù', 'ú', 'û', 'ü', 'ÿ', 'Ğ', 'ğ', 'İ', 'ı', 'Œ', 'œ', 'Ş', 'ş', 'Ÿ'].map((symbol, index) => (
+                        <button 
+                          key={index}
+                          onClick={() => { apply('insertSymbol', symbol); setShowSymbolsPopup(false); }}
+                          style={{
+                            padding: '10px', 
+                            fontSize: '20px', 
+                            border: '1px solid #ccc', 
+                            borderRadius: '4px', 
+                            background: 'white', 
+                            color: '#000',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            minHeight: '45px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.background = '#e6f3ff';
+                            e.target.style.borderColor = '#007acc';
+                            e.target.style.transform = 'scale(1.1)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.background = 'white';
+                            e.target.style.borderColor = '#ccc';
+                            e.target.style.transform = 'scale(1)';
+                          }}
+                        >
+                          {symbol}
+                        </button>
+                      ))}
                     </div>
                   </div>
                   <div className="drawing-actions">
@@ -935,7 +992,99 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
           </>
         )}
 
-        {(selectedTool === 'View' || selectedTool === 'Help' || selectedTool === 'Layout' || selectedTool === 'References' || selectedTool === 'Review') && (
+        {selectedTool === 'Layout' && (
+          <>
+            <div className="etb-row">
+              <div className="etb-section">
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('setMargins', 'normal')} title="Margins - Set page margins">
+                  <i className="ri-layout-line"></i>
+                  <span className="btn-label">Margins</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('setOrientation', 'portrait')} title="Orientation - Change page orientation">
+                  <i className="ri-smartphone-line"></i>
+                  <span className="btn-label">Orientation</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('setPageSize', 'A4')} title="Size - Set page size">
+                  <i className="ri-file-paper-line"></i>
+                  <span className="btn-label">Size</span>
+                </button>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section">
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('setColumns', 1)} title="Columns - Set text columns">
+                  <i className="ri-layout-column-line"></i>
+                  <span className="btn-label">Columns</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('insertBreak', 'page')} title="Breaks - Insert page/section breaks">
+                  <i className="ri-separator"></i>
+                  <span className="btn-label">Breaks</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('toggleLineNumbers')} title="Line Numbers - Show/hide line numbers">
+                  <i className="ri-list-ordered"></i>
+                  <span className="btn-label">Line Numbers</span>
+                </button>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section">
+                <div className="etb-indent-section">
+                  <label className="etb-label">Indent</label>
+                  <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                      <span style={{fontSize: '12px'}}>Right</span>
+                      <select className="etb-select etb-select-small" style={{borderRadius: '2px'}} onChange={(e) => apply('setRightIndent', e.target.value)} title="Right indent">
+                        <option value="0">0"</option>
+                        <option value="0.5">0.5"</option>
+                        <option value="1">1"</option>
+                        <option value="1.5">1.5"</option>
+                        <option value="2">2"</option>
+                      </select>
+                    </div>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                      <span style={{fontSize: '12px'}}>Left</span>
+                      <select className="etb-select etb-select-small" style={{borderRadius: '2px'}} onChange={(e) => apply('setLeftIndent', e.target.value)} title="Left indent">
+                        <option value="0">0"</option>
+                        <option value="0.5">0.5"</option>
+                        <option value="1">1"</option>
+                        <option value="1.5">1.5"</option>
+                        <option value="2">2"</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section">
+                <div className="etb-spacing-section">
+                  <label className="etb-label">Spacing</label>
+                  <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                      <span style={{fontSize: '12px'}}>Before</span>
+                      <select className="etb-select etb-select-small" style={{borderRadius: '2px'}} onChange={(e) => apply('setSpacingBefore', e.target.value)} title="Spacing before paragraph">
+                        <option value="0">0pt</option>
+                        <option value="6">6pt</option>
+                        <option value="12">12pt</option>
+                        <option value="18">18pt</option>
+                        <option value="24">24pt</option>
+                      </select>
+                    </div>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                      <span style={{fontSize: '12px'}}>After</span>
+                      <select className="etb-select etb-select-small" style={{borderRadius: '2px'}} onChange={(e) => apply('setSpacingAfter', e.target.value)} title="Spacing after paragraph">
+                        <option value="0">0pt</option>
+                        <option value="6">6pt</option>
+                        <option value="12">12pt</option>
+                        <option value="18">18pt</option>
+                        <option value="24">24pt</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {(selectedTool === 'View' || selectedTool === 'Help' || selectedTool === 'References' || selectedTool === 'Review') && (
           <div className="etb-row">
             <span style={{ fontSize: '13px', fontStyle: 'italic', opacity: 0.6 }}>Options for {selectedTool} (coming soon)</span>
           </div>

@@ -61,7 +61,7 @@
   border: none;
   cursor: pointer;
   color: var(--etb-text, var(--etb-text-light));
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   transition: all 0.3s ease;
   position: relative;
@@ -146,10 +146,15 @@
   background: transparent;
   cursor: pointer;
   color: var(--etb-text, var(--etb-text-light));
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
   transition: all 0.2s ease;
+}
+
+.etb-btn i {
+  font-size: 16px;
+  margin-right: 4px;
 }
 
 .etb-btn:hover {
@@ -165,6 +170,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
+}
+
+.etb-btn-small i {
+  font-size: 16px;
 }
 
 /* Color buttons */
@@ -749,17 +759,17 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   padding: 6px 8px;
   min-width: 50px;
 }
 
 .etb-btn-vertical i {
-  font-size: 17px;
+  font-size: 20px;
 }
 
 .btn-label {
-  font-size: 10px;
+  font-size: 11px;
   color: rgba(0, 0, 0, 0.6);
   text-align: center;
   line-height: 1;
