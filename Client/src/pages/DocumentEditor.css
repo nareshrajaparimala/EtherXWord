@@ -832,6 +832,87 @@
   opacity: 0.8;
 }
 
+/* Image Resizer Styles */
+.image-resize-container {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.resize-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #007acc;
+  border: 2px solid white;
+  border-radius: 2px;
+  pointer-events: all;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.resize-handle:hover {
+  background: #0056b3;
+  transform: scale(1.2);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+
+.resize-nw { cursor: nw-resize; }
+.resize-n { cursor: n-resize; }
+.resize-ne { cursor: ne-resize; }
+.resize-e { cursor: e-resize; }
+.resize-se { cursor: se-resize; }
+.resize-s { cursor: s-resize; }
+.resize-sw { cursor: sw-resize; }
+.resize-w { cursor: w-resize; }
+
+.editor-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 10px 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.editor-content img:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.editor-content img.selected {
+  outline: 2px solid #007acc;
+  outline-offset: 2px;
+}
+
+/* Image Control Panel */
+.image-control-panel {
+  animation: panelSlideDown 0.3s ease;
+}
+
+@keyframes panelSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.image-control-panel button {
+  transition: all 0.2s ease;
+}
+
+.image-control-panel button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.image-control-panel button:active {
+  transform: scale(0.95);
+}
+
 /* Theme Variables */
 :root {
   --hover-bg: rgba(255, 215, 0, 0.1);

@@ -9,6 +9,7 @@ import { ThemeContext } from '../context/ThemeContext';
 import { importDocxOOXML, exportDocxOOXML } from '../utils/ooxmlUtils';
 import { MSWordPagination } from '../utils/paginationEngine';
 import { exportDocument, exportToPDF, exportToDOCX } from '../utils/exportUtils';
+import { imageResizer } from '../utils/imageResizer';
 import EditorToolBox from '../components/EditorToolBox';
 
 const DocumentEditor = () => {
@@ -65,6 +66,76 @@ const DocumentEditor = () => {
         
         paginationRef.current = new MSWordPagination(editorContainerRef.current, handleStatsUpdate);
         
+        // Add drag and drop functionality to editor
+        const handleDragOver = (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+        };
+        
+        const handleDrop = (e) => {
+          e.preventDefault();
+          const files = e.dataTransfer.files;
+          if (files.length > 0) {
+            const file = files[0];
+            if (file.type.startsWith('image/')) {
+              const pageIndex = paginationRef.current.currentPageIndex || 0;
+              const currentPage = paginationRef.current.pages[pageIndex];
+              if (currentPage && currentPage.content) {
+                imageResizer.insertImage(file, currentPage.content)
+                  .then(() => {
+                    showNotification('Image inserted successfully!', 'success');
+                    setTimeout(() => {
+                      if (paginationRef.current) {
+                        paginationRef.current.updateStats();
+                      }
+                    }, 100);
+                  })
+                  .catch(error => {
+                    showNotification('Failed to insert image: ' + error.message, 'error');
+                  });
+              }
+            } else {
+              showNotification('Please drop an image file', 'error');
+            }
+          }
+        };
+        
+        editorContainerRef.current.addEventListener('dragover', handleDragOver);
+        editorContainerRef.current.addEventListener('drop', handleDrop);
+        
+        // Add keyboard shortcuts for image operations
+        const handleKeyDown = (e) => {
+          if (imageResizer.activeImage) {
+            switch(e.key) {
+              case 'Delete':
+              case 'Backspace':
+                e.preventDefault();
+                imageResizer.deleteImage(imageResizer.activeImage);
+                break;
+              case 'ArrowLeft':
+                if (e.ctrlKey) {
+                  e.preventDefault();
+                  imageResizer.alignImage(imageResizer.activeImage, 'left');
+                }
+                break;
+              case 'ArrowRight':
+                if (e.ctrlKey) {
+                  e.preventDefault();
+                  imageResizer.alignImage(imageResizer.activeImage, 'right');
+                }
+                break;
+              case 'ArrowUp':
+                if (e.ctrlKey) {
+                  e.preventDefault();
+                  imageResizer.alignImage(imageResizer.activeImage, 'center');
+                }
+                break;
+            }
+          }
+        };
+        
+        document.addEventListener('keydown', handleKeyDown);
+        
         // Listen for export events
         const handleExportDocx = (event) => {
           handleExportDocx();
@@ -87,6 +158,9 @@ const DocumentEditor = () => {
         return () => {
           document.removeEventListener('exportDocx', handleExportDocx);
           document.removeEventListener('exportPdf', handleExportPdf);
+          document.removeEventListener('keydown', handleKeyDown);
+          editorContainerRef.current?.removeEventListener('dragover', handleDragOver);
+          editorContainerRef.current?.removeEventListener('drop', handleDrop);
           if (paginationRef.current && paginationRef.current.observer) {
             paginationRef.current.observer.disconnect();
           }
@@ -251,6 +325,65 @@ const DocumentEditor = () => {
   const handleZoomOut = () => setZoomLevel(prev => Math.max(50, prev - 10));
   const resetZoom = () => setZoomLevel(100);
   
+  // Expose image control functions to console
+  useEffect(() => {
+    window.imageControls = {
+      delete: () => {
+        if (imageResizer.activeImage) {
+          imageResizer.deleteImage(imageResizer.activeImage);
+          console.log('Image deleted');
+        } else {
+          console.log('No image selected');
+        }
+      },
+      alignLeft: () => {
+        if (imageResizer.activeImage) {
+          imageResizer.alignImage(imageResizer.activeImage, 'left');
+          console.log('Image aligned left');
+        } else {
+          console.log('No image selected');
+        }
+      },
+      alignRight: () => {
+        if (imageResizer.activeImage) {
+          imageResizer.alignImage(imageResizer.activeImage, 'right');
+          console.log('Image aligned right');
+        } else {
+          console.log('No image selected');
+        }
+      },
+      alignCenter: () => {
+        if (imageResizer.activeImage) {
+          imageResizer.alignImage(imageResizer.activeImage, 'center');
+          console.log('Image aligned center');
+        } else {
+          console.log('No image selected');
+        }
+      },
+      help: () => {
+        console.log(`
+Image Controls:
+- imageControls.delete() - Delete selected image
+- imageControls.alignLeft() - Align image left
+- imageControls.alignRight() - Align image right
+- imageControls.alignCenter() - Align image center
+- imageControls.help() - Show this help
+
+Keyboard Shortcuts:
+- Delete/Backspace - Delete selected image
+- Ctrl+Left Arrow - Align left
+- Ctrl+Right Arrow - Align right
+- Ctrl+Up Arrow - Align center`);
+      }
+    };
+    
+    console.log('Image controls available! Type imageControls.help() for commands');
+    
+    return () => {
+      delete window.imageControls;
+    };
+  }, []);
+  
   return (
     <div className={`editor-container ${isFullscreen ? 'fullscreen' : ''}`}>
       {/* Navbar */}
@@ -300,6 +433,7 @@ const DocumentEditor = () => {
             selectedTool={selectedTool}
             onSelectTool={setSelectedTool}
             onApply={(cmd, value) => {
+              console.log('DocumentEditor onApply received:', cmd, value);
               const mappingToFormat = ['bold','italic','underline','fontName','fontSize','justifyLeft','justifyCenter','justifyRight','justifyFull'];
               
               // File panel actions
@@ -364,6 +498,32 @@ const DocumentEditor = () => {
                   }
                   tableHTML += '</table>';
                   document.execCommand('insertHTML', false, tableHTML);
+                }
+              } else if (cmd === 'insertImageFile') {
+                if (value && paginationRef.current && paginationRef.current.pages.length > 0) {
+                  // Get the current page or default to first page
+                  const pageIndex = paginationRef.current.currentPageIndex || 0;
+                  const currentPage = paginationRef.current.pages[pageIndex];
+                  
+                  if (currentPage && currentPage.content) {
+                    imageResizer.insertImage(value, currentPage.content)
+                      .then(() => {
+                        showNotification('Image inserted successfully! Click to select and use controls.', 'success');
+                        setTimeout(() => {
+                          if (paginationRef.current) {
+                            paginationRef.current.updateStats();
+                          }
+                        }, 100);
+                      })
+                      .catch(error => {
+                        console.error('Image insertion error:', error);
+                        showNotification('Failed to insert image: ' + error.message, 'error');
+                      });
+                  } else {
+                    showNotification('Editor not ready. Please try again.', 'error');
+                  }
+                } else {
+                  showNotification('Editor not initialized. Please try again.', 'error');
                 }
               } else if (cmd === 'insertImageData') {
                 if (value) {

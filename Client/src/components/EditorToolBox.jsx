@@ -79,7 +79,12 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   };
 
   const apply = (cmd, value = null) => {
-    if (onApply) onApply(cmd, value);
+    console.log('EditorToolBox apply called:', cmd, value);
+    if (onApply) {
+      onApply(cmd, value);
+    } else {
+      console.error('onApply function not provided');
+    }
   };
 
   return (
@@ -398,7 +403,18 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
               </div>
               <div className="etb-divider"></div>
               <div className="etb-section" ref={imageRef}>
-                <button className="etb-btn etb-btn-vertical" onClick={() => setShowImagePopup(!showImagePopup)} title="Image - Insert image">
+                <button className="etb-btn etb-btn-vertical" onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = 'image/*';
+                  input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      apply('insertImageFile', file);
+                    }
+                  };
+                  input.click();
+                }} title="Image - Insert image">
                   <i className="ri-image-line"></i>
                   <span className="btn-label">Image</span>
                 </button>
@@ -406,63 +422,6 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                   <i className="ri-brush-line"></i>
                   <span className="btn-label">Drawing</span>
                 </button>
-                {showImagePopup && (
-                  <div className="insert-popup">
-                    <div className="popup-header">
-                      <h4>Insert Image</h4>
-                      <button onClick={() => setShowImagePopup(false)} className="close-btn">×</button>
-                    </div>
-                    <div className="popup-content">
-                      <button onClick={() => { 
-                        const input = document.createElement('input');
-                        input.type = 'file';
-                        input.accept = 'image/*';
-                        input.onchange = (e) => {
-                          const file = e.target.files[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              apply('insertImageData', event.target.result);
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        };
-                        input.click();
-                        setShowImagePopup(false);
-                      }} className="image-option">
-                        <i className="ri-folder-line"></i> From Computer
-                      </button>
-                      <div className="url-input-section">
-                        <div className="input-group">
-                          <label>Image URL:</label>
-                          <input 
-                            type="url" 
-                            value={imageUrl} 
-                            onChange={(e) => setImageUrl(e.target.value)} 
-                            placeholder="https://example.com/image.jpg" 
-                          />
-                        </div>
-                        <div className="popup-actions">
-                          <button 
-                            onClick={() => { 
-                              if (imageUrl) {
-                                apply('insertImageData', imageUrl);
-                                setImageUrl('');
-                                setShowImagePopup(false);
-                              }
-                            }} 
-                            disabled={!imageUrl}
-                          >
-                            Insert from URL
-                          </button>
-                        </div>
-                      </div>
-                      <button onClick={() => { apply('insertImageStock'); setShowImagePopup(false); }} className="image-option">
-                        <i className="ri-gallery-line"></i> Stock Images
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
               <div className="etb-divider"></div>
               <div className="etb-section" ref={linkRef}>
@@ -631,6 +590,8 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                 </div>
               </div>
             )}
+
+            
             {showLinkPopup && (
               <div className="drawing-overlay" onClick={() => setShowLinkPopup(false)}>
                 <div className="drawing-canvas-container" style={{width: '500px', height: '300px'}} onClick={(e) => e.stopPropagation()}>
