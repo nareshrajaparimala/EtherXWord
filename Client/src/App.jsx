@@ -58,25 +58,33 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Check if user should stay logged in
+    const token = localStorage.getItem('accessToken');
     const persist = localStorage.getItem('persistLogin');
-    if (persist !== 'true') {
+    
+    // Only clear tokens if user explicitly chose not to be remembered AND there's no valid session
+    if (persist === 'false' && !sessionStorage.getItem('sessionActive')) {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
+      localStorage.removeItem('userProfile');
+    } else if (token) {
+      // Set session as active if user has token
+      sessionStorage.setItem('sessionActive', 'true');
     }
 
     const handleBeforeUnload = () => {
-      if (localStorage.getItem('persistLogin') !== 'true') {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+      // Only clear on browser close if user didn't choose "Remember me"
+      if (localStorage.getItem('persistLogin') === 'false') {
+        sessionStorage.removeItem('sessionActive');
       }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
 
-    // Simulate app initialization
+    // Reduce loading time
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 5000); // 10 seconds loading
+    }, 2000);
 
     return () => {
       clearTimeout(timer);

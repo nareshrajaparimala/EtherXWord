@@ -14,7 +14,8 @@ export const authService = {
       localStorage.setItem('accessToken', response.data.accessToken);
       localStorage.setItem('refreshToken', response.data.refreshToken);
       localStorage.setItem('userProfile', JSON.stringify(response.data.user));
-      localStorage.setItem('persistLogin', credentials.rememberMe ? 'true' : 'false');
+      localStorage.setItem('persistLogin', credentials.rememberMe ? 'true' : 'true'); // Default to true for better UX
+      sessionStorage.setItem('sessionActive', 'true');
       window.dispatchEvent(new Event('storage'));
     }
     return response.data;
