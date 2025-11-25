@@ -45,6 +45,7 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const [showPageBorderPopup, setShowPageBorderPopup] = useState(false);
   const [showPageColorPopup, setShowPageColorPopup] = useState(false);
   const [customPageColor, setCustomPageColor] = useState('#ffffff');
+  const [showKeyboardShortcutsPopup, setShowKeyboardShortcutsPopup] = useState(false);
   const [headerFooterConfig, setHeaderFooterConfig] = useState({
     headerText: '',
     headerAlignment: 'left',
@@ -74,6 +75,7 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const emojiRef = useRef(null);
   const pageBorderRef = useRef(null);
   const pageColorRef = useRef(null);
+  const keyboardShortcutsRef = useRef(null);
 
   useEffect(() => {
     if (selectedToolProp && selectedToolProp !== selectedTool) {
@@ -116,6 +118,9 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
       }
       if (pageColorRef.current && !pageColorRef.current.contains(event.target)) {
         setShowPageColorPopup(false);
+      }
+      if (keyboardShortcutsRef.current && !keyboardShortcutsRef.current.contains(event.target)) {
+        setShowKeyboardShortcutsPopup(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -1402,18 +1407,30 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
                   <i className="ri-question-line"></i>
                   <span className="btn-label">Help</span>
                 </button>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section">
                 <button className="etb-btn etb-btn-vertical" onClick={() => apply('contactSupport')} title="Contact Support - Get technical assistance">
                   <i className="ri-customer-service-line"></i>
                   <span className="btn-label">Contact Support</span>
                 </button>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section">
                 <button className="etb-btn etb-btn-vertical" onClick={() => apply('sendFeedback')} title="Feedback - Send us your feedback">
                   <i className="ri-feedback-line"></i>
                   <span className="btn-label">Feedback</span>
                 </button>
-                <button className="etb-btn etb-btn-vertical" onClick={() => apply('keyboardShortcuts')} title="Keyboard Shortcuts - View all keyboard shortcuts">
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section" ref={keyboardShortcutsRef}>
+                <button className="etb-btn etb-btn-vertical" onClick={() => setShowKeyboardShortcutsPopup(!showKeyboardShortcutsPopup)} title="Keyboard Shortcuts - View all keyboard shortcuts">
                   <i className="ri-keyboard-line"></i>
                   <span className="btn-label">Keyboard Shortcuts</span>
                 </button>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section">
                 <button className="etb-btn etb-btn-vertical" onClick={() => apply('whatsNew')} title="What's New - See latest features and updates">
                   <i className="ri-notification-badge-line"></i>
                   <span className="btn-label">What's New</span>
@@ -1421,6 +1438,151 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
               </div>
             </div>
           </>
+        )}
+
+        {showKeyboardShortcutsPopup && (
+          <div className="drawing-overlay" onClick={() => setShowKeyboardShortcutsPopup(false)}>
+            <div className="header-footer-container" onClick={(e) => e.stopPropagation()}>
+              <div className="popup-header">
+                <h3>Keyboard Shortcuts</h3>
+                <button onClick={() => setShowKeyboardShortcutsPopup(false)} className="close-btn">×</button>
+              </div>
+              <div className="header-footer-content">
+                <div className="shortcuts-grid">
+                  <div className="shortcut-category">
+                    <h4>Text Formatting</h4>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+B</span>
+                      <span className="shortcut-desc">Bold</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+I</span>
+                      <span className="shortcut-desc">Italic</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+U</span>
+                      <span className="shortcut-desc">Underline</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+Shift+S</span>
+                      <span className="shortcut-desc">Strikethrough</span>
+                    </div>
+                  </div>
+                  <div className="shortcut-category">
+                    <h4>Editing</h4>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+Z</span>
+                      <span className="shortcut-desc">Undo</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+Y</span>
+                      <span className="shortcut-desc">Redo</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+C</span>
+                      <span className="shortcut-desc">Copy</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+V</span>
+                      <span className="shortcut-desc">Paste</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+X</span>
+                      <span className="shortcut-desc">Cut</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+A</span>
+                      <span className="shortcut-desc">Select All</span>
+                    </div>
+                  </div>
+                  <div className="shortcut-category">
+                    <h4>Navigation</h4>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+F</span>
+                      <span className="shortcut-desc">Find</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+H</span>
+                      <span className="shortcut-desc">Find & Replace</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+G</span>
+                      <span className="shortcut-desc">Go to Page</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Home</span>
+                      <span className="shortcut-desc">Go to Beginning of Line</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">End</span>
+                      <span className="shortcut-desc">Go to End of Line</span>
+                    </div>
+                  </div>
+                  <div className="shortcut-category">
+                    <h4>File Operations</h4>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+N</span>
+                      <span className="shortcut-desc">New Document</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+O</span>
+                      <span className="shortcut-desc">Open Document</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+S</span>
+                      <span className="shortcut-desc">Save</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+Shift+S</span>
+                      <span className="shortcut-desc">Save As</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+P</span>
+                      <span className="shortcut-desc">Print</span>
+                    </div>
+                  </div>
+                  <div className="shortcut-category">
+                    <h4>Alignment</h4>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+L</span>
+                      <span className="shortcut-desc">Align Left</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+E</span>
+                      <span className="shortcut-desc">Align Center</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+R</span>
+                      <span className="shortcut-desc">Align Right</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+J</span>
+                      <span className="shortcut-desc">Justify</span>
+                    </div>
+                  </div>
+                  <div className="shortcut-category">
+                    <h4>Lists & Indentation</h4>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+Shift+L</span>
+                      <span className="shortcut-desc">Bullet List</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Ctrl+Shift+N</span>
+                      <span className="shortcut-desc">Numbered List</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Tab</span>
+                      <span className="shortcut-desc">Increase Indent</span>
+                    </div>
+                    <div className="shortcut-item">
+                      <span className="shortcut-key">Shift+Tab</span>
+                      <span className="shortcut-desc">Decrease Indent</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {(selectedTool === 'View' || selectedTool === 'References' || selectedTool === 'Review') && (

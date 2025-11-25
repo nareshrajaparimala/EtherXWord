@@ -42,7 +42,7 @@
   padding-bottom: 4px;
   border-bottom: 1px solid var(--etb-border, var(--etb-border-light));
   width: 100%;
-  min-width: 800px;
+  min-width: 500px;
 }
 
 .etb-cat-btn {
@@ -141,6 +141,15 @@
 
 [data-theme="dark"] .etb-divider {
   background: rgba(255, 255, 255, 0.1);
+}
+
+/* Shortcut text colors */
+.shortcut-text {
+  color: #000;
+}
+
+[data-theme="dark"] .shortcut-text {
+  color: #fff;
 }
 
 .etb-btn {
@@ -1885,4 +1894,54 @@ ton:hover:not(:disabled) {
   background: var(--etb-hover, var(--etb-hover-light));
   border-color: var(--etb-accent);
   transform: scale(1.05);
+}
+/* Keyboard shortcuts grid */
+.shortcuts-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 20px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.shortcut-category {
+  margin-bottom: 24px;
+}
+
+.shortcut-category h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--etb-accent);
+  border-bottom: 1px solid var(--etb-border, var(--etb-border-light));
+  padding-bottom: 8px;
+}
+
+.shortcut-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid var(--etb-border, var(--etb-border-light));
+  border-radius: 6px;
+  background: var(--etb-bg, var(--etb-bg-light));
+  margin-bottom: 8px;
+}
+
+.shortcut-key {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  padding: 4px 8px;
+  background: var(--etb-hover, var(--etb-hover-light));
+  border: 1px solid var(--etb-border, var(--etb-border-light));
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--etb-accent);
+}
+
+.shortcut-desc {
+  font-size: 14px;
+  color: var(--etb-text, var(--etb-text-light));
+  opacity: 0.8;
 }
