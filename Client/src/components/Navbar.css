@@ -49,6 +49,19 @@
   color: #ffd700;
 }
 
+/* Hamburger menu button theme colors */
+.sidebar-toggle {
+  transition: all 0.3s ease;
+}
+
+.navbar.light .sidebar-toggle {
+  color: #000000 !important;
+}
+
+.navbar.dark .sidebar-toggle {
+  color: #ffffff !important;
+}
+
 .navbar-right {
   display: flex;
   align-items: center;

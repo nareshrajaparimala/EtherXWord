@@ -46,6 +46,26 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const [showPageColorPopup, setShowPageColorPopup] = useState(false);
   const [customPageColor, setCustomPageColor] = useState('#ffffff');
   const [showKeyboardShortcutsPopup, setShowKeyboardShortcutsPopup] = useState(false);
+  const [showTocPopup, setShowTocPopup] = useState(false);
+  const [showFootnotePopup, setShowFootnotePopup] = useState(false);
+  const [showEndnotePopup, setShowEndnotePopup] = useState(false);
+  const [showCitationPopup, setShowCitationPopup] = useState(false);
+  const [showBibliographyPopup, setShowBibliographyPopup] = useState(false);
+  const [footnoteText, setFootnoteText] = useState('');
+  const [endnoteText, setEndnoteText] = useState('');
+  const [citationText, setCitationText] = useState('');
+  const [citationAuthor, setCitationAuthor] = useState('');
+  const [citationYear, setCitationYear] = useState('');
+  const [tocSettings, setTocSettings] = useState({
+    includeH1: true,
+    includeH2: true,
+    includeH3: true,
+    includeH4: false,
+    includeH5: false,
+    includeH6: false,
+    showPageNumbers: true,
+    alignment: 'left'
+  });
   const [headerFooterConfig, setHeaderFooterConfig] = useState({
     headerText: '',
     headerAlignment: 'left',
@@ -76,6 +96,11 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
   const pageBorderRef = useRef(null);
   const pageColorRef = useRef(null);
   const keyboardShortcutsRef = useRef(null);
+  const tocRef = useRef(null);
+  const footnoteRef = useRef(null);
+  const endnoteRef = useRef(null);
+  const citationRef = useRef(null);
+  const bibliographyRef = useRef(null);
 
   useEffect(() => {
     if (selectedToolProp && selectedToolProp !== selectedTool) {
@@ -121,6 +146,21 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
       }
       if (keyboardShortcutsRef.current && !keyboardShortcutsRef.current.contains(event.target)) {
         setShowKeyboardShortcutsPopup(false);
+      }
+      if (tocRef.current && !tocRef.current.contains(event.target)) {
+        setShowTocPopup(false);
+      }
+      if (footnoteRef.current && !footnoteRef.current.contains(event.target)) {
+        setShowFootnotePopup(false);
+      }
+      if (endnoteRef.current && !endnoteRef.current.contains(event.target)) {
+        setShowEndnotePopup(false);
+      }
+      if (citationRef.current && !citationRef.current.contains(event.target)) {
+        setShowCitationPopup(false);
+      }
+      if (bibliographyRef.current && !bibliographyRef.current.contains(event.target)) {
+        setShowBibliographyPopup(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -202,6 +242,26 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
         [key]: value
       }
     }));
+  };
+
+  // References functionality
+  const generateTableOfContents = (settings) => {
+    let tocHTML = `<div style="margin: 20px 0; padding: 20px; border: 1px solid #ddd; background: #f9f9f9; text-align: ${settings.alignment};"><h2 style="margin-top: 0;">Table of Contents</h2><div style="text-align: left;">`;
+    
+    const levels = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6'];
+    let counter = 1;
+    
+    levels.forEach((level, levelIndex) => {
+      const levelNum = levelIndex + 1;
+      if (settings[`includeH${levelNum}`]) {
+        const indent = levelIndex * 20;
+        const pageNum = settings.showPageNumbers ? '<span style="float: right;">1</span>' : '';
+        tocHTML += `<div style="margin-left: ${indent}px; padding: 5px 0; border-bottom: 1px dotted #ccc;">Sample ${level} Heading${pageNum}</div>`;
+      }
+    });
+    
+    tocHTML += '</div></div>';
+    return tocHTML;
   };
 
   return (
@@ -1588,32 +1648,62 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
         {selectedTool === 'References' && (
           <>
             <div className="etb-row">
-              <div className="etb-section">
-                <button className="etb-btn etb-btn-vertical" onClick={() => apply('insertTableOfContents')} title="Insert Table of Contents - Automatically generates a table of contents based on headings">
+              <div className="etb-section" ref={tocRef}>
+                <button className="etb-btn etb-btn-vertical" onClick={() => setShowTocPopup(!showTocPopup)} title="Insert Table of Contents - Automatically generates a table of contents based on headings">
                   <i className="ri-list-check-2"></i>
                   <span className="btn-label">Table of Contents</span>
                 </button>
               </div>
               <div className="etb-divider"></div>
-              <div className="etb-section">
-                <button className="etb-btn etb-btn-vertical" onClick={() => apply('insertFootnote')} title="Insert Footnote - Add a footnote reference">
+              <div className="etb-section" ref={footnoteRef}>
+                <button className="etb-btn etb-btn-vertical" onClick={() => setShowFootnotePopup(!showFootnotePopup)} title="Insert Footnote - Add a footnote reference">
                   <i className="ri-superscript"></i>
                   <span className="btn-label">Footnote</span>
                 </button>
-                <button className="etb-btn etb-btn-vertical" onClick={() => apply('insertEndnote')} title="Insert Endnote - Add an endnote reference">
+                <button className="etb-btn etb-btn-vertical" onClick={() => setShowEndnotePopup(!showEndnotePopup)} title="Insert Endnote - Add an endnote reference" ref={endnoteRef}>
                   <i className="ri-subscript"></i>
                   <span className="btn-label">Endnote</span>
                 </button>
               </div>
               <div className="etb-divider"></div>
-              <div className="etb-section">
-                <button className="etb-btn etb-btn-vertical" onClick={() => apply('insertCitation')} title="Insert Citation - Add a citation reference">
+              <div className="etb-section" ref={citationRef}>
+                <button className="etb-btn etb-btn-vertical" onClick={() => setShowCitationPopup(!showCitationPopup)} title="Insert Citation - Add a citation reference">
                   <i className="ri-double-quotes-l"></i>
                   <span className="btn-label">Citation</span>
                 </button>
-                <button className="etb-btn etb-btn-vertical" onClick={() => apply('insertBibliography')} title="Insert Bibliography - Add a bibliography section">
+                <button className="etb-btn etb-btn-vertical" onClick={() => {
+                  let bibHTML = '<div style="margin: 20px 0; padding: 20px; border: 1px solid #ddd; background: #f9f9f9;"><h2>Bibliography</h2>';
+                  if (window.citations && window.citations.length > 0) {
+                    window.citations.forEach((citation) => {
+                      const entry = citation.year ? `${citation.author} (${citation.year}). ${citation.text}` : `${citation.author}. ${citation.text}`;
+                      bibHTML += `<div style="margin-bottom: 10px; padding-left: 20px; text-indent: -20px;">${entry}</div>`;
+                    });
+                  } else {
+                    bibHTML += '<p>No citations found.</p>';
+                  }
+                  bibHTML += '</div>';
+                  apply('insertHTML', bibHTML);
+                }} title="Insert Bibliography - Add a bibliography section" ref={bibliographyRef}>
                   <i className="ri-book-line"></i>
                   <span className="btn-label">Bibliography</span>
+                </button>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section">
+                <button className="etb-btn etb-btn-vertical" onClick={() => {
+                  let endnotesHTML = '<div style="margin: 20px 0; padding: 20px; border: 1px solid #ddd; background: #f9f9f9;"><h2>Endnotes</h2>';
+                  if (window.endnotes && window.endnotes.length > 0) {
+                    window.endnotes.forEach((endnote) => {
+                      endnotesHTML += `<div style="margin-bottom: 10px;"><sup>(${endnote.id})</sup> ${endnote.text}</div>`;
+                    });
+                  } else {
+                    endnotesHTML += '<p>No endnotes found.</p>';
+                  }
+                  endnotesHTML += '</div>';
+                  apply('insertHTML', endnotesHTML);
+                }} title="Insert Endnotes Section - Add all endnotes at document end">
+                  <i className="ri-file-list-line"></i>
+                  <span className="btn-label">Endnotes Section</span>
                 </button>
               </div>
             </div>
@@ -1623,6 +1713,243 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
         {(selectedTool === 'View' || selectedTool === 'Review') && (
           <div className="etb-row">
             <span style={{ fontSize: '13px', fontStyle: 'italic', opacity: 0.6 }}>Options for {selectedTool} (coming soon)</span>
+          </div>
+        )}
+
+        {/* Table of Contents Popup */}
+        {showTocPopup && (
+          <div className="drawing-overlay" onClick={() => setShowTocPopup(false)}>
+            <div className="header-footer-container" onClick={(e) => e.stopPropagation()}>
+              <div className="popup-header">
+                <h3>Insert Table of Contents</h3>
+                <button onClick={() => setShowTocPopup(false)} className="close-btn">×</button>
+              </div>
+              <div className="header-footer-content">
+                <div className="config-section">
+                  <h4>Include Heading Levels</h4>
+                  <div className="config-row">
+                    <label><input type="checkbox" checked={tocSettings.includeH1} onChange={(e) => {e.stopPropagation(); setTocSettings({...tocSettings, includeH1: e.target.checked});}} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()} /> Heading 1</label>
+                    <label><input type="checkbox" checked={tocSettings.includeH2} onChange={(e) => {e.stopPropagation(); setTocSettings({...tocSettings, includeH2: e.target.checked});}} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()} /> Heading 2</label>
+                    <label><input type="checkbox" checked={tocSettings.includeH3} onChange={(e) => {e.stopPropagation(); setTocSettings({...tocSettings, includeH3: e.target.checked});}} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()} /> Heading 3</label>
+                  </div>
+                  <div className="config-row">
+                    <label><input type="checkbox" checked={tocSettings.includeH4} onChange={(e) => {e.stopPropagation(); setTocSettings({...tocSettings, includeH4: e.target.checked});}} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()} /> Heading 4</label>
+                    <label><input type="checkbox" checked={tocSettings.includeH5} onChange={(e) => {e.stopPropagation(); setTocSettings({...tocSettings, includeH5: e.target.checked});}} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()} /> Heading 5</label>
+                    <label><input type="checkbox" checked={tocSettings.includeH6} onChange={(e) => {e.stopPropagation(); setTocSettings({...tocSettings, includeH6: e.target.checked});}} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()} /> Heading 6</label>
+                  </div>
+                </div>
+                <div className="config-section">
+                  <h4>Options</h4>
+                  <div className="config-row">
+                    <label><input type="checkbox" checked={tocSettings.showPageNumbers} onChange={(e) => {e.stopPropagation(); setTocSettings({...tocSettings, showPageNumbers: e.target.checked});}} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()} /> Show page numbers</label>
+                    <label>Alignment: 
+                      <select value={tocSettings.alignment} onChange={(e) => {e.stopPropagation(); setTocSettings({...tocSettings, alignment: e.target.value});}} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                        <option value="left">Left</option>
+                        <option value="center">Center</option>
+                        <option value="right">Right</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div className="popup-actions">
+                <button onClick={() => { 
+                  const tocHTML = generateTableOfContents(tocSettings);
+                  apply('insertHTML', tocHTML); 
+                  setShowTocPopup(false); 
+                }}>Insert TOC</button>
+                <button onClick={() => setShowTocPopup(false)}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Footnote Popup */}
+        {showFootnotePopup && (
+          <div className="drawing-overlay" onClick={() => setShowFootnotePopup(false)}>
+            <div className="header-footer-container" style={{width: '400px'}} onClick={(e) => e.stopPropagation()}>
+              <div className="popup-header">
+                <h3>Insert Footnote</h3>
+                <button onClick={() => setShowFootnotePopup(false)} className="close-btn">×</button>
+              </div>
+              <div className="header-footer-content" style={{padding: '20px'}}>
+                <div className="input-group" style={{flexDirection: 'column', alignItems: 'flex-start'}}>
+                  <label style={{marginBottom: '8px'}}>Footnote text:</label>
+                  <textarea 
+                    value={footnoteText} 
+                    onChange={(e) => {e.stopPropagation(); setFootnoteText(e.target.value);}} 
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    onFocus={(e) => e.stopPropagation()}
+                    placeholder="Enter footnote text" 
+                    rows="3" 
+                    style={{
+                      width: '100%', 
+                      resize: 'vertical',
+                      padding: '8px',
+                      border: '1px solid var(--etb-border, var(--etb-border-light))',
+                      borderRadius: '4px',
+                      background: 'var(--etb-bg, var(--etb-bg-light))',
+                      color: 'var(--etb-text, var(--etb-text-light))',
+                      fontSize: '14px'
+                    }} 
+                  />
+                </div>
+              </div>
+              <div className="popup-actions">
+                <button onClick={() => { 
+                  const footnoteId = Math.floor(Math.random() * 1000);
+                  apply('insertHTML', `<sup style="color: blue;">[${footnoteId}]</sup>`);
+                  apply('insertHTML', `<div style="margin-top: 20px; padding: 10px; border-top: 1px solid #ccc; font-size: 12px;"><sup>[${footnoteId}]</sup> ${footnoteText}</div>`);
+                  setShowFootnotePopup(false); 
+                  setFootnoteText(''); 
+                }} disabled={!footnoteText}>Insert</button>
+                <button onClick={() => { setShowFootnotePopup(false); setFootnoteText(''); }}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Endnote Popup */}
+        {showEndnotePopup && (
+          <div className="drawing-overlay" onClick={() => setShowEndnotePopup(false)}>
+            <div className="header-footer-container" style={{width: '400px'}} onClick={(e) => e.stopPropagation()}>
+              <div className="popup-header">
+                <h3>Insert Endnote</h3>
+                <button onClick={() => setShowEndnotePopup(false)} className="close-btn">×</button>
+              </div>
+              <div className="header-footer-content" style={{padding: '20px'}}>
+                <div className="input-group" style={{flexDirection: 'column', alignItems: 'flex-start'}}>
+                  <label style={{marginBottom: '8px'}}>Endnote text:</label>
+                  <textarea 
+                    value={endnoteText} 
+                    onChange={(e) => {e.stopPropagation(); setEndnoteText(e.target.value);}} 
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    onFocus={(e) => e.stopPropagation()}
+                    placeholder="Enter endnote text" 
+                    rows="3" 
+                    style={{
+                      width: '100%', 
+                      resize: 'vertical',
+                      padding: '8px',
+                      border: '1px solid var(--etb-border, var(--etb-border-light))',
+                      borderRadius: '4px',
+                      background: 'var(--etb-bg, var(--etb-bg-light))',
+                      color: 'var(--etb-text, var(--etb-text-light))',
+                      fontSize: '14px'
+                    }} 
+                  />
+                </div>
+              </div>
+              <div className="popup-actions">
+                <button onClick={() => { 
+                  const endnoteId = Math.floor(Math.random() * 1000);
+                  apply('insertHTML', `<sup style="color: blue;">(${endnoteId})</sup>`);
+                  if (!window.endnotes) window.endnotes = [];
+                  window.endnotes.push({ id: endnoteId, text: endnoteText });
+                  setShowEndnotePopup(false); 
+                  setEndnoteText(''); 
+                }} disabled={!endnoteText}>Insert</button>
+                <button onClick={() => { setShowEndnotePopup(false); setEndnoteText(''); }}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Citation Popup */}
+        {showCitationPopup && (
+          <div className="drawing-overlay" onClick={() => setShowCitationPopup(false)}>
+            <div className="header-footer-container" style={{width: '500px'}} onClick={(e) => e.stopPropagation()}>
+              <div className="popup-header">
+                <h3>Insert Citation</h3>
+                <button onClick={() => setShowCitationPopup(false)} className="close-btn">×</button>
+              </div>
+              <div className="header-footer-content" style={{padding: '20px'}}>
+                <div className="input-group" style={{flexDirection: 'column', alignItems: 'flex-start', marginBottom: '15px'}}>
+                  <label style={{marginBottom: '8px'}}>Author:</label>
+                  <input 
+                    type="text" 
+                    value={citationAuthor} 
+                    onChange={(e) => {e.stopPropagation(); setCitationAuthor(e.target.value);}} 
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    onFocus={(e) => e.stopPropagation()}
+                    placeholder="Author name" 
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      border: '1px solid var(--etb-border, var(--etb-border-light))',
+                      borderRadius: '4px',
+                      background: 'var(--etb-bg, var(--etb-bg-light))',
+                      color: 'var(--etb-text, var(--etb-text-light))',
+                      fontSize: '14px'
+                    }} 
+                  />
+                </div>
+                <div className="input-group" style={{flexDirection: 'column', alignItems: 'flex-start', marginBottom: '15px'}}>
+                  <label style={{marginBottom: '8px'}}>Year:</label>
+                  <input 
+                    type="text" 
+                    value={citationYear} 
+                    onChange={(e) => {e.stopPropagation(); setCitationYear(e.target.value);}} 
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    onFocus={(e) => e.stopPropagation()}
+                    placeholder="Publication year" 
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      border: '1px solid var(--etb-border, var(--etb-border-light))',
+                      borderRadius: '4px',
+                      background: 'var(--etb-bg, var(--etb-bg-light))',
+                      color: 'var(--etb-text, var(--etb-text-light))',
+                      fontSize: '14px'
+                    }} 
+                  />
+                </div>
+                <div className="input-group" style={{flexDirection: 'column', alignItems: 'flex-start'}}>
+                  <label style={{marginBottom: '8px'}}>Citation text:</label>
+                  <textarea 
+                    value={citationText} 
+                    onChange={(e) => {e.stopPropagation(); setCitationText(e.target.value);}} 
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    onFocus={(e) => e.stopPropagation()}
+                    placeholder="Enter citation details" 
+                    rows="3" 
+                    style={{
+                      width: '100%', 
+                      resize: 'vertical',
+                      padding: '8px',
+                      border: '1px solid var(--etb-border, var(--etb-border-light))',
+                      borderRadius: '4px',
+                      background: 'var(--etb-bg, var(--etb-bg-light))',
+                      color: 'var(--etb-text, var(--etb-text-light))',
+                      fontSize: '14px'
+                    }} 
+                  />
+                </div>
+              </div>
+              <div className="popup-actions">
+                <button onClick={() => { 
+                  const citationText = citationYear ? `(${citationAuthor}, ${citationYear})` : `(${citationAuthor})`;
+                  apply('insertHTML', `<span style="color: #0066cc;">${citationText}</span>`);
+                  if (!window.citations) window.citations = [];
+                  window.citations.push({author: citationAuthor, year: citationYear, text: citationText});
+                  setShowCitationPopup(false); 
+                  setCitationAuthor(''); 
+                  setCitationYear(''); 
+                  setCitationText(''); 
+                }} disabled={!citationAuthor || !citationText}>Insert</button>
+                <button onClick={() => { setShowCitationPopup(false); setCitationAuthor(''); setCitationYear(''); setCitationText(''); }}>Cancel</button>
+              </div>
+            </div>
           </div>
         )}
         
