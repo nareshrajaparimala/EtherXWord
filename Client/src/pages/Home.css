@@ -546,6 +546,32 @@
   animation: slideInLeft 0.6s ease-out 0.2s both;
 }
 
+/* Quick actions button theme colors and hover effects */
+.quick-actions .btn {
+  background: transparent !important;
+  border: 2px solid transparent !important;
+  transition: all 0.3s ease !important;
+}
+
+[data-theme="light"] .quick-actions .btn {
+  color: #000000 !important;
+}
+
+[data-theme="dark"] .quick-actions .btn {
+  color: #ffffff !important;
+}
+
+.quick-actions .btn:hover {
+  background: transparent !important;
+  border-color: #ffcf40 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.quick-actions .btn:hover::before {
+  display: none !important;
+}
+
 /* Buttons */
 .btn {
   padding: 12px 24px;
@@ -583,6 +609,18 @@
   border: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
   backdrop-filter: blur(12px);
+}
+
+/* Override glass-btn styles for quick actions */
+.quick-actions .glass-btn {
+  background: transparent !important;
+  border: 2px solid transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.quick-actions .glass-btn::after {
+  display: none !important;
 }
 
 .glass-btn::after {

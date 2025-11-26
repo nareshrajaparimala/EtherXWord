@@ -167,10 +167,6 @@ const Profile = () => {
                   <i className="ri-calendar-line"></i>
                   Joined {new Date(user.createdAt).toLocaleDateString()}
                 </span>
-                <span className="user-status">
-                  <i className="ri-shield-check-line"></i>
-                  {user.isVerified ? 'Verified' : 'Unverified'}
-                </span>
               </div>
             </>
           )}
