@@ -227,6 +227,8 @@
 .home-sidebar.collapsed .sidebar-label {
   opacity: 0;
   transform: translateX(-20px);
+  width: 0;
+  overflow: hidden;
 }
 
 /* Force sidebar icons and labels to black text-style icons (both themes) */
@@ -280,6 +282,14 @@
 .home-sidebar.collapsed .sidebar-item {
   justify-content: center;
   padding: 16px 10px;
+}
+
+.home-sidebar.collapsed .sidebar-icon {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+  min-width: 30px;
+  width: 30px;
 }
 
 [data-theme="light"] .sidebar-icon,
@@ -655,8 +665,8 @@
 
 .search-input:focus {
   outline: none;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 2px rgba(255, 207, 64, 0.08);
+  border-color: #ffcf40;
+  box-shadow: 0 0 0 2px rgba(255, 207, 64, 0.3);
   transform: translateY(-1px);
 }
 
@@ -671,7 +681,7 @@
 }
 
 .search-input:focus + .search-icon {
-  color: var(--accent-color);
+  color: #ffcf40;
   transform: translateY(-50%) scale(1.05);
 }
 
@@ -685,8 +695,9 @@
 
 .document-card {
   --doc-accent: #ffcf40;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: #000000;
+  color: #ffffff;
+  border: 1px solid #ffcf40;
   border-radius: 16px;
   padding: 24px;
   cursor: pointer;
@@ -694,6 +705,7 @@
   position: relative;
   overflow: hidden;
   animation: slideInUp 0.6s ease-out;
+  box-shadow: 0 0 10px rgba(255, 207, 64, 0.3);
 }
 
 .document-card::before {
@@ -713,8 +725,8 @@
 
 .document-card:hover {
   transform: translateY(-8px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
-  border-color: var(--accent-color);
+  box-shadow: 0 12px 32px rgba(255, 207, 64, 0.4);
+  border-color: #ffcf40;
 }
 
 .card-visual {
@@ -728,14 +740,15 @@
   width: 52px;
   height: 52px;
   border-radius: 18px;
-  background: var(--doc-accent);
-  color: #0f0f0f;
+  background: #000000;
+  color: #ffffff;
+  border: 2px solid #ffcf40;
   font-size: 20px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--doc-accent) 55%, transparent);
+  box-shadow: 0 8px 20px rgba(255, 207, 64, 0.4);
 }
 
 [data-theme="light"] .doc-thumb {
@@ -753,8 +766,9 @@
   letter-spacing: 0.02em;
   padding: 4px 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-secondary);
+  background: #000000;
+  color: #ffffff;
+  border: 1px solid #ffcf40;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -771,10 +785,10 @@
 }
 
 .card-preview {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 18px;
   padding: 14px 16px;
-  color: var(--text-secondary);
+  color: #ffffff;
   line-height: 1.5;
   min-height: 70px;
   margin-bottom: 18px;
@@ -790,7 +804,7 @@
   justify-content: space-between;
   align-items: center;
   font-size: 13px;
-  color: var(--text-secondary);
+  color: #ffffff;
 }
 
 .open-pill {
@@ -989,7 +1003,7 @@
   font-size: 18px;
   font-weight: 600;
   margin: 0;
-  color: var(--text-primary);
+  color: #ffffff;
   line-height: 1.3;
 }
 
@@ -1560,7 +1574,6 @@
 
 /* Light Mode Overrides */
 [data-theme="light"] .sidebar-item,
-[data-theme="light"] .card-header h3,
 [data-theme="light"] .section-header h2,
 [data-theme="light"] .empty-state h3,
 [data-theme="light"] .template-card,
@@ -1573,8 +1586,6 @@
   color: var(--accent-color) !important;
 }
 
-[data-theme="light"] .card-preview,
-[data-theme="light"] .card-footer,
 [data-theme="light"] .empty-state p,
 [data-theme="light"] .new-doc-btn p,
 [data-theme="light"] .notification-text,
@@ -1588,6 +1599,39 @@
 
 [data-theme="light"] .search-input::placeholder {
   color: #6b7280 !important;
+}
+
+/* Light theme document cards - white boxes with black text */
+[data-theme="light"] .document-card {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #ffcf40 !important;
+  box-shadow: 0 0 10px rgba(255, 207, 64, 0.3) !important;
+}
+
+[data-theme="light"] .document-card .card-header h3 {
+  color: #000000 !important;
+}
+
+[data-theme="light"] .document-card .card-preview {
+  background: rgba(0, 0, 0, 0.05) !important;
+  color: #000000 !important;
+}
+
+[data-theme="light"] .document-card .card-footer {
+  color: #000000 !important;
+}
+
+[data-theme="light"] .doc-thumb {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #ffcf40 !important;
+}
+
+[data-theme="light"] .doc-meta-chip {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #ffcf40 !important;
 }
 
 /* Responsive Design */

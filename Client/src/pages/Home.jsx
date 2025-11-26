@@ -73,25 +73,65 @@ const Home = () => {
     setRecentDocuments(enrichedRecent.slice(0, 6)); // Show last 6 recent documents
   };
   
-  const searchDocuments = async (query) => {
+  const searchDocuments = (query) => {
     if (!query.trim()) {
-      if (selectedSection === 'All Documents') fetchUserDocuments();
+      // Reset to show all documents based on current section
+      if (selectedSection === 'All Documents') {
+        fetchUserDocuments();
+      } else if (selectedSection === 'Quick Access') {
+        loadRecentDocuments();
+      } else if (selectedSection === 'Favorites') {
+        fetchFavoriteDocuments();
+      }
       return;
     }
     
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/search?q=${encodeURIComponent(query)}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setUserDocuments(data);
-      }
-    } catch (error) {
-      console.error('Error searching documents:', error);
+    // Search in local documents
+    const localDocs = JSON.parse(localStorage.getItem('documents') || '[]');
+    const recentDocs = JSON.parse(localStorage.getItem('recentDocuments') || '[]');
+    
+    const searchTerm = query.toLowerCase();
+    
+    if (selectedSection === 'Quick Access') {
+      // Filter recent documents
+      const filteredRecent = recentDocs.filter(doc => 
+        doc.title?.toLowerCase().includes(searchTerm) ||
+        doc.content?.toLowerCase().includes(searchTerm) ||
+        doc.preview?.toLowerCase().includes(searchTerm)
+      );
+      setRecentDocuments(filteredRecent);
+    } else if (selectedSection === 'All Documents') {
+      // Filter all documents
+      const filteredDocs = localDocs.filter(doc => 
+        doc.title?.toLowerCase().includes(searchTerm) ||
+        doc.content?.toLowerCase().includes(searchTerm)
+      ).map(doc => ({
+        _id: doc.id,
+        title: doc.title,
+        content: doc.content,
+        lastModified: doc.lastModified,
+        wordCount: doc.wordCount,
+        isFavorite: doc.isFavorite || false,
+        collaborators: doc.collaborators || []
+      }));
+      setUserDocuments(filteredDocs);
+    } else if (selectedSection === 'Favorites') {
+      // Filter favorite documents
+      const filteredFavorites = localDocs.filter(doc => 
+        doc.isFavorite && (
+          doc.title?.toLowerCase().includes(searchTerm) ||
+          doc.content?.toLowerCase().includes(searchTerm)
+        )
+      ).map(doc => ({
+        _id: doc.id,
+        title: doc.title,
+        content: doc.content,
+        lastModified: doc.lastModified,
+        wordCount: doc.wordCount,
+        isFavorite: doc.isFavorite || false,
+        collaborators: doc.collaborators || []
+      }));
+      setFavoriteDocuments(filteredFavorites);
     }
   };
   
@@ -114,12 +154,17 @@ const Home = () => {
   }, [location.state]);
   
   useEffect(() => {
+    // Reset search when switching sections
+    setSearchQuery('');
+    
     if (selectedSection === 'All Documents') {
       fetchUserDocuments();
     } else if (selectedSection === 'Favorites') {
       fetchFavoriteDocuments();
     } else if (selectedSection === 'Recycle Bin') {
       fetchTrashDocuments();
+    } else if (selectedSection === 'Quick Access') {
+      loadRecentDocuments();
     }
   }, [selectedSection]);
   
