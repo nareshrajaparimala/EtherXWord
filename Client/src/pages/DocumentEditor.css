@@ -112,6 +112,31 @@
   opacity: 0.7;
 }
 
+.save-btn-unique {
+  background: var(--primary-yellow, #ffcf40) !important;
+  color: #000 !important;
+  border: none !important;
+  font-weight: 600 !important;
+  padding: 8px 16px !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  box-shadow: 0 2px 8px rgba(255, 207, 64, 0.3) !important;
+}
+
+.save-btn-unique:hover {
+  background: #e6c200 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(255, 207, 64, 0.4) !important;
+}
+
+.save-btn-unique:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 6px rgba(255, 207, 64, 0.3) !important;
+}
+
 .save-btn {
   background: var(--primary-yellow);
   color: #000;

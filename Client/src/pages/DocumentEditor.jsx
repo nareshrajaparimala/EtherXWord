@@ -10,6 +10,7 @@ import { importDocxOOXML, exportDocxOOXML } from '../utils/ooxmlUtils';
 import { MSWordPagination } from '../utils/paginationEngine';
 import { exportDocument, exportToPDF, exportToDOCX } from '../utils/exportUtils';
 import { imageResizer } from '../utils/imageResizer';
+import { saveNoteToIPFS } from '../utils/ipfs';
 import EditorToolBox from '../components/EditorToolBox';
 
 const DocumentEditor = () => {
@@ -341,6 +342,48 @@ const DocumentEditor = () => {
   const handleZoomOut = () => setZoomLevel(prev => Math.max(50, prev - 10));
   const resetZoom = () => setZoomLevel(100);
   
+  // Save to IPFS function
+  const handleSaveToIPFS = async () => {
+    if (!paginationRef.current) {
+      showNotification('Editor not ready for saving', 'error');
+      return;
+    }
+    
+    try {
+      showNotification('Saving document to IPFS...', 'info');
+      
+      const content = paginationRef.current.getAllContent();
+      const documentData = {
+        title: documentTitle,
+        content: content,
+        createdAt: new Date().toISOString(),
+        wordCount: documentStats.words,
+        characterCount: documentStats.characters,
+        pageCount: documentStats.pages
+      };
+      
+      const cid = await saveNoteToIPFS(JSON.stringify(documentData));
+      
+      // Save to local storage for tracking
+      const existingDocs = JSON.parse(localStorage.getItem('ipfsDocuments') || '[]');
+      const newDoc = {
+        title: documentTitle,
+        cid: cid,
+        savedAt: new Date().toISOString(),
+        wordCount: documentStats.words,
+        preview: content.replace(/<[^>]*>/g, '').substring(0, 100) + '...'
+      };
+      
+      existingDocs.unshift(newDoc);
+      localStorage.setItem('ipfsDocuments', JSON.stringify(existingDocs));
+      
+      showNotification(`Document saved to IPFS! CID: ${cid}`, 'success');
+    } catch (error) {
+      console.error('IPFS save error:', error);
+      showNotification('Failed to save to IPFS: ' + error.message, 'error');
+    }
+  };
+  
   // Expose image control functions to console
   useEffect(() => {
     window.imageControls = {
@@ -433,6 +476,24 @@ Keyboard Shortcuts:
         </div>
         
         <div className="navbar-right">
+          <button 
+            onClick={handleSaveToIPFS} 
+            className="nav-btn save-btn-unique"
+            title="Save to IPFS"
+            style={{
+              background: 'var(--accent-color, #ffcf40)',
+              color: '#000',
+              fontWeight: '600',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              border: 'none',
+              marginRight: '8px',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <i className="ri-save-line" style={{ marginRight: '4px' }}></i>
+            Save
+          </button>
           <button onClick={toggleTheme} className="nav-btn">
             <i className={`ri-${theme === 'dark' ? 'sun' : 'moon'}-line`}></i>
           </button>

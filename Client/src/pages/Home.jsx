@@ -27,6 +27,7 @@ const Home = () => {
     { icon: 'ri-folder-line', label: 'All Documents', mobileVisible: true },
     { icon: 'ri-team-line', label: 'Collaboration', mobileVisible: true },
     { icon: 'ri-star-line', label: 'Favorites', mobileVisible: true },
+    { icon: 'ri-cloud-line', label: 'IPFS Documents', mobileVisible: true, action: () => navigate('/ipfs-documents') },
   { icon: 'ri-delete-bin-line', label: 'Recycle Bin', mobileVisible: true },
     { icon: 'ri-settings-3-line', label: 'Settings', mobileVisible: true, action: () => navigate('/settings') }
   ];
@@ -336,6 +337,8 @@ const Home = () => {
               onClick={() => {
                 if (item.action) {
                   item.action();
+                } else if (item.label === 'IPFS Documents') {
+                  navigate('/ipfs-documents');
                 } else {
                   setAnimateCards(true);
                   setSelectedSection(item.label);
@@ -346,7 +349,8 @@ const Home = () => {
               <i className={`sidebar-icon ${item.icon}`}></i>
               <span className="sidebar-label">{item.label}</span>
             </button>
-          );})}
+            );
+          })}
         </div>
       </aside>
 

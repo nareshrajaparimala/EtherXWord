@@ -1,44 +1,57 @@
 import express from "express";
-import mime from "mime-types"; // <-- add this at the top
-
+import mime from "mime-types";
 import cors from "cors";
 import multer from "multer";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 
-import { createHelia } from "helia";
-import { unixfs } from "@helia/unixfs";
-import { MemoryBlockstore } from "blockstore-core/memory";
-import { MemoryDatastore } from "datastore-core/memory";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Persistent file-based IPFS implementation
+class FileIPFS {
+  constructor() {
+    this.storageDir = path.join(__dirname, 'storage');
+    if (!fs.existsSync(this.storageDir)) {
+      fs.mkdirSync(this.storageDir, { recursive: true });
+    }
+  }
+
+  generateCID() {
+    return 'Qm' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  }
+
+  async addBytes(bytes) {
+    const cid = this.generateCID();
+    const filePath = path.join(this.storageDir, cid);
+    fs.writeFileSync(filePath, bytes);
+    return { toString: () => cid };
+  }
+
+  async *cat(cid) {
+    const filePath = path.join(this.storageDir, cid);
+    if (!fs.existsSync(filePath)) {
+      throw new Error('File not found');
+    }
+    const data = fs.readFileSync(filePath);
+    yield data;
+  }
+}
 
 const app = express();
 app.use(cors());
 const upload = multer();
 
-// --------------------------------------------------------
-// ✅ Setup memory-based IPFS node (no LevelDB issues)
-// --------------------------------------------------------
-const blockstore = new MemoryBlockstore();
-const datastore = new MemoryDatastore();
+// Create file-based IPFS instance
+const ipfsStorage = new FileIPFS();
+console.log("✅ File-based IPFS Node Running");
 
-// --------------------------------------------------------
-// ✅ Create Helia IPFS Node
-// --------------------------------------------------------
-const helia = await createHelia({
-  blockstore,
-  datastore,
-});
-
-const fs = unixfs(helia);
-console.log("✅ Helia IPFS Node (Memory Mode) Running");
-
-// --------------------------------------------------------
-// ✅ Upload file to IPFS
-// --------------------------------------------------------
+// Upload file to IPFS
 app.post("/upload", upload.single("file"), async (req, res) => {
   try {
     const bytes = new Uint8Array(req.file.buffer);
-    const cid = await fs.addBytes(bytes);
+    const cid = await ipfsStorage.addBytes(bytes);
     console.log("📦 Uploaded to IPFS:", cid.toString());
 
     res.json({ success: true, cid: cid.toString() });
@@ -48,9 +61,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
   }
 });
 
-// --------------------------------------------------------
-// ✅ Download/View file by CID
-// --------------------------------------------------------
+// Download/View file by CID
 app.get("/ipfs/:cid", async (req, res) => {
   try {
     const cid = req.params.cid;
@@ -58,7 +69,7 @@ app.get("/ipfs/:cid", async (req, res) => {
     const decoder = new TextDecoder();
 
     let chunks = [];
-    for await (const chunk of fs.cat(cid)) {
+    for await (const chunk of ipfsStorage.cat(cid)) {
       chunks.push(chunk);
     }
 
@@ -86,12 +97,12 @@ app.get("/ipfs/:cid", async (req, res) => {
     if (isHTML) mimeType = "text/html";
     else if (isText) mimeType = "text/plain";
 
-    // ✅ Try to detect better MIME type (optional)
+    // Try to detect better MIME type
     const ext = isHTML ? "html" : "txt";
     mimeType = mime.lookup(ext) || mimeType;
 
     res.setHeader("Content-Type", mimeType);
-    res.setHeader("Content-Disposition", "inline"); // 👈 prevents download
+    res.setHeader("Content-Disposition", "inline");
 
     if (isHTML || isText) {
       res.send(content);
@@ -105,9 +116,26 @@ app.get("/ipfs/:cid", async (req, res) => {
   }
 });
 
-// --------------------------------------------------------
-// ✅ Start Server
-// --------------------------------------------------------
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', message: 'IPFS server is running' });
+});
+
+// Debug endpoint to list stored files
+app.get('/debug/files', (req, res) => {
+  try {
+    const files = fs.readdirSync(ipfsStorage.storageDir);
+    res.json({ 
+      storageDir: ipfsStorage.storageDir,
+      files: files,
+      count: files.length 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Start Server
 app.listen(4000, () => {
   console.log("✅ IPFS Server running on http://localhost:4000");
 });

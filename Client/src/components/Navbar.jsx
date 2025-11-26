@@ -370,6 +370,7 @@ const Navbar = () => {
               { label: 'Dashboard', icon: 'ri-dashboard-line', onClick: () => navigate('/home') },
               { label: 'Templates', icon: 'ri-layout-2-line', onClick: () => navigate('/templates') },
               { label: 'My Documents', icon: 'ri-folder-line', onClick: () => navigate('/home') },
+              { label: 'IPFS Documents', icon: 'ri-cloud-line', onClick: () => navigate('/ipfs-documents') },
               { label: 'Notifications', icon: 'ri-notification-3-line', onClick: () => setShowNotifications(true) },
               { label: 'Collaboration', icon: 'ri-team-line', onClick: () => navigate('/home') }
             ].map((item, index) => (
