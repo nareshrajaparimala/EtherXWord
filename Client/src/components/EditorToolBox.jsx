@@ -1585,7 +1585,42 @@ const EditorToolBox = ({ selectedTool: selectedToolProp, onSelectTool, onApply, 
           </div>
         )}
 
-        {(selectedTool === 'View' || selectedTool === 'References' || selectedTool === 'Review') && (
+        {selectedTool === 'References' && (
+          <>
+            <div className="etb-row">
+              <div className="etb-section">
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('insertTableOfContents')} title="Insert Table of Contents - Automatically generates a table of contents based on headings">
+                  <i className="ri-list-check-2"></i>
+                  <span className="btn-label">Table of Contents</span>
+                </button>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section">
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('insertFootnote')} title="Insert Footnote - Add a footnote reference">
+                  <i className="ri-superscript"></i>
+                  <span className="btn-label">Footnote</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('insertEndnote')} title="Insert Endnote - Add an endnote reference">
+                  <i className="ri-subscript"></i>
+                  <span className="btn-label">Endnote</span>
+                </button>
+              </div>
+              <div className="etb-divider"></div>
+              <div className="etb-section">
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('insertCitation')} title="Insert Citation - Add a citation reference">
+                  <i className="ri-double-quotes-l"></i>
+                  <span className="btn-label">Citation</span>
+                </button>
+                <button className="etb-btn etb-btn-vertical" onClick={() => apply('insertBibliography')} title="Insert Bibliography - Add a bibliography section">
+                  <i className="ri-book-line"></i>
+                  <span className="btn-label">Bibliography</span>
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {(selectedTool === 'View' || selectedTool === 'Review') && (
           <div className="etb-row">
             <span style={{ fontSize: '13px', fontStyle: 'italic', opacity: 0.6 }}>Options for {selectedTool} (coming soon)</span>
           </div>
