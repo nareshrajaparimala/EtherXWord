@@ -28,6 +28,14 @@
   font-size: 14px;
 }
 
+.back-btn {
+  color: #000 !important;
+}
+
+[data-theme="dark"] .back-btn {
+  color: #fff !important;
+}
+
 .nav-btn:hover {
   background: var(--hover-bg);
   border-color: var(--primary-yellow);
@@ -75,7 +83,7 @@
 
 .profile-info {
   text-align: center;
-  color: #000;
+  color: #fff;
 }
 
 .profile-info h1 {

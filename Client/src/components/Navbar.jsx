@@ -35,6 +35,10 @@ const Navbar = () => {
     const handleStorageChange = () => {
       const token = localStorage.getItem('accessToken');
       if (token) {
+        const savedUser = localStorage.getItem('userProfile');
+        if (savedUser) {
+          setUser(JSON.parse(savedUser));
+        }
         fetchUserProfile();
         fetchNotifications();
       } else {
@@ -332,7 +336,14 @@ const Navbar = () => {
             ) : user && user.fullName && user.email ? (
               <>
                 <div className="profile-avatar">
-                  {user.fullName.charAt(0).toUpperCase()}
+                  {(() => {
+                    const savedProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+                    return savedProfile.avatar ? (
+                      <img src={savedProfile.avatar} alt="Profile" style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover'}} />
+                    ) : (
+                      user.fullName.charAt(0).toUpperCase()
+                    );
+                  })()} 
                 </div>
                 <div className="profile-info">
                   <h4>{user.fullName}</h4>

@@ -120,7 +120,6 @@ const Profile = () => {
       <div className="profile-nav">
         <button onClick={() => navigate(-1)} className="nav-btn back-btn">
           <i className="ri-arrow-left-line"></i>
-          Back
         </button>
         <button onClick={() => navigate('/')} className="nav-btn home-btn">
           <i className="ri-home-line"></i>
@@ -132,7 +131,11 @@ const Profile = () => {
       <div className="profile-header">
         <div className="profile-banner">
           <div className="profile-avatar">
-            <span>{user.fullName?.charAt(0).toUpperCase()}</span>
+            {user.avatar ? (
+              <img src={user.avatar} alt="Profile" style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover'}} />
+            ) : (
+              <span>{user.fullName?.charAt(0).toUpperCase()}</span>
+            )}
           </div>
         </div>
         

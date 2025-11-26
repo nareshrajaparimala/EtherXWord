@@ -281,6 +281,13 @@ const Settings = () => {
                     />
                   </div>
                 </div>
+                
+                <div className="action-buttons">
+                  <button className="btn btn-primary" onClick={() => saveSettings('profile', userProfile)}>
+                    <i className="ri-save-line"></i>
+                    Save Profile
+                  </button>
+                </div>
               </div>
             </div>
           )}
