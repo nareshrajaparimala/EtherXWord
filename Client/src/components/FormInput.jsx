@@ -22,7 +22,7 @@ const FormInput = ({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className="form-input"
+        className={`form-input ${error ? 'error-glow' : ''}`}
         required={required}
       />
       {error && <div className="error-message">{error}</div>}

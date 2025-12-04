@@ -24,7 +24,7 @@ const PasswordInput = ({
           value={value}
           onChange={onChange}
           placeholder={placeholder}
-          className="form-input"
+          className={`form-input ${error ? 'error-glow' : ''}`}
           required={required}
         />
         <button

@@ -730,7 +730,7 @@
 
 /* Enhanced Form Elements */
 .form-group input:invalid {
-  border-color: #dc2626;
+  border-color: #ffcf40;
   animation: shake 0.5s ease-in-out;
 }
 
@@ -802,8 +802,8 @@
 }
 
 .error-state {
-  border-color: #dc2626 !important;
-  background: rgba(220, 38, 38, 0.1) !important;
+  border-color: #ffcf40 !important;
+  background: rgba(255, 207, 64, 0.1) !important;
 }
 
 /* Stagger Animation for Form Groups */
