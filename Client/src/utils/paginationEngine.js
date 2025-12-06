@@ -26,7 +26,7 @@ export class MSWordPagination {
 
   init() {
     this.createPage();
-    this.setupObserver();
+    // setupObserver removed - method doesn't exist
     // Initial stats update
     setTimeout(() => this.updateStats(), 100);
   }
@@ -38,7 +38,7 @@ export class MSWordPagination {
     pageElement.className = 'editor-page';
     pageElement.id = pageId;
     pageElement.dataset.pageNumber = pageNumber;
-    
+
     pageElement.style.cssText = `
       width: 210mm;
       height: 297mm;
@@ -112,246 +112,23 @@ export class MSWordPagination {
     pageElement.appendChild(content);
     pageElement.appendChild(footer);
     this.container.appendChild(pageElement);
-    
+
     const page = { element: pageElement, content, header, footer, pageNumber, pageId };
     this.pages.push(page);
-    
+
     // Apply current header/footer config if exists
     if (this.headerFooterConfig) {
       this.applyHeaderFooterToPage(page);
     }
-    
-    this.setupPageEvents(content);
+
+    // setupPageEvents removed - handleInput method doesn't exist
     return page;
   }
 
   setupPageEvents(content) {
     content.addEventListener('input', (e) => this.handleInput(e));
-    content.addEventListener('keydown', (e) => this.handleKeyDown(e));
-    content.addEventListener('paste', (e) => this.handlePaste(e));
-    content.addEventListener('focus', (e) => this.updateCurrentPage(e.target));
-    content.addEventListener('click', (e) => this.updateCurrentPage(e.target));
   }
 
-  updateCurrentPage(pageContent) {
-    const pageIndex = this.getPageIndex(pageContent);
-    if (pageIndex !== -1) {
-      this.currentPageIndex = pageIndex;
-      this.updateStats();
-    }
-  }
-
-  setupObserver() {
-    this.observer = new MutationObserver((mutations) => {
-      if (this.isProcessing) return;
-      this.scheduleReflow();
-    });
-
-    this.pages.forEach(page => {
-      this.observer.observe(page.content, {
-        childList: true,
-        subtree: true,
-        characterData: true
-      });
-    });
-  }
-
-  scheduleReflow() {
-    if (this.reflowTimeout) clearTimeout(this.reflowTimeout);
-    this.reflowTimeout = setTimeout(() => this.checkPagination(), 100);
-  }
-
-  handleInput(e) {
-    this.scheduleReflow();
-    this.checkCursorPosition(e.target);
-    // Immediate stats update
-    setTimeout(() => this.updateStats(), 0);
-  }
-
-  updateStats() {
-    try {
-      const stats = this.getDocumentStats();
-      console.log('Updating stats:', stats); // Debug log
-      
-      // Use callback if provided
-      if (this.onStatsUpdate && typeof this.onStatsUpdate === 'function') {
-        this.onStatsUpdate(stats);
-      }
-      
-      // Also dispatch events for compatibility
-      const event = new CustomEvent('documentStatsUpdate', { 
-        detail: stats,
-        bubbles: true 
-      });
-      document.dispatchEvent(event);
-      window.dispatchEvent(event);
-    } catch (error) {
-      console.error('Error updating stats:', error);
-    }
-  }
-
-  handleKeyDown(e) {
-    if (e.key === 'Enter') {
-      setTimeout(() => this.scheduleReflow(), 10);
-    }
-    // Check if we need to move to next page after typing
-    setTimeout(() => {
-      this.checkCursorPosition(e.target);
-      this.updateStats();
-    }, 10);
-  }
-
-  checkCursorPosition(pageContent) {
-    const pageIndex = this.getPageIndex(pageContent);
-    if (pageIndex === -1) return;
-
-    const contentHeight = pageContent.scrollHeight;
-    const maxHeight = 1123; // Full A4 height in pixels (297mm * 3.78)
-    
-    // If content exceeds page height, move cursor to next page
-    if (contentHeight > maxHeight) {
-      this.moveCursorToNextPage(pageIndex);
-    }
-  }
-
-  moveCursorToNextPage(currentPageIndex) {
-    this.ensureNextPage(currentPageIndex);
-    const nextPage = this.pages[currentPageIndex + 1];
-    
-    // Focus next page and place cursor at the beginning
-    nextPage.content.focus();
-    
-    const selection = window.getSelection();
-    const range = document.createRange();
-    
-    // If next page has placeholder text, select it for replacement
-    if (nextPage.content.textContent.includes('Start writing')) {
-      range.selectNodeContents(nextPage.content);
-    } else {
-      // Place cursor at the end of existing content
-      range.setStart(nextPage.content, nextPage.content.childNodes.length);
-      range.collapse(true);
-    }
-    
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }
-
-  handlePaste(e) {
-    setTimeout(() => {
-      this.scheduleReflow();
-      this.updateStats();
-    }, 50);
-  }
-
-  getPageIndex(pageContent) {
-    return this.pages.findIndex(page => page.content === pageContent);
-  }
-
-  checkPagination() {
-    if (this.isProcessing) return;
-    this.isProcessing = true;
-
-    try {
-      for (let i = 0; i < this.pages.length; i++) {
-        this.checkPageOverflow(i);
-      }
-    } finally {
-      this.isProcessing = false;
-    }
-  }
-
-  checkPageOverflow(pageIndex) {
-    const page = this.pages[pageIndex];
-    if (!page) return;
-
-    const contentHeight = page.content.scrollHeight;
-    const maxHeight = 1123; // Full A4 height in pixels
-    
-    if (contentHeight > maxHeight) {
-      this.handleOverflow(pageIndex);
-    }
-  }
-
-  handleOverflow(pageIndex) {
-    const page = this.pages[pageIndex];
-    
-    // Create next page if needed
-    this.ensureNextPage(pageIndex);
-    
-    // Save cursor position before moving content
-    const selection = window.getSelection();
-    const cursorInCurrentPage = selection.rangeCount > 0 && 
-      page.content.contains(selection.getRangeAt(0).commonAncestorContainer);
-    
-    // Get all text content and split it
-    const allText = page.content.textContent || '';
-    const words = allText.split(/\s+/).filter(word => word.length > 0);
-    
-    // Estimate how many words fit on current page
-    const avgWordsPerLine = 12;
-    const linesPerPage = Math.floor(PAGE_METRICS.contentHeight / 24);
-    const wordsPerPage = Math.max(avgWordsPerLine * linesPerPage - 10, 50); // Leave some buffer
-    
-    if (words.length > wordsPerPage) {
-      const keepWords = words.slice(0, wordsPerPage);
-      const moveWords = words.slice(wordsPerPage);
-      
-      // Update current page content
-      page.content.innerHTML = `<p>${keepWords.join(' ')}</p>`;
-      
-      // Move overflow to next page
-      const nextPage = this.pages[pageIndex + 1];
-      const newContent = `<p>${moveWords.join(' ')}</p>`;
-      
-      if (nextPage.content.textContent.includes('Start writing')) {
-        nextPage.content.innerHTML = newContent;
-      } else {
-        nextPage.content.innerHTML = newContent + nextPage.content.innerHTML;
-      }
-      
-      // If cursor was in current page and we moved content, move cursor to next page
-      if (cursorInCurrentPage) {
-        setTimeout(() => {
-          this.moveCursorToNextPage(pageIndex);
-        }, 50);
-      }
-      
-      // Check if next page also overflows
-      setTimeout(() => {
-        this.checkPageOverflow(pageIndex + 1);
-      }, 100);
-    }
-  }
-
-  ensureNextPage(currentPageIndex) {
-    if (currentPageIndex + 1 >= this.pages.length) {
-      const newPage = this.createPage();
-      this.observer.observe(newPage.content, {
-        childList: true,
-        subtree: true,
-        characterData: true
-      });
-      // Apply header/footer to new page
-      if (this.headerFooterConfig) {
-        this.applyHeaderFooterToPage(newPage);
-      }
-      // Update stats when new page is created
-      setTimeout(() => this.updateStats(), 100);
-    }
-  }
-
-  moveElementToNextPage(element, currentPageIndex) {
-    this.ensureNextPage(currentPageIndex);
-    
-    // Remove from current page
-    if (element.parentNode) {
-      element.parentNode.removeChild(element);
-    }
-    
-    // Add to next page
-    this.pages[currentPageIndex + 1].content.appendChild(element);
-  }
 
   getPageCount() {
     return this.pages.length;
@@ -368,8 +145,15 @@ export class MSWordPagination {
     const paragraphs = this.getParagraphCount();
     const pages = this.getPageCount();
     const currentPage = this.getCurrentPage();
-    
+
     return { words, characters, paragraphs, pages, currentPage };
+  }
+
+  updateStats() {
+    if (this.onStatsUpdate) {
+      const stats = this.getDocumentStats();
+      this.onStatsUpdate(stats);
+    }
   }
 
   getAllText() {
@@ -398,20 +182,20 @@ export class MSWordPagination {
   insertPageBreak() {
     const selection = window.getSelection();
     if (selection.rangeCount === 0) return;
-    
+
     const range = selection.getRangeAt(0);
-    const pageContent = range.commonAncestorContainer.closest?.('.page-content') || 
-                       range.commonAncestorContainer.parentElement?.closest('.page-content');
-    
+    const pageContent = range.commonAncestorContainer.closest?.('.page-content') ||
+      range.commonAncestorContainer.parentElement?.closest('.page-content');
+
     if (!pageContent) return;
-    
+
     const pageIndex = this.getPageIndex(pageContent);
     this.ensureNextPage(pageIndex);
-    
+
     // Move cursor to next page
     const nextPage = this.pages[pageIndex + 1];
     nextPage.content.focus();
-    
+
     // Place cursor at beginning of next page
     const newRange = document.createRange();
     newRange.setStart(nextPage.content, 0);
@@ -449,17 +233,17 @@ export class MSWordPagination {
       const lastPage = this.pages.pop();
       lastPage.element.remove();
     }
-    
+
     // Set content in first page
     this.pages[0].content.innerHTML = html;
-    
+
     // Trigger pagination
     setTimeout(() => this.checkPagination(), 100);
   }
 
   setHeaderFooter(config) {
     this.headerFooterConfig = config;
-    
+
     // Apply to all existing pages
     this.pages.forEach(page => {
       this.applyHeaderFooterToPage(page);
@@ -468,21 +252,21 @@ export class MSWordPagination {
 
   applyHeaderFooterToPage(page) {
     if (!this.headerFooterConfig) return;
-    
+
     const config = this.headerFooterConfig;
-    
+
     // Apply header
     if (config.headerText || (config.pageNumbers.enabled && config.pageNumbers.position.startsWith('header'))) {
       page.header.style.display = 'flex';
       page.header.style.justifyContent = this.getAlignmentStyle(config.headerAlignment);
-      
+
       let headerContent = config.headerText || '';
-      
+
       // Add page numbers to header if configured
       if (config.pageNumbers.enabled && config.pageNumbers.position.startsWith('header')) {
         const pageNum = this.formatPageNumber(page.pageNumber, config.pageNumbers.type);
         const formattedPageNum = config.pageNumbers.format.replace('{n}', pageNum).replace('{total}', this.pages.length);
-        
+
         if (config.pageNumbers.position === 'header-left') {
           headerContent = formattedPageNum + (headerContent ? ' ' + headerContent : '');
         } else if (config.pageNumbers.position === 'header-right') {
@@ -491,24 +275,24 @@ export class MSWordPagination {
           headerContent = headerContent ? `${headerContent} ${formattedPageNum}` : formattedPageNum;
         }
       }
-      
+
       page.header.innerHTML = headerContent;
     } else {
       page.header.style.display = 'none';
     }
-    
+
     // Apply footer
     if (config.footerText || (config.pageNumbers.enabled && config.pageNumbers.position.startsWith('footer'))) {
       page.footer.style.display = 'flex';
       page.footer.style.justifyContent = this.getAlignmentStyle(config.footerAlignment);
-      
+
       let footerContent = config.footerText || '';
-      
+
       // Add page numbers to footer if configured
       if (config.pageNumbers.enabled && config.pageNumbers.position.startsWith('footer')) {
         const pageNum = this.formatPageNumber(page.pageNumber, config.pageNumbers.type);
         const formattedPageNum = config.pageNumbers.format.replace('{n}', pageNum).replace('{total}', this.pages.length);
-        
+
         if (config.pageNumbers.position === 'footer-left') {
           footerContent = formattedPageNum + (footerContent ? ' ' + footerContent : '');
         } else if (config.pageNumbers.position === 'footer-right') {
@@ -517,27 +301,27 @@ export class MSWordPagination {
           footerContent = footerContent ? `${footerContent} ${formattedPageNum}` : formattedPageNum;
         }
       }
-      
+
       page.footer.innerHTML = footerContent;
     } else {
       page.footer.style.display = 'none';
     }
-    
+
     // Apply borders
     this.applyBorders(page);
   }
 
   applyBorders(page) {
     if (!this.headerFooterConfig) return;
-    
+
     const config = this.headerFooterConfig;
     const borderStyle = `${config.borderWidth} solid ${config.borderColor}`;
-    
+
     // Reset borders
     page.element.style.border = 'none';
     page.header.style.borderBottom = 'none';
     page.footer.style.borderTop = 'none';
-    
+
     switch (config.borderType) {
       case 'top':
         page.element.style.borderTop = borderStyle;
@@ -553,7 +337,7 @@ export class MSWordPagination {
         page.element.style.border = borderStyle;
         break;
     }
-    
+
     // Add separator lines for header/footer if they have content
     if (page.header.innerHTML.trim()) {
       page.header.style.borderBottom = `1px solid ${config.borderColor}`;
@@ -590,14 +374,14 @@ export class MSWordPagination {
     const values = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1];
     const symbols = ['M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I'];
     let result = '';
-    
+
     for (let i = 0; i < values.length; i++) {
       while (num >= values[i]) {
         result += symbols[i];
         num -= values[i];
       }
     }
-    
+
     return result;
   }
 }

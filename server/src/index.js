@@ -107,7 +107,7 @@ app.use('*', (req, res) => {
 
 // ✅ Start the server
 server.listen(PORT, () => {
-  console.log('Server running on port ${PORT}');
+  console.log(`Server running on port ${PORT}`);
   console.log('🌍 Environment:', {
     NODE_ENV: process.env.NODE_ENV,
     MONGODB_URI: process.env.MONGODB_URI ? 'Set' : 'Missing',

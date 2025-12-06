@@ -1,0 +1,226 @@
+.change-styles-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.change-styles-popup {
+    background: var(--etb-bg);
+    border: 1px solid var(--etb-border);
+    border-radius: 4px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    min-width: 250px;
+    max-width: 600px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.change-styles-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--etb-border);
+    background: var(--etb-bg);
+}
+
+.change-styles-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--etb-text);
+}
+
+.change-styles-header .close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--etb-text-secondary);
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 2px;
+    transition: all 0.15s;
+}
+
+.change-styles-header .close-btn:hover {
+    background: var(--etb-hover);
+    color: var(--etb-text);
+}
+
+.change-styles-menu {
+    display: flex;
+    flex-direction: column;
+    padding: 4px 0;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--etb-text);
+    transition: background 0.15s;
+    position: relative;
+}
+
+.menu-item:hover {
+    background: var(--etb-hover);
+}
+
+.menu-item i:first-child {
+    font-size: 16px;
+    color: var(--etb-text-secondary);
+    width: 20px;
+}
+
+.menu-item span {
+    flex: 1;
+}
+
+.menu-item i:last-child {
+    font-size: 16px;
+    color: var(--etb-text-tertiary);
+}
+
+.menu-separator {
+    height: 1px;
+    background: var(--etb-border);
+    margin: 4px 0;
+}
+
+/* FIXED: Dropdown appears right next to the menu */
+.submenu-panel {
+    position: absolute;
+    left: 100%;
+    top: 0;
+    background: var(--etb-bg);
+    border: 1px solid var(--etb-border);
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    min-width: 250px;
+    max-width: 350px;
+    max-height: 500px;
+    overflow-y: auto;
+    margin-left: 4px;
+    z-index: 10001;
+}
+
+.submenu-header {
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--etb-text-secondary);
+    border-bottom: 1px solid var(--etb-border);
+    background: var(--etb-bg-secondary);
+}
+
+.submenu-content {
+    padding: 4px 0;
+    background: var(--etb-bg);
+}
+
+.submenu-option {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--etb-text);
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.submenu-option:hover {
+    background: var(--etb-hover);
+}
+
+.submenu-option.selected {
+    background: var(--etb-accent-bg);
+    color: var(--etb-accent);
+    font-weight: 500;
+}
+
+/* Color Option Styles */
+.color-option {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.color-swatches {
+    display: flex;
+    gap: 2px;
+    width: 100%;
+}
+
+.color-swatch {
+    width: 30px;
+    height: 20px;
+    border: 1px solid var(--etb-border);
+    border-radius: 2px;
+}
+
+/* Font Option Styles */
+.font-option {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.font-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+}
+
+.font-heading {
+    font-size: 16px;
+    font-weight: 300;
+    color: var(--etb-text);
+}
+
+.font-body {
+    font-size: 12px;
+    color: var(--etb-text-secondary);
+}
+
+/* Spacing Option Styles */
+.spacing-option {
+    flex-direction: row;
+    gap: 12px;
+}
+
+.spacing-preview {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--etb-border);
+    border-radius: 2px;
+    background: var(--etb-bg-secondary);
+    flex-shrink: 0;
+    color: var(--etb-text-secondary);
+}
+
+.spacing-preview svg {
+    width: 36px;
+    height: 36px;
+}

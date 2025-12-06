@@ -1,0 +1,274 @@
+.paragraph-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    backdrop-filter: blur(2px);
+}
+
+.paragraph-dialog {
+    background: var(--etb-bg, #ffffff);
+    color: var(--etb-text, #333333);
+    width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: 4px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 11px;
+    border: 1px solid var(--etb-border, #e1e1e1);
+    animation: dialogFadeIn 0.2s ease;
+}
+
+@keyframes dialogFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--etb-border, #e1e1e1);
+    background: var(--etb-bg, #ffffff);
+    flex-shrink: 0;
+}
+
+.dialog-header h3 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: normal;
+    color: var(--etb-text, #333);
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    color: var(--etb-text, #666);
+    opacity: 0.7;
+    padding: 0 4px;
+}
+
+.close-btn:hover {
+    opacity: 1;
+    background: var(--etb-hover, #eee);
+}
+
+.dialog-tabs {
+    display: flex;
+    padding: 6px 10px 0;
+    background: var(--etb-bg, #f0f0f0);
+    border-bottom: 1px solid var(--etb-border, #d9d9d9);
+    flex-shrink: 0;
+}
+
+.tab-btn {
+    padding: 4px 10px;
+    border: 1px solid transparent;
+    border-bottom: none;
+    background: none;
+    cursor: pointer;
+    margin-right: 2px;
+    border-radius: 2px 2px 0 0;
+    font-size: 11px;
+    color: var(--etb-text, #333);
+}
+
+.tab-btn.active {
+    background: var(--etb-bg, white);
+    border: 1px solid var(--etb-border, #d9d9d9);
+    border-bottom: 1px solid var(--etb-bg, white);
+    margin-bottom: -1px;
+    position: relative;
+    z-index: 1;
+}
+
+.dialog-content {
+    padding: 10px;
+    background: var(--etb-bg, white);
+    overflow-y: auto;
+}
+
+.dialog-group {
+    border: 1px solid var(--etb-border, #e1e1e1);
+    border-radius: 2px;
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    position: relative;
+}
+
+.dialog-group legend {
+    padding: 0 4px;
+    color: var(--etb-accent, #0066cc);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* Override Settings.css global .form-row with more specific selector */
+.paragraph-dialog .form-row {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.paragraph-dialog .form-row label {
+    width: 70px;
+    text-align: right;
+    margin-right: 8px;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.paragraph-dialog .form-row select,
+.paragraph-dialog .form-row input {
+    flex: 1;
+    padding: 1px 4px;
+    border: 1px solid var(--etb-border, #ccc);
+    border-radius: 2px;
+    background: var(--etb-bg, white);
+    color: var(--etb-text, #333);
+    font-size: 11px;
+    height: 20px;
+}
+
+.paragraph-dialog .form-row select:focus,
+.paragraph-dialog .form-row input:focus {
+    outline: none;
+    border-color: var(--etb-accent, #0066cc);
+}
+
+.cols-2 {
+    display: flex;
+    gap: 12px;
+}
+
+.col {
+    flex: 1;
+}
+
+.input-with-unit {
+    display: flex;
+    align-items: center;
+    flex: 1;
+}
+
+.input-with-unit input {
+    width: 40px;
+    margin-right: 4px;
+    flex: none;
+}
+
+.input-with-unit span {
+    font-size: 11px;
+    color: var(--etb-text, #666);
+}
+
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.checkbox-row input {
+    margin-right: 6px;
+}
+
+.checkbox-row label {
+    font-size: 11px;
+    color: var(--etb-text, #333);
+}
+
+/* Preview Box */
+.preview-box {
+    border: 1px solid var(--etb-border, #ccc);
+    height: 60px;
+    padding: 6px;
+    overflow: hidden;
+    background: var(--etb-bg, white);
+    font-size: 10px;
+    color: var(--etb-text, #333);
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+}
+
+.preview-box p {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+.dialog-footer {
+    padding: 8px 10px;
+    background: var(--etb-bg, #f0f0f0);
+    border-top: 1px solid var(--etb-border, #d9d9d9);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.footer-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.btn-primary,
+.btn-secondary {
+    padding: 2px 12px;
+    border-radius: 2px;
+    cursor: pointer;
+    min-width: 60px;
+    font-size: 11px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-primary {
+    background: var(--etb-accent, #0066cc);
+    color: #000;
+    border: 1px solid var(--etb-accent, #005cbf);
+    font-weight: 500;
+}
+
+.btn-secondary {
+    background: var(--etb-bg, #e1e1e1);
+    color: var(--etb-text, black);
+    border: 1px solid var(--etb-border, #adadad);
+}
+
+.btn-secondary:hover {
+    background: var(--etb-hover, #d4d4d4);
+}
+
+/* Dark Mode Specific Overrides */
+[data-theme="dark"] .dialog-tabs,
+[data-theme="dark"] .dialog-footer {
+    background: #1a1a1a;
+}
+
+[data-theme="dark"] .tab-btn.active {
+    background: #000;
+    border-bottom-color: #000;
+}
