@@ -1,0 +1,354 @@
+/* Chart Editor Styles - Premium Black & Gold Table */
+
+.smartart-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    /* Darker overlay */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    backdrop-filter: blur(4px);
+    /* Glassy effect */
+}
+
+.smartart-dialog {
+    background: #000000;
+    /* Pure black background */
+    width: 90%;
+    max-width: 850px;
+    height: 80%;
+    max-height: 550px;
+    border-radius: 12px;
+    /* More rounded */
+    box-shadow: 0 0 40px rgba(255, 215, 0, 0.15);
+    /* Subtle gold glow */
+    border: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Header */
+.smartart-header {
+    background: #111;
+    padding: 12px 20px;
+    border-bottom: 2px solid #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.smartart-header h3 {
+    margin: 0;
+    font-size: 18px;
+    /* Larger */
+    font-weight: 700;
+    /* Bold */
+    color: #FFD700;
+    /* Gold */
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.smartart-close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #666;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s;
+}
+
+.smartart-close-btn:hover {
+    background: #333;
+    color: #FFD700;
+}
+
+/* Body */
+.smartart-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    background: #000;
+}
+
+/* Left Panel - Categories */
+.smartart-categories {
+    width: 180px;
+    background: #0a0a0a;
+    border-right: 1px solid #333;
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* No horiz scroll */
+    padding: 10px 0;
+}
+
+.category-header {
+    padding: 10px 15px;
+    font-weight: 800;
+    color: #000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #FFD700;
+    /* Gold Background */
+    margin-bottom: 8px;
+    font-size: 14px;
+    text-transform: uppercase;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+/* Sidebar Categories */
+.category-item {
+    padding: 12px 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.2s ease-in-out;
+    color: #e0e0e0;
+    /* Brighter text (White-ish) */
+    font-size: 14px;
+    font-weight: 700;
+    /* Bold */
+    border-left: 4px solid transparent;
+    letter-spacing: 0.5px;
+}
+
+.category-item i {
+    font-size: 18px;
+    color: #ffd700;
+    /* Gold icons by default for "bright" look */
+    transition: transform 0.2s;
+}
+
+.category-item:hover {
+    background: #1a1a1a;
+    color: #FFD700;
+    /* Gold text on hover */
+    padding-left: 20px;
+    /* Slide effect */
+}
+
+.category-item:hover i {
+    transform: scale(1.1);
+}
+
+.category-item.active {
+    background: #111;
+    font-weight: 800;
+    /* Extra bold */
+    color: #FFD700;
+    border-left-color: #FFD700;
+    box-shadow: inset 5px 0 10px -5px rgba(255, 215, 0, 0.3);
+}
+
+.category-item.active i {
+    color: #FFD700;
+    filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.5));
+}
+
+/* Middle Panel - Layouts Grid */
+.smartart-layouts {
+    flex: 1;
+    background: #000;
+    border-right: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.layouts-grid {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    /* Adjusted width */
+    gap: 15px;
+    align-content: start;
+    background: #000;
+}
+
+.layout-item {
+    cursor: pointer;
+    border: 2px solid #333;
+    border-radius: 8px;
+    padding: 6px;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    background: #111;
+}
+
+.layout-item:hover {
+    border-color: #FFD700;
+    background: #1a1a1a;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(255, 215, 0, 0.1);
+}
+
+.layout-item.selected {
+    border-color: #FFD700;
+    background: #222;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+    border-width: 2px;
+}
+
+.layout-thumbnail {
+    width: 100%;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+    background: #000;
+    border-radius: 4px;
+}
+
+.layout-name {
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    color: #bbb;
+    line-height: 1.2;
+}
+
+.layout-item.selected .layout-name {
+    color: #FFD700;
+    font-weight: 700;
+}
+
+/* Right Panel - Preview */
+.smartart-preview {
+    width: 300px;
+    background: #0a0a0a;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px;
+}
+
+.no-selection {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #555;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.preview-area {
+    border: 2px solid #333;
+    border-radius: 12px;
+    padding: 20px;
+    background: #000;
+    margin-bottom: 20px;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.layout-description h4 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    color: #FFD700;
+    font-weight: 700;
+    border-bottom: 1px solid #333;
+    padding-bottom: 8px;
+}
+
+.layout-description p {
+    margin: 0;
+    font-size: 13px;
+    color: #aaa;
+    line-height: 1.5;
+    font-weight: 500;
+}
+
+/* Footer */
+.smartart-footer {
+    background: #111;
+    padding: 15px 20px;
+    border-top: 1px solid #333;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.smartart-footer button {
+    padding: 8px 24px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn-cancel {
+    background: #222;
+    border: 1px solid #444;
+    color: #888;
+}
+
+.btn-cancel:hover {
+    background: #333;
+    color: #fff;
+    border-color: #666;
+}
+
+.btn-ok {
+    background: #FFD700;
+    border: 1px solid #FFD700;
+    color: #000;
+    /* Black text on Gold */
+}
+
+.btn-ok:hover {
+    background: #FFC000;
+    border-color: #FFC000;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+.btn-ok:disabled {
+    background: #333;
+    border-color: #333;
+    color: #555;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #000;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 4px;
+    border: 2px solid #000;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #FFD700;
+    /* Gold scrollbar on hover */
+}

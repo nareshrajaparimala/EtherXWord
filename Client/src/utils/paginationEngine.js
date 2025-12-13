@@ -179,29 +179,120 @@ export class MSWordPagination {
     }
   }
 
+  getPageIndex(pageContent) {
+    return this.pages.findIndex(p => p.content === pageContent);
+  }
+
+  ensureNextPage(pageIndex) {
+    // If next page doesn't exist, create it
+    if (pageIndex + 1 >= this.pages.length) {
+      // Create new page after current
+      const newPage = this.createPage();
+      // createPage appends to end. If we need to insert in middle it's harder, 
+      // but for standard typing flow, appending is usually functionally okay 
+      // unless we are in the middle of the doc. 
+      // Ideally should support insertion at index. 
+      // For now, assuming standard flow (append if at end).
+      // If we are strictly inserting, we might need to splice this.pages/dom?
+      // Since pages are absolute, DOM order matters for z-index/flow?
+      // CSS says 'editor-page' relative. So DOM order matters.
+      // If pageIndex is not last, we need to insertAfter.
+      if (pageIndex + 1 < this.pages.length - 1) {
+        // Re-order DOM
+        const nextExisting = this.pages[pageIndex + 1].element;
+        this.container.insertBefore(newPage.element, nextExisting);
+        // Update pages array
+        this.pages.pop(); // Remove from end
+        this.pages.splice(pageIndex + 1, 0, newPage);
+        // Re-number pages? 
+        this.updatePageNumbers();
+      }
+    }
+  }
+
+  updatePageNumbers() {
+    this.pages.forEach((p, i) => {
+      p.pageNumber = i + 1;
+      p.dataset.pageNumber = i + 1;
+      // Verify headers/footers
+      if (this.headerFooterConfig) this.applyHeaderFooterToPage(p);
+    });
+  }
+
   insertPageBreak() {
     const selection = window.getSelection();
     if (selection.rangeCount === 0) return;
 
     const range = selection.getRangeAt(0);
-    const pageContent = range.commonAncestorContainer.closest?.('.page-content') ||
-      range.commonAncestorContainer.parentElement?.closest('.page-content');
+    // Find closest page content
+    let node = range.commonAncestorContainer;
+    while (node && !node.classList?.contains('page-content')) {
+      node = node.parentNode;
+    }
+    const pageContent = node;
 
     if (!pageContent) return;
 
     const pageIndex = this.getPageIndex(pageContent);
     this.ensureNextPage(pageIndex);
 
-    // Move cursor to next page
-    const nextPage = this.pages[pageIndex + 1];
-    nextPage.content.focus();
+    // Extract content after cursor
+    const endRange = document.createRange();
+    endRange.setStart(range.endContainer, range.endOffset);
+    endRange.setEnd(pageContent, pageContent.childNodes.length);
 
-    // Place cursor at beginning of next page
+    const fragment = endRange.extractContents();
+
+    // Move to next page
+    const nextPage = this.pages[pageIndex + 1];
+
+    // Prepend to next page
+    if (nextPage.content.firstChild) {
+      nextPage.content.insertBefore(fragment, nextPage.content.firstChild);
+    } else {
+      nextPage.content.appendChild(fragment);
+    }
+
+    // Move cursor to next page start
+    nextPage.content.focus();
     const newRange = document.createRange();
     newRange.setStart(nextPage.content, 0);
     newRange.collapse(true);
     selection.removeAllRanges();
     selection.addRange(newRange);
+
+    this.updateStats();
+  }
+
+  insertBlankPage() {
+    // 1. Break current page (moves rest of content to next page)
+    this.insertPageBreak();
+
+    // 2. Break AGAIN at the start of the new page (pushes content to a 3rd page, leaving 2nd blank)
+    // We are already at start of next page due to insertPageBreak behavior
+    this.insertPageBreak();
+
+    // 3. Move cursor back to the Blank Page (the one in the middle)
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      // Current range is at start of P3 content.
+      // We want P2 content.
+      let node = range.commonAncestorContainer;
+      while (node && !node.classList?.contains('page-content')) {
+        node = node.parentNode;
+      }
+      if (node) {
+        const p3Index = this.getPageIndex(node);
+        const p2Index = p3Index - 1;
+        if (p2Index >= 0) {
+          const p2 = this.pages[p2Index];
+          p2.content.focus();
+          // Ensure visible
+          p2.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    }
   }
 
   getAllContent() {
@@ -241,6 +332,39 @@ export class MSWordPagination {
     setTimeout(() => this.checkPagination(), 100);
   }
 
+  formatPageNumber(pageNum, type) {
+    switch (type) {
+      case 'roman-upper':
+      case 'romanUpper':
+        return this.toRoman(pageNum);
+      case 'roman-lower':
+      case 'romanLower':
+        return this.toRoman(pageNum).toLowerCase();
+      case 'alpha-upper':
+      case 'alphaUpper':
+        return String.fromCharCode(64 + pageNum); // A, B, C...
+      case 'alpha-lower':
+      case 'alphaLower':
+        return String.fromCharCode(96 + pageNum); // a, b, c...
+      case 'arabic':
+      default:
+        return pageNum.toString();
+    }
+  }
+
+  toRoman(num) {
+    const values = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1];
+    const symbols = ['M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I'];
+    let result = '';
+    for (let i = 0; i < values.length; i++) {
+      while (num >= values[i]) {
+        result += symbols[i];
+        num -= values[i];
+      }
+    }
+    return result;
+  }
+
   setHeaderFooter(config) {
     this.headerFooterConfig = config;
 
@@ -261,6 +385,11 @@ export class MSWordPagination {
       page.header.style.justifyContent = this.getAlignmentStyle(config.headerAlignment);
 
       let headerContent = config.headerText || '';
+
+      // Replace {PAGE} placeholder with actual page number
+      if (headerContent.includes('{PAGE}')) {
+        headerContent = headerContent.replace('{PAGE}', page.pageNumber.toString());
+      }
 
       // Add page numbers to header if configured
       if (config.pageNumbers.enabled && config.pageNumbers.position.startsWith('header')) {
@@ -288,6 +417,11 @@ export class MSWordPagination {
 
       let footerContent = config.footerText || '';
 
+      // Replace {PAGE} placeholder with actual page number
+      if (footerContent.includes('{PAGE}')) {
+        footerContent = footerContent.replace('{PAGE}', page.pageNumber.toString());
+      }
+
       // Add page numbers to footer if configured
       if (config.pageNumbers.enabled && config.pageNumbers.position.startsWith('footer')) {
         const pageNum = this.formatPageNumber(page.pageNumber, config.pageNumbers.type);
@@ -307,8 +441,16 @@ export class MSWordPagination {
       page.footer.style.display = 'none';
     }
 
-    // Apply borders
-    this.applyBorders(page);
+    // Apply borders only if borderType is not 'none'
+    if (config.borderType && config.borderType !== 'none') {
+      this.applyBorders(page);
+    } else {
+      // Remove borders
+      page.header.style.borderTop = 'none';
+      page.header.style.borderBottom = 'none';
+      page.footer.style.borderTop = 'none';
+      page.footer.style.borderBottom = 'none';
+    }
   }
 
   applyBorders(page) {

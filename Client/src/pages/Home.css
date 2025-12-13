@@ -1024,8 +1024,8 @@
 }
 
 .error-glow {
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.3) !important;
-  border-color: #ef4444 !important;
+  box-shadow: 0 0 20px rgba(255, 207, 64, 0.3) !important;
+  border-color: #ffcf40 !important;
   animation: shake 0.5s ease;
 }
 

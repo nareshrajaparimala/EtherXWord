@@ -9,7 +9,7 @@ const generateTokens = (userId) => {
   const accessToken = jwt.sign({ userId }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_ACCESS_TTL || '15m'
   });
-  
+
   const refreshToken = jwt.sign({ userId }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_REFRESH_TTL || '7d'
   });
@@ -38,7 +38,7 @@ export const signup = async (req, res) => {
     });
 
     await user.save();
-    
+
     try {
       await sendWelcomeEmail(email, fullName);
     } catch (emailError) {
@@ -62,13 +62,19 @@ export const signin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    console.log('Login attempt for:', email);
     const user = await User.findOne({ email });
     if (!user) {
+      console.log('User not found in DB for email:', email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
+    console.log('User found:', user._id);
 
     const isValidPassword = await comparePassword(password, user.passwordHash);
+    console.log('Password validation result:', isValidPassword);
+
     if (!isValidPassword) {
+      console.log('Password mismatch for user:', user._id);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
@@ -147,7 +153,7 @@ export const forgotPassword = async (req, res) => {
         response: emailError.response,
         stack: emailError.stack
       });
-      return res.status(500).json({ 
+      return res.status(500).json({
         message: 'Failed to send OTP',
         error: process.env.NODE_ENV === 'development' ? emailError.message : 'Email service unavailable'
       });
@@ -160,7 +166,7 @@ export const forgotPassword = async (req, res) => {
       stack: error.stack,
       name: error.name
     });
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Server error',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
@@ -237,7 +243,7 @@ export const resetPassword = async (req, res) => {
 export const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.userId).select('-passwordHash');
-    
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }

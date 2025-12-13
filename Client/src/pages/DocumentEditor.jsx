@@ -9,9 +9,11 @@ import { ThemeContext } from '../context/ThemeContext';
 import { importDocxOOXML, exportDocxOOXML } from '../utils/ooxmlUtils';
 import { MSWordPagination } from '../utils/paginationEngine';
 import { exportDocument, exportToPDF, exportToDOCX } from '../utils/exportUtils';
+import { getShapeSVG } from '../utils/ShapeTemplates';
 import { imageResizer } from '../utils/imageResizer';
 import { saveNoteToIPFS } from '../utils/ipfs';
 import EditorToolBox from '../components/EditorToolBox';
+import textBoxEngine from '../utils/textBoxEngine';
 
 // Initial style definitions moved to component state
 const initialStyleDefinitions = {
@@ -57,11 +59,98 @@ const DocumentEditor = () => {
   // Editor state
   const [zoomLevel, setZoomLevel] = useState(100);
   const [showToolbar, setShowToolbar] = useState(true);
+  const [bookmarks, setBookmarks] = useState([]); // Bookmarks state
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTool, setSelectedTool] = useState('Home');
   const [showShareModal, setShowShareModal] = useState(false);
+
   const [showFormattingMarks, setShowFormattingMarks] = useState(false);
+  const [isDrawTableMode, setIsDrawTableMode] = useState(false);
+  const drawStateRef = useRef({ isDrawing: false, startX: 0, startY: 0, ghost: null });
+
+  // --- Shape Drawing Logic ---
+  const [activeShapeTool, setActiveShapeTool] = useState(null);
+  const shapeGhostRef = useRef(null);
+  const shapeStartRef = useRef(null);
+
+  const handleShapeMouseDown = (e) => {
+    if (!activeShapeTool) return;
+    e.preventDefault(); // Prevent text selection
+    const rect = e.currentTarget.getBoundingClientRect();
+    const scale = zoomLevel / 100;
+    const x = (e.clientX - rect.left) / scale;
+    const y = (e.clientY - rect.top) / scale;
+    shapeStartRef.current = { x, y };
+
+    if (shapeGhostRef.current) {
+      shapeGhostRef.current.style.display = 'block';
+      shapeGhostRef.current.style.left = `${x}px`;
+      shapeGhostRef.current.style.top = `${y}px`;
+      shapeGhostRef.current.style.width = '0px';
+      shapeGhostRef.current.style.height = '0px';
+    }
+  };
+
+  const handleShapeMouseMove = (e) => {
+    if (!activeShapeTool || !shapeStartRef.current) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const scale = zoomLevel / 100;
+    const currentX = (e.clientX - rect.left) / scale;
+    const currentY = (e.clientY - rect.top) / scale;
+    const startX = shapeStartRef.current.x;
+    const startY = shapeStartRef.current.y;
+
+    const width = Math.abs(currentX - startX);
+    const height = Math.abs(currentY - startY);
+    const left = Math.min(currentX, startX);
+    const top = Math.min(currentY, startY);
+
+    if (shapeGhostRef.current) {
+      shapeGhostRef.current.style.left = `${left}px`;
+      shapeGhostRef.current.style.top = `${top}px`;
+      shapeGhostRef.current.style.width = `${width}px`;
+      shapeGhostRef.current.style.height = `${height}px`;
+    }
+  };
+
+  const handleShapeMouseUp = (e) => {
+    if (!activeShapeTool || !shapeStartRef.current) return;
+
+    const ghost = shapeGhostRef.current;
+    const width = parseFloat(ghost.style.width);
+    const height = parseFloat(ghost.style.height);
+
+    if (width > 5 && height > 5) {
+      try {
+        // getShapeSVG is imported from utils/ShapeTemplates
+        const svgContent = getShapeSVG(activeShapeTool, undefined, undefined, false);
+        const base64 = btoa(unescape(encodeURIComponent(svgContent)));
+        const dataUri = `data:image/svg+xml;base64,${base64}`;
+        const imgHtml = `<img src="${dataUri}" style="width: ${width}px; height: ${height}px; vertical-align: middle;" />`;
+
+        if (document.caretRangeFromPoint) {
+          const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+          if (range) {
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+          }
+        }
+
+        focusActiveEditor();
+        document.execCommand('insertHTML', false, imgHtml);
+      } catch (err) {
+        console.error('Shape insertion failed:', err);
+      }
+    }
+
+    // Cleanup
+    setActiveShapeTool(null);
+    shapeStartRef.current = null;
+    if (shapeGhostRef.current) shapeGhostRef.current.style.display = 'none';
+  };
 
   // Formatting state
   const [currentFormat, setCurrentFormat] = useState({
@@ -258,6 +347,112 @@ const DocumentEditor = () => {
       }
     }
   }, []);
+
+  // Draw Table Handlers
+  const handleDrawMouseDown = (e) => {
+    if (!isDrawTableMode) return;
+    // Don't interfere if clicking inside a tool or popup
+    if (e.target.closest('.editor-toolbox')) return;
+
+    e.preventDefault();
+    const ghost = document.createElement('div');
+    ghost.className = 'etb-ghost-table-box';
+    ghost.style.position = 'fixed';
+    ghost.style.border = '1px dashed #000';
+    ghost.style.background = 'rgba(0,0,0,0.05)';
+    ghost.style.zIndex = '9999';
+    ghost.style.pointerEvents = 'none';
+    ghost.style.left = e.clientX + 'px';
+    ghost.style.top = e.clientY + 'px';
+    document.body.appendChild(ghost);
+    drawStateRef.current = { isDrawing: true, startX: e.clientX, startY: e.clientY, ghost };
+  };
+
+  const handleDrawMouseMove = (e) => {
+    if (!isDrawTableMode || !drawStateRef.current.isDrawing) return;
+    const { startX, startY, ghost } = drawStateRef.current;
+
+    const currentX = e.clientX;
+    const currentY = e.clientY;
+
+    // Calculate bounds
+    const width = Math.abs(currentX - startX);
+    const height = Math.abs(currentY - startY);
+    const left = Math.min(currentX, startX);
+    const top = Math.min(currentY, startY);
+
+    ghost.style.width = `${width}px`;
+    ghost.style.height = `${height}px`;
+    ghost.style.left = `${left}px`;
+    ghost.style.top = `${top}px`;
+  };
+
+  const handleDrawMouseUp = (e) => {
+    if (!isDrawTableMode || !drawStateRef.current.isDrawing) return;
+    const { startX, startY, ghost } = drawStateRef.current;
+
+    // Correct for Zoom Level & Round to Integers
+    const scale = zoomLevel / 100;
+    const width = Math.round(Math.abs(e.clientX - startX) / scale);
+    const height = Math.round(Math.abs(e.clientY - startY) / scale);
+
+    // Cleanup ghost
+    if (ghost && ghost.parentNode) ghost.parentNode.removeChild(ghost);
+    drawStateRef.current = { isDrawing: false, startX: 0, startY: 0, ghost: null };
+
+    if (width > 10 && height > 10) {
+      // Create Table DOM Element directly to bypass execCommand style stripping
+      const table = document.createElement('table');
+      // Use cssText for aggressive styling
+      table.style.cssText = `display: inline-table !important; width: ${width}px !important; min-width: ${width}px !important; border-collapse: collapse; border: 1px solid #000; table-layout: fixed !important; vertical-align: top; margin: 0 5px 5px 0;`;
+
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      // Force TD size as well
+      td.style.cssText = `width: ${width}px !important; height: ${height}px !important; min-width: ${width}px; min-height: ${height}px; border: 1px solid #000; padding: 0; box-sizing: border-box;`;
+      td.innerHTML = '&nbsp;';
+
+      tr.appendChild(td);
+      table.appendChild(tr);
+
+      try {
+        focusActiveEditor();
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          range.deleteContents(); // Clear selection
+          range.insertNode(table);
+
+          // Move cursor AFTER the inserted table to allow drawing the next one
+          range.setStartAfter(table);
+          range.setEndAfter(table);
+          selection.removeAllRanges();
+          selection.addRange(range);
+
+          // Trigger stats update
+          updateDocumentStats();
+        }
+      } catch (err) {
+        console.error('Insert Table Failed', err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isDrawTableMode) {
+      document.body.style.cursor = 'crosshair'; // Placeholder for Pencil
+      document.addEventListener('mousemove', handleDrawMouseMove);
+      document.addEventListener('mouseup', handleDrawMouseUp);
+    } else {
+      document.body.style.cursor = 'default';
+      document.removeEventListener('mousemove', handleDrawMouseMove);
+      document.removeEventListener('mouseup', handleDrawMouseUp);
+    }
+    return () => {
+      document.removeEventListener('mousemove', handleDrawMouseMove);
+      document.removeEventListener('mouseup', handleDrawMouseUp);
+    };
+  }, [isDrawTableMode]);
 
   const getNextFontSize = (direction) => {
     // Supported font sizes for shortcuts (must match or extend toolbox options)
@@ -529,7 +724,7 @@ const DocumentEditor = () => {
 
             console.log('Applying multilevel style to root list:', styleName);
 
-            // Set the style on the root list
+            // --- Theme State ---on the root list
             listElement.setAttribute('data-multilevel-style', styleName);
 
             // Remove single-level numbering style if present to avoid conflicts
@@ -829,6 +1024,29 @@ const DocumentEditor = () => {
 
   const formatText = (command, value = null) => {
     focusActiveEditor();
+
+    if (command === 'insertVideo') {
+      let embedUrl = value;
+      // Convert YouTube Watch URL to Embed URL
+      if (value.includes('youtube.com/watch')) {
+        const urlParams = new URLSearchParams(new URL(value).search);
+        const videoId = urlParams.get('v');
+        if (videoId) embedUrl = `https://www.youtube.com/embed/${videoId}`;
+      } else if (value.includes('youtu.be/')) {
+        const videoId = value.split('youtu.be/')[1];
+        if (videoId) embedUrl = `https://www.youtube.com/embed/${videoId}`;
+      } else if (value.includes('vimeo.com')) {
+        const videoId = value.split('vimeo.com/')[1];
+        if (videoId) embedUrl = `https://player.vimeo.com/video/${videoId}`;
+      }
+
+      if (embedUrl) {
+        const iframeHtml = `<div class="video-wrapper" contenteditable="false" style="text-align: center; margin: 10px 0;"><iframe width="560" height="315" src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="border: 1px solid #ccc;"></iframe></div><p><br/></p>`;
+        document.execCommand('insertHTML', false, iframeHtml);
+      }
+      return;
+    }
+
     document.execCommand(command, false, value);
     updateFormatState();
   };
@@ -1215,6 +1433,179 @@ const DocumentEditor = () => {
     }
   };
 
+  // Insert blank page
+  const insertBlankPage = () => {
+    if (paginationRef.current && paginationRef.current.insertBlankPage) {
+      paginationRef.current.insertBlankPage();
+      showNotification('Blank Page inserted', 'success');
+    }
+  };
+
+  // Cover Page Logic
+  const insertCoverPage = (template) => {
+    if (!paginationRef.current) return;
+
+    // Remove existing cover page first to avoid duplicates
+    removeCoverPage(true); // true = silent mode
+
+    const content = paginationRef.current.getAllContent();
+    const coverHTML = template.html;
+
+    // Prepend new cover page with a page break
+    const newContent = coverHTML + '<div style="page-break-after: always; break-after: page;"></div>' + content;
+
+    paginationRef.current.setContent(newContent);
+    // Try to update placeholders with existing meta data if available (mock logic for now)
+    // In a real app, we'd parse the new content and inject documentTitle, etc.
+    showNotification('Cover Page inserted', 'success');
+    setCurrentPage(1);
+    // Reset view to top
+    window.scrollTo(0, 0);
+  };
+
+  // Track selection for robust interactions
+  const savedRangeRef = useRef(null);
+
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        let container = range.commonAncestorContainer;
+        while (container && container !== document.body) {
+          if (container.classList && container.classList.contains('page-content')) {
+            savedRangeRef.current = range.cloneRange();
+            break;
+          }
+          container = container.parentNode;
+        }
+      }
+    };
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+  }, []);
+
+  const generateTableHTML = (rows, cols, isPreview = false) => {
+    let style = "width: 100%; border-collapse: collapse; margin: 10px 0; border: 1px solid #000;";
+    if (isPreview) style += " opacity: 0.7; border: 1px dashed #999; background: rgba(0,0,0,0.05); pointer-events: none;";
+
+    let html = `<table class="${isPreview ? 'table-preview-ghost' : ''}" style="${style}"><tbody>`;
+    for (let i = 0; i < rows; i++) {
+      html += `<tr>`;
+      for (let j = 0; j < cols; j++) {
+        html += `<td style="border: 1px solid #000; padding: 5px; min-width: 50px; height: 20px;">&nbsp;</td>`;
+      }
+      html += `</tr>`;
+    }
+    html += `</tbody></table>`;
+    return html;
+  };
+
+  // Table Logic
+  const insertTable = (config) => {
+    if (!paginationRef.current) return;
+    const { rows, cols } = config;
+    if (!rows || !cols) return;
+
+    previewTable(null); // Clear preview
+
+    const tableHTML = generateTableHTML(rows, cols, false);
+
+    let range = null;
+    const selection = window.getSelection();
+
+    // Check if current selection is valid
+    if (selection.rangeCount > 0) {
+      let node = selection.getRangeAt(0).commonAncestorContainer;
+      let isEditor = false;
+      while (node && node !== document.body) {
+        if (node.classList?.contains('page-content')) { isEditor = true; break; }
+        node = node.parentNode;
+      }
+      if (isEditor) range = selection.getRangeAt(0);
+    }
+
+    // Fallback to saved selection
+    if (!range && savedRangeRef.current) {
+      range = savedRangeRef.current;
+    }
+
+    if (range) {
+      // To support Undo (Ctrl+Z), we must use document.execCommand
+      // First, restore the selection
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      // Use execCommand to insert HTML - this manages the undo stack automatically
+      document.execCommand('insertHTML', false, tableHTML);
+
+      // Update saved range to new position
+      savedRangeRef.current = selection.getRangeAt(0).cloneRange();
+    } else {
+      showNotification('Click inside document to insert', 'warning');
+    }
+  };
+
+  const previewTable = (config) => {
+    const existing = document.querySelectorAll('.table-preview-ghost');
+    existing.forEach(el => el.remove());
+
+    if (!config) return;
+
+    const { rows, cols } = config;
+    const tableHTML = generateTableHTML(rows, cols, true);
+
+    let range = null;
+    const selection = window.getSelection();
+
+    // Check if current selection is valid (not in toolbar)
+    if (selection.rangeCount > 0) {
+      let node = selection.getRangeAt(0).commonAncestorContainer;
+      if (node.nodeType === 3) node = node.parentNode;
+
+      // Explicitly ignore toolbar/popup selections
+      if (!node.closest('.etb-toolbar') && !node.closest('.insert-popup') && !node.closest('.table-selector-popup')) {
+        range = selection.getRangeAt(0);
+      }
+    }
+
+    if (!range && savedRangeRef.current) {
+      range = savedRangeRef.current;
+    }
+
+    if (range) {
+      const fragment = range.createContextualFragment(tableHTML);
+      const pRange = range.cloneRange();
+      pRange.collapse(false);
+      pRange.insertNode(fragment);
+    }
+  };
+
+  const removeCoverPage = (silent = false) => {
+    if (!paginationRef.current) return;
+    let content = paginationRef.current.getAllContent();
+
+    // Parse content to find existing cover page wrapper
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(content, 'text/html');
+
+    // Find div with class 'cover-page' (all templates have this class)
+    const coverPage = doc.querySelector('div[class*="cover-page"]');
+
+    if (coverPage) {
+      coverPage.remove();
+      // Also look for the page break we added
+      // This is a rough heuristic, removing the first page break if it's at the start might be needed
+      // For now, removing the cover page element is the key step.
+
+      paginationRef.current.setContent(doc.body.innerHTML);
+      if (!silent) showNotification('Cover Page removed', 'success');
+    } else {
+      if (!silent) showNotification('No cover page found', 'info');
+    }
+  };
+
   // Navigation between pages
   const goToPage = (pageNumber) => {
     if (paginationRef.current && paginationRef.current.goToPage) {
@@ -1268,6 +1659,61 @@ const DocumentEditor = () => {
       console.error('IPFS save error:', error);
       showNotification('Failed to save to IPFS: ' + error.message, 'error');
     }
+  };
+
+  const drawTable = () => {
+    showNotification('Draw Table Mode: Click to insert a 1x1 table', 'info');
+    document.body.style.cursor = 'crosshair';
+
+    // One-time click handler to simulate drawing start
+    const handler = (e) => {
+      // Avoid inserting if clicking on toolbar
+      if (e.target.closest('.etb-toolbar')) return;
+
+      insertTable({ rows: 1, cols: 1 });
+      document.body.style.cursor = 'default';
+      document.removeEventListener('click', handler);
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    // Delay to avoid immediate trigger from menu click
+    setTimeout(() => document.addEventListener('click', handler), 100);
+  };
+
+  const convertTextToTable = () => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.toString().trim() === '') {
+      showNotification('Please select text to convert', 'warning');
+      return;
+    }
+
+    const text = selection.toString();
+    const rows = text.split(/\r?\n/).filter(line => line.trim() !== '');
+    if (rows.length === 0) return;
+
+    // Heuristic: Tab or Comma separated?
+    const firstLine = rows[0];
+    const tabCount = (firstLine.match(/\t/g) || []).length;
+    const commaCount = (firstLine.match(/,/g) || []).length;
+    const separator = tabCount >= commaCount ? '\t' : ',';
+
+    let tableHTML = '<table style="width: 100%; border-collapse: collapse; margin: 10px 0; border: 1px solid #000;"><tbody>';
+    rows.forEach(row => {
+      tableHTML += '<tr>';
+      const cells = row.split(separator);
+      cells.forEach(cell => {
+        tableHTML += `<td style="border: 1px solid #000; padding: 5px; min-width: 50px;">${cell.trim() || '&nbsp;'}</td>`;
+      });
+      tableHTML += '</tr>';
+    });
+    tableHTML += '</tbody></table>';
+
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    const fragment = range.createContextualFragment(tableHTML);
+    range.insertNode(fragment);
+
+    showNotification('Text converted to Table', 'success');
   };
 
   // Expose image control functions to console
@@ -1434,6 +1880,30 @@ Keyboard Shortcuts:
     };
   }, []);
 
+  // Deselect text boxes when clicking on the document content
+  useEffect(() => {
+    const handleDocumentClick = (e) => {
+      // Import the singleton instance dynamically to ensure we get the same one
+      import('../utils/textBoxEngine').then(module => {
+        const textBoxEngine = module.default;
+        // Check if click is outside any text box
+        if (!e.target.closest('.etherx-textbox')) {
+          textBoxEngine.deselectAll();
+        }
+      });
+    };
+
+    const container = document.querySelector('.editor-container');
+    if (container) {
+      container.addEventListener('mousedown', handleDocumentClick);
+    }
+
+    return () => {
+      if (container) {
+        container.removeEventListener('mousedown', handleDocumentClick);
+      }
+    };
+  }, []);
 
 
   return (
@@ -1526,6 +1996,53 @@ Keyboard Shortcuts:
                 return; // Exit early, don't process further
               }
 
+              // HANDLE INSERT EQUATION - Add early in chain
+              if (cmd === 'insertEquation') {
+                console.log('✅ insertEquation handler reached! value:', value);
+                const activePage = document.querySelector('.page-content[contenteditable="true"]:focus') ||
+                  document.querySelector('.page-content[contenteditable="true"]');
+
+                if (activePage) {
+                  const div = document.createElement('div');
+                  div.className = 'math-zone';
+                  div.style.cssText = 'display: block; text-align: center; margin: 12px 0; font-family: "Cambria Math", "Latin Modern Math", serif; font-size: 18px; padding: 5px; cursor: default; color: #000;';
+                  div.contentEditable = "false";
+
+                  if (value) {
+                    div.textContent = value;
+                  } else {
+                    div.textContent = 'Type equation here.';
+                    div.style.color = '#999';
+                  }
+
+                  // Insert at selection
+                  const selection = window.getSelection();
+                  if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    if (activePage.contains(range.commonAncestorContainer)) {
+                      range.deleteContents();
+                      range.insertNode(div);
+
+                      const p = document.createElement('p');
+                      p.innerHTML = '<br>';
+                      range.setStartAfter(div);
+                      range.insertNode(p);
+
+                      range.setStart(p, 0);
+                      selection.removeAllRanges();
+                      selection.addRange(range);
+                    } else {
+                      activePage.appendChild(div);
+                    }
+                  } else {
+                    activePage.appendChild(div);
+                  }
+                  console.log('✅ Equation inserted successfully!');
+                  showNotification('Equation inserted', 'success');
+                }
+                return; // Exit early
+              }
+
               const mappingToFormat = ['bold', 'italic', 'underline', 'fontName', 'justifyLeft', 'justifyCenter', 'justifyRight', 'justifyFull'];
 
               // File panel actions
@@ -1586,21 +2103,24 @@ Keyboard Shortcuts:
                 alert('Keyboard Shortcuts:\n\nCtrl+B - Bold\nCtrl+I - Italic\nCtrl+U - Underline\nCtrl+Z - Undo\nCtrl+Y - Redo\nCtrl+C - Copy\nCtrl+V - Paste\nCtrl+X - Cut\nCtrl+A - Select All\nCtrl+F - Find\nCtrl+S - Save\nCtrl+P - Print');
               } else if (cmd === 'whatsNew') {
                 alert('What\'s New in EtherXWord:\n\n• Enhanced text alignment tools\n• Improved image insertion and editing\n• Better header/footer configuration\n• New drawing tools\n• Enhanced collaboration features\n• Performance improvements');
+              } else if (cmd === 'insertCoverPage') {
+                insertCoverPage(value);
+              } else if (cmd === 'removeCoverPage') {
+                removeCoverPage();
               } else if (cmd === 'insertPageBreak') {
                 insertPageBreak();
+              } else if (cmd === 'insertBlankPage') {
+                insertBlankPage();
               } else if (cmd === 'insertTable') {
-                if (value && value.rows && value.cols) {
-                  let tableHTML = '<table border="1" style="border-collapse: collapse; width: 100%; margin: 10px 0;">';
-                  for (let i = 0; i < value.rows; i++) {
-                    tableHTML += '<tr>';
-                    for (let j = 0; j < value.cols; j++) {
-                      tableHTML += '<td style="padding: 8px; border: 1px solid #ccc;">&nbsp;</td>';
-                    }
-                    tableHTML += '</tr>';
-                  }
-                  tableHTML += '</table>';
-                  document.execCommand('insertHTML', false, tableHTML);
-                }
+                insertTable(value);
+              } else if (cmd === 'previewTable') {
+                previewTable(value);
+              } else if (cmd === 'drawTable') {
+                drawTable();
+              } else if (cmd === 'convertTextToTable') {
+                convertTextToTable();
+              } else if (cmd === 'insertImage') {
+                // ... handled below or if needed
               } else if (cmd === 'showFormattingMarks') {
                 toggleFormattingMarks();
               } else if (cmd === 'sortParagraphs') {
@@ -1724,6 +2244,30 @@ Keyboard Shortcuts:
                 }
               } else if (cmd === 'insertParagraph') {
                 document.execCommand('insertHTML', false, '<p></p>');
+              } else if (cmd === 'insertShape_DISABLED') {
+                const svgContent = getShapeSVG(value);
+                if (svgContent) {
+                  // Convert SVG to Data URI for better compatibility with contenteditable resizing
+                  const encoded = btoa(unescape(encodeURIComponent(svgContent)));
+                  const dataUri = `data:image/svg+xml;base64,${encoded}`;
+                  document.execCommand('insertImage', false, dataUri);
+                  showNotification('Shape inserted', 'success');
+
+                  // Try to select the inserted image to show resize handles immediately
+                  setTimeout(() => {
+                    const images = document.querySelectorAll('.page-content img');
+                    if (images.length > 0) {
+                      // Activate the last inserted image
+                      const lastImage = images[images.length - 1];
+                      if (window.imageControls && window.imageControls.select) {
+                        window.imageControls.select(lastImage);
+                      } else {
+                        // Fallback if imageControls not exposed or different API
+                        lastImage.click();
+                      }
+                    }
+                  }, 100);
+                }
               } else if (cmd === 'insertImage') {
                 const url = window.prompt('Image URL');
                 if (url) document.execCommand('insertImage', false, url);
@@ -1950,6 +2494,258 @@ Keyboard Shortcuts:
                     showNotification('Failed to apply header/footer: ' + error.message, 'error');
                   }
                 }
+              } else if (cmd === 'insertPageNumber') {
+                if (value && paginationRef.current) {
+                  try {
+                    // Map the page number settings to header/footer config
+                    const { template, format, position, style } = value;
+
+                    // Determine if it's header or footer based on category
+                    const isHeader = template?.id?.startsWith('top-');
+                    const isFooter = template?.id?.startsWith('bottom-');
+                    const isMargin = template?.id?.startsWith('margin-');
+                    const isCurrent = template?.id?.startsWith('current-');
+
+                    if (isHeader || isFooter) {
+                      // Determine the template style and create appropriate format
+                      const templateId = template?.id || '';
+                      let pageNumberFormat = '{n}'; // Default format
+
+                      // Apply template-specific formatting
+                      if (templateId.includes('brackets')) {
+                        pageNumberFormat = '[{n}]';
+                      } else if (templateId.includes('accent')) {
+                        pageNumberFormat = '▌{n}▐';
+                      } else if (templateId.includes('banded')) {
+                        pageNumberFormat = '━━ {n} ━━';
+                      } else if (templateId.includes('circle')) {
+                        pageNumberFormat = '⊙ {n} ⊙';
+                      } else if (templateId.includes('bold')) {
+                        pageNumberFormat = '{n}'; // Will be styled with CSS
+                      } else if (templateId.includes('line')) {
+                        if (position === 'left') pageNumberFormat = '{n} ─';
+                        else if (position === 'right') pageNumberFormat = '─ {n}';
+                        else pageNumberFormat = '─ {n} ─';
+                      } else if (templateId.includes('modern')) {
+                        pageNumberFormat = '• {n} •';
+                      } else if (templateId.includes('stack')) {
+                        pageNumberFormat = '⎯⎯⎯ {n} ⎯⎯⎯';
+                      } else if (templateId.includes('tiles')) {
+                        pageNumberFormat = '▪ {n} ▪';
+                      } else if (templateId.includes('large')) {
+                        pageNumberFormat = '{n}'; // Will use larger font
+                      } else if (templateId.includes('xofy')) {
+                        pageNumberFormat = 'Page {n} of {total}';
+                      }
+
+                      // Insert into header or footer
+                      const config = {
+                        headerText: '',
+                        headerAlignment: isHeader ? (position || 'center') : 'left',
+                        footerText: '',
+                        footerAlignment: isFooter ? (position || 'center') : 'left',
+                        borderType: 'none',
+                        borderColor: '#000000',
+                        borderWidth: '1px',
+                        pageNumbers: {
+                          enabled: true,
+                          type: format || 'arabic',
+                          position: isHeader ? `header-${position || 'center'}` : `footer-${position || 'center'}`,
+                          format: pageNumberFormat,
+                          templateStyle: templateId
+                        }
+                      };
+                      paginationRef.current.setHeaderFooter(config);
+                      showNotification('Page number inserted successfully!', 'success');
+                    } else if (isMargin) {
+                      // For margins, we'd need special handling - for now show info
+                      showNotification('Page margin numbers will be implemented in next update', 'info');
+                    } else if (isCurrent) {
+                      // Insert at current cursor position
+                      const pageNumText = template?.format?.replace('{PAGE}', '1').replace('{NUMPAGES}', '10') || '1';
+                      document.execCommand('insertText', false, pageNumText);
+                      showNotification('Page number inserted at cursor position', 'success');
+                    }
+                  } catch (error) {
+                    console.error('Page number insertion error:', error);
+                    showNotification('Failed to insert page number: ' + error.message, 'error');
+                  }
+                }
+              } else if (cmd === 'formatPageNumbers') {
+                if (value && paginationRef.current) {
+                  try {
+                    // Update page number format in existing header/footer
+                    // Get current header/footer config and update with new format
+                    const currentConfig = paginationRef.current.headerFooterConfig;
+
+                    if (!currentConfig || !currentConfig.pageNumbers || !currentConfig.pageNumbers.enabled) {
+                      showNotification('Please insert page numbers first before formatting', 'warning');
+                      return;
+                    }
+
+
+                    // Determine new position based on value.position or keep current
+                    const currentPosition = currentConfig.pageNumbers.position || 'footer-center';
+                    const isHeader = currentPosition.startsWith('header');
+                    const newAlignment = value.position || currentPosition.split('-')[1] || 'center';
+                    const newPosition = isHeader ? `header-${newAlignment}` : `footer-${newAlignment}`;
+
+                    const updatedConfig = {
+                      headerText: currentConfig.headerText || '',
+                      headerAlignment: isHeader ? newAlignment : (currentConfig.headerAlignment || 'left'),
+                      footerText: currentConfig.footerText || '',
+                      footerAlignment: !isHeader ? newAlignment : (currentConfig.footerAlignment || 'left'),
+                      borderType: currentConfig.borderType || 'none',
+                      borderColor: currentConfig.borderColor || '#000000',
+                      borderWidth: currentConfig.borderWidth || '1px',
+                      pageNumbers: {
+                        enabled: true,
+                        type: value.format || 'arabic',
+                        position: newPosition,
+                        format: currentConfig.pageNumbers.format || '{n}',
+                        templateStyle: currentConfig.pageNumbers.templateStyle || ''
+                      }
+                    };
+
+                    paginationRef.current.setHeaderFooter(updatedConfig);
+                    showNotification('Page number format updated successfully!', 'success');
+                  } catch (error) {
+                    console.error('Format page numbers error:', error);
+                    showNotification('Failed to format page numbers: ' + error.message, 'error');
+                  }
+                }
+              } else if (cmd === 'removePageNumbers') {
+                if (paginationRef.current) {
+                  try {
+                    // Remove page numbers by clearing header/footer
+                    const config = {
+                      headerText: '',
+                      headerAlignment: 'left',
+                      footerText: '',
+                      pageNumbers: { enabled: false }
+                    };
+                    paginationRef.current.setHeaderFooter(config);
+                    showNotification('Page numbers removed successfully!', 'success');
+                  } catch (error) {
+                    console.error('Remove page numbers error:', error);
+                    showNotification('Failed to remove page numbers: ' + error.message, 'error');
+                  }
+                }
+              } else if (cmd === 'insertTextBox') {
+                if (value && value.template) {
+                  try {
+                    // Import TextBoxEngine dynamically
+                    import('../utils/textBoxEngine').then(module => {
+                      const textBoxEngine = module.default;
+
+                      // Get the editor container using ref
+                      const editorContainer = editorContainerRef.current;
+                      if (!editorContainer) {
+                        showNotification('Editor container not found', 'error');
+                        return;
+                      }
+
+                      // Create text box at center of viewport
+                      const viewportCenter = {
+                        x: window.innerWidth / 2 - 100,
+                        y: window.scrollY + 200
+                      };
+
+                      const textBox = textBoxEngine.createTextBoxElement(value.template, viewportCenter);
+                      editorContainer.appendChild(textBox);
+                      textBoxEngine.selectTextBox(textBox);
+
+                      showNotification(`${value.template.name} inserted successfully!`, 'success');
+                    });
+                  } catch (error) {
+                    console.error('Insert text box error:', error);
+                    showNotification('Failed to insert text box: ' + error.message, 'error');
+                  }
+                }
+              } else if (cmd === 'drawTextBox') {
+                try {
+                  import('../utils/textBoxEngine').then(module => {
+                    const textBoxEngine = module.default;
+
+                    const editorContainer = editorContainerRef.current;
+                    if (!editorContainer) {
+                      showNotification('Editor container not found', 'error');
+                      return;
+                    }
+
+                    textBoxEngine.enableDrawingMode(editorContainer);
+                    showNotification('Click and drag to draw a text box', 'info');
+                  });
+                } catch (error) {
+                  console.error('Draw text box error:', error);
+                  showNotification('Failed to enable drawing mode: ' + error.message, 'error');
+                }
+              } else if (cmd === 'saveTextBoxToGallery') {
+                try {
+                  import('../utils/textBoxEngine').then(module => {
+                    const textBoxEngine = module.default;
+
+                    if (!textBoxEngine.activeTextBox) {
+                      showNotification('Please select a text box first', 'warning');
+                      return;
+                    }
+
+                    // Extract template from selected text box
+                    const customTemplate = {
+                      id: `custom-${Date.now()}`,
+                      name: 'Custom Text Box',
+                      category: 'simple',
+                      type: 'box',
+                      style: {
+                        border: {
+                          width: textBoxEngine.activeTextBox.style.borderWidth || '1pt',
+                          color: textBoxEngine.activeTextBox.style.borderColor || '#000000',
+                          style: textBoxEngine.activeTextBox.style.borderStyle || 'solid'
+                        },
+                        fill: textBoxEngine.activeTextBox.style.background || 'none',
+                        shadow: textBoxEngine.activeTextBox.style.boxShadow || 'none',
+                        width: textBoxEngine.activeTextBox.style.width,
+                        height: textBoxEngine.activeTextBox.style.height,
+                        minHeight: textBoxEngine.activeTextBox.style.minHeight || '100px',
+                        padding: textBoxEngine.activeTextBox.style.padding || '10px',
+                        borderRadius: textBoxEngine.activeTextBox.style.borderRadius || '0px'
+                      },
+                      text: {
+                        font: textBoxEngine.activeTextBox.style.fontFamily || 'Calibri',
+                        size: textBoxEngine.activeTextBox.style.fontSize || '11pt',
+                        alignment: textBoxEngine.activeTextBox.style.textAlign || 'left',
+                        color: textBoxEngine.activeTextBox.style.color || '#000000',
+                        lineHeight: textBoxEngine.activeTextBox.style.lineHeight || '1.5'
+                      },
+                      position: {
+                        wrapping: 'square',
+                        zIndex: 1000
+                      }
+                    };
+
+                    // Save to localStorage
+                    const customBoxes = JSON.parse(localStorage.getItem('customTextBoxes') || '[]');
+                    customBoxes.push(customTemplate);
+                    localStorage.setItem('customTextBoxes', JSON.stringify(customBoxes));
+
+                    showNotification('Text box saved to gallery!', 'success');
+                  });
+                } catch (error) {
+                  console.error('Save text box error:', error);
+                  showNotification('Failed to save text box: ' + error.message, 'error');
+                }
+              } else if (cmd === 'previewTable') {
+                previewTable(value);
+              } else if (cmd === 'drawTable') {
+                drawTable();
+              } else if (cmd === 'convertTextToTable') {
+                convertTextToTable();
+              } else if (cmd === 'insertImage') {
+                const styleName = value;
+                if (!styleName) return;
+
+                focusActiveEditor();
+                const selection = window.getSelection();
               } else if (cmd === 'applyTextStyle') {
                 applyStyle(value);
               } else if (cmd === 'createStyle') {
@@ -3013,7 +3809,401 @@ Keyboard Shortcuts:
                   focusActiveEditor();
                   document.execCommand('selectAll', false, null);
                 }
+              } else if (cmd === 'insertCoverPage') {
+                const coverPageHtml = `<div class="cover-page" style="page-break-after: always; text-align: center; padding: 2in 1in; min-height: 800px; display: flex; flex-direction: column; justify-content: center;">
+                  <h1 style="font-size: 48pt; margin-bottom: 24pt; color: #2f5496;">${documentTitle || 'Document Title'}</h1>
+                  <h2 style="font-size: 24pt; color: #555; margin-bottom: 48pt;">Subtitle</h2>
+                  <div style="margin-top: auto;">
+                    <p style="font-size: 14pt;"><strong>Author:</strong> User</p>
+                    <p style="font-size: 14pt;"><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+                  </div>
+                </div>`;
+                document.execCommand('insertHTML', false, coverPageHtml);
+                showNotification('Cover Page inserted', 'success');
+              } else if (cmd === 'insertBlankPage') {
+                document.execCommand('insertHTML', false, '<div style="page-break-after: always;">&nbsp;</div>');
+                showNotification('Blank Page inserted', 'success');
+              } else if (cmd === 'insertTable') {
+                const { rows, cols } = value || { rows: 2, cols: 2 };
+                let tableHtml = '<table style="border-collapse: collapse; width: 100%; border: 1px solid #000; margin: 10px 0;"><tbody>';
+                for (let i = 0; i < rows; i++) {
+                  tableHtml += '<tr>';
+                  for (let j = 0; j < cols; j++) {
+                    tableHtml += '<td style="border: 1px solid #000; padding: 8px; min-width: 50px;">&nbsp;</td>';
+                  }
+                  tableHtml += '</tr>';
+                }
+                tableHtml += '</tbody></table><p>&nbsp;</p>';
+                document.execCommand('insertHTML', false, tableHtml);
+                showNotification('Table inserted', 'success');
+              } else if (cmd === 'insertImage') {
+                if (value && value instanceof File) {
+                  const reader = new FileReader();
+                  reader.onload = (e) => {
+                    document.execCommand('insertImage', false, e.target.result);
+                  };
+                  reader.readAsDataURL(value);
+                }
+              } else if (cmd === 'insertShape') {
+                setActiveShapeTool(value);
+                showNotification(`Draw a ${value} on the canvas`, 'info');
+                // Cursor will change via CSS based on activeShapeTool
+              } else if (cmd === 'insertIcon') {
+                document.execCommand('insertHTML', false, `<span style="font-size: 24pt; margin: 0 5px;">${value || '★'}</span>`);
+              } else if (cmd === 'insertLink') {
+                const { url, text } = value;
+                document.execCommand('insertHTML', false, `<a href="${url}" target="_blank" style="color:#0563c1; text-decoration:underline;">${text || url}</a>`);
+              } else if (cmd === 'insertBookmark') {
+                const name = value; // bookmark name
+                // Insert a hidden anchor
+                document.execCommand('insertHTML', false, `<a name="${name}" title="Bookmark: ${name}"></a>`);
+                setBookmarks(prev => [...new Set([...prev, name])]); // Add to list, no duplicates
+                showNotification(`Bookmark '${name}' added`, 'success');
+              } else if (cmd === 'goToBookmark') {
+                const name = value; // bookmark name
+                const editor = document.querySelector('.multi-page-editor'); // Scope to editor
+                if (editor) {
+                  const anchor = editor.querySelector(`a[name="${name}"]`);
+                  if (anchor) {
+                    anchor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // derived selection
+                    const range = document.createRange();
+                    range.selectNode(anchor);
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                  } else {
+                    showNotification(`Bookmark '${name}' not found`, 'warning');
+                  }
+                }
+              } else if (cmd === 'insertSymbol') {
+                document.execCommand('insertText', false, value);
+              } else if (cmd === 'insertEquation') {
+                document.execCommand('insertHTML', false, '<span class="equation" style="font-style: italic; background: #f0f0f0; padding: 2px 5px; border: 1px dotted #ccc;">Equation...</span>');
+                showNotification('Equation placeholder inserted', 'info');
+              } else if (cmd === 'insertVideo') {
+                // Try to embed youtube
+                let embedUrl = value;
+                if (value.includes('youtube.com') || value.includes('youtu.be')) {
+                  const videoId = value.split('v=')[1]?.split('&')[0] || value.split('/').pop();
+                  embedUrl = `https://www.youtube.com/embed/${videoId}`;
+                }
+                const iframe = `<iframe width="560" height="315" src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="max-width: 100%;"></iframe>`;
+                document.execCommand('insertHTML', false, iframe);
+              } else if (cmd === 'insertDrawing') {
+                // value is dataURL
+                document.execCommand('insertImage', false, value);
+              } else if (cmd === 'insertTextBox') {
+                document.execCommand('insertHTML', false, '<div style="display: inline-block; border: 1px solid #000; padding: 10px; min-width: 150px; background: #fff;">Text Box</div>');
+              } else if (cmd === 'insertWordArt') {
+                // Determine active page
+                const activePage = document.querySelector('.page-content[contenteditable="true"]:focus') ||
+                  document.querySelector('.page-content[contenteditable="true"]');
+
+                if (activePage) {
+                  // Insert WordArt via Engine
+                  const wordArtBox = textBoxEngine.insertWordArt(value);
+                  // Append to the Page Wrapper (editor-page) to allow placement in margins
+                  const pageWrapper = activePage.parentElement;
+                  if (pageWrapper && pageWrapper.classList.contains('editor-page')) {
+                    pageWrapper.appendChild(wordArtBox);
+                  } else {
+                    activePage.appendChild(wordArtBox);
+                  }
+
+                  textBoxEngine.selectTextBox(wordArtBox);
+                  showNotification('WordArt inserted', 'success');
+                } else {
+                  showNotification('Please click on a page first', 'warning');
+                }
+              } else if (cmd === 'insertQuickPart') {
+                document.execCommand('insertHTML', false, '<span style="background: #e0e0e0; padding: 2px;">[Quick Part]</span>');
+              } else if (cmd === 'toggleDropCap') {
+                showNotification('Drop Cap applied (Simulated)', 'info');
+              } else if (cmd === 'dropCap') {
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                  const range = selection.getRangeAt(0);
+                  let paragraph = range.commonAncestorContainer;
+                  // Traverse up to find paragraph block
+                  while (paragraph && paragraph.nodeName !== 'P' && paragraph.nodeName !== 'DIV' && !paragraph.classList?.contains('page-content')) {
+                    paragraph = paragraph.parentNode;
+                  }
+
+                  if (paragraph && paragraph.classList?.contains('page-content')) {
+                    // If we hit page-content directly, we might not be in a paragraph, maybe find first child?
+                    // Use anchor node parent for better precision
+                    paragraph = selection.anchorNode.nodeType === 3 ? selection.anchorNode.parentNode : selection.anchorNode;
+                    if (paragraph.nodeName !== 'P' && paragraph.nodeName !== 'DIV') {
+                      // Create a paragraph if bare text?
+                      // For now, abort if not in block
+                      return;
+                    }
+                  }
+
+                  if (paragraph && (paragraph.nodeName === 'P' || paragraph.nodeName === 'DIV')) {
+                    // Parse settings
+                    let type = 'none';
+                    let lines = 3;
+                    let distance = 0;
+                    let font = 'Times New Roman';
+
+                    if (typeof value === 'object') {
+                      type = value.type || 'none';
+                      lines = value.lines || 3;
+                      distance = value.distance || 0;
+                      font = value.font || 'Times New Roman';
+                    } else {
+                      type = value;
+                    }
+
+                    // Remove existing drop cap
+                    const existing = paragraph.querySelector('.drop-cap');
+                    if (existing) {
+                      const capText = existing.innerText;
+                      existing.replaceWith(capText);
+                      paragraph.normalize();
+                    }
+
+                    if (type === 'none') {
+                      return;
+                    }
+
+                    // Apply new Drop Cap
+                    let walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT, null, false);
+                    let firstTextNode = walker.nextNode();
+
+                    if (firstTextNode && firstTextNode.textContent.trim().length > 0) {
+                      const fullText = firstTextNode.textContent;
+                      const firstChar = fullText.trim().charAt(0);
+                      const firstCharIndex = fullText.indexOf(firstChar);
+
+                      if (firstCharIndex > -1) {
+                        const splitText = firstTextNode.splitText(firstCharIndex + 1);
+                        const charNode = firstTextNode;
+
+                        const span = document.createElement('span');
+                        span.className = 'drop-cap';
+                        span.innerText = firstChar;
+
+                        // Calculate size based on lines
+                        // Standard line-height is often ~1.2.
+                        // For 3 lines, we want height approx 3.6em.
+                        // Font-size needs to be large enough.
+                        const fontSizeEm = lines * 0.9;
+
+                        span.style.cssText = `
+                             float: left;
+                             font-size: ${fontSizeEm}in; /* Use inches or fixed unit relative/absolute? No, EM is better but tricky. Let's try simpler EM */
+                             font-size: ${lines * 3}rem; /* REM might be safer? No, relative to parent font. */
+                             font-size: ${lines * 100 + 40}%; /* Percentage is relative to current font */
+                             line-height: 0.8;
+                             padding-top: 0;
+                             padding-right: 0.1em;
+                             margin-right: ${distance}in;
+                             margin-top: 0.05em; /* Nudge down for cap-height alignment */
+                             font-family: "${font}", "Times New Roman", serif;
+                             color: inherit;
+                           `;
+
+                        // Override for precise calculated sizing
+                        span.style.fontSize = `${lines * 1.3}em`;
+                        span.style.fontWeight = 'bold'; // User requested BOLD
+
+                        // Debug log
+                        console.log('Applied Drop Cap:', span);
+
+                        if (type === 'margin') {
+                          // In Margin: Absolute positioning to pull it out
+                          paragraph.style.position = 'relative'; // Ensure paragraph is anchor
+                          span.style.position = 'absolute';
+                          span.style.left = `-${0.6 + distance}in`; // 0.6in approx width + distance
+                          span.style.top = '0';
+                          span.style.textAlign = 'right';
+                          span.style.width = '0.5in'; // Fixed container for the letter
+                          span.style.float = 'none'; // Ensure no float
+                          span.style.margin = '0';
+                        } else {
+                          // Dropped: Float
+                          span.style.float = 'left';
+                          span.style.marginRight = `${distance}in`;
+                        }
+
+                        charNode.textContent = fullText.substring(0, firstCharIndex);
+                        paragraph.insertBefore(span, splitText);
+                      }
+                    }
+                  }
+                }
+
+
+                console.log('📍 REACHED LINE 3992, checking cmd:', cmd);
+              } else if (cmd === 'insertEquation') {
+                console.log('insertEquation command received, value:', value);
+                const activePage = document.querySelector('.page-content[contenteditable="true"]:focus') ||
+                  document.querySelector('.page-content[contenteditable="true"]');
+
+                console.log('Active page:', activePage);
+
+                if (activePage) {
+                  const div = document.createElement('div');
+                  div.className = 'math-zone';
+                  // Use flex to center, but standard block flow is better for Word-like behavior where it takes up a line
+                  div.style.cssText = 'display: block; text-align: center; margin: 12px 0; font-family: "Cambria Math", "Latin Modern Math", serif; font-size: 18px; padding: 5px; cursor: default;';
+                  div.contentEditable = "false"; // Math zone itself isn't directly editable yet (complex input)
+
+                  if (value) {
+                    div.textContent = value;
+                  } else {
+                    // Empty placeholder
+                    div.textContent = 'Type equation here.';
+                    div.style.color = '#999';
+                  }
+
+                  console.log('Created equation div:', div.textContent);
+
+                  // Insert at selection if possible
+                  const selection = window.getSelection();
+                  if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    // Check if range is inside activePage
+                    if (activePage.contains(range.commonAncestorContainer)) {
+                      range.deleteContents();
+                      range.insertNode(div);
+
+                      // Insert a paragraph break after if needed
+                      const p = document.createElement('p');
+                      p.innerHTML = '<br>';
+                      range.setStartAfter(div);
+                      range.setEndAfter(div);
+                      range.insertNode(p);
+
+                      range.setStart(p, 0);
+                      range.setEnd(p, 0);
+                      selection.removeAllRanges();
+                      selection.addRange(range);
+                      console.log('Equation inserted at selection');
+                    } else {
+                      activePage.appendChild(div);
+                      console.log('Equation appended to page');
+                    }
+                  } else {
+                    activePage.appendChild(div);
+                    console.log('Equation appended to page (no selection)');
+                  }
+                }
+              } else if (cmd === 'insertSignature') {
+                // value is {type: 'text'|'image', content }
+                const { type, content } = value;
+
+                const activePage = document.querySelector('.page-content[contenteditable="true"]:focus') ||
+                  document.querySelector('.page-content[contenteditable="true"]');
+
+                if (activePage) {
+                  const container = document.createElement('div');
+                  container.className = 'signature-line-container';
+                  container.style.cssText = `
+          position: absolute;
+          bottom: 1in;
+          left: 1in;
+          width: 2.5in;
+          z-index: 10;
+          font-family: Arial, sans-serif;
+          `;
+                  container.contentEditable = "false";
+
+                  // The Line
+                  const line = document.createElement('div');
+                  line.style.borderTop = '1px solid #000';
+                  line.style.width = '100%';
+                  line.style.marginBottom = '5px';
+                  line.style.position = 'relative';
+
+                  // The X
+                  const xMark = document.createElement('span');
+                  xMark.innerText = 'X';
+                  xMark.style.position = 'absolute';
+                  xMark.style.top = '-15px';
+                  xMark.style.left = '0';
+                  xMark.style.fontSize = '12px';
+                  line.appendChild(xMark);
+
+                  // Append Line First
+                  container.appendChild(line);
+
+                  // Render Content based on Type
+                  if (type === 'image' && content) {
+                    const img = document.createElement('img');
+                    img.src = content;
+                    img.style.display = 'block';
+                    img.style.marginTop = '5px';
+                    img.style.height = '40px';
+                    img.style.pointerEvents = 'none';
+                    img.style.marginLeft = '10px';
+                    container.appendChild(img);
+                  } else if (type === 'text') {
+                    console.log('Inserting Text Signature:', content);
+                    const textDiv = document.createElement('div');
+                    textDiv.textContent = content || 'Signed'; // Fallback text
+                    textDiv.style.fontFamily = '"Brush Script MT", "Lucida Handwriting", cursive, serif'; // Better font stack
+                    textDiv.style.fontSize = '24px';
+                    textDiv.style.marginTop = '10px';
+                    textDiv.style.marginLeft = '10px';
+                    textDiv.style.color = '#000000'; // Force black color
+                    textDiv.style.whiteSpace = 'nowrap'; // Prevent wrapping
+                    container.appendChild(textDiv);
+                  }
+
+
+                  // Make it draggable? For now, static bottom-left as requested.
+
+                  // Append to page wrapper for absolute positioning relative to page
+                  const pageWrapper = activePage.parentElement;
+                  if (pageWrapper && pageWrapper.classList.contains('editor-page')) {
+                    pageWrapper.appendChild(container); // Append to wrapper so it sits over content
+                  } else {
+                    activePage.appendChild(container); // Fallback
+                  }
+
+                  showNotification('Signature Line added', 'success');
+                } else {
+                  showNotification('Please click on a page first', 'warning');
+                }
+              } else if (cmd === 'insertQuickPart') {
+                document.execCommand('insertHTML', false, '<span style="background: #e0e0e0; padding: 2px;">[Quick Part]</span>');
+              } else if (cmd === 'toggleDropCap') {
+                showNotification('Drop Cap applied (Simulated)', 'info');
+              } else if (cmd === 'insertSignatureLine') {
+                document.execCommand('insertHTML', false, '<div style="border-top: 1px solid #000; width: 200px; margin-top: 50px; padding-top: 5px;">Signature</div>');
+              } else if (cmd === 'insertFile') {
+                // Just read as text
+                if (value && value instanceof File) {
+                  const reader = new FileReader();
+                  reader.onload = (e) => {
+                    // sanitize? assume text
+                    const text = e.target.result;
+                    document.execCommand('insertText', false, text);
+                  };
+                  reader.readAsText(value);
+                }
+              } else if (cmd === 'headerFooter') {
+                // Logic to update header/footer state is complex, for now we set global state
+                if (value) {
+                  setHeaderFooterSettings(value);
+                  // Force update of pagination
+                  if (paginationRef.current) {
+                    // We need a way to pass this to pagination engine
+                    // For now just re-render
+                    showNotification('Header/Footer settings updated', 'success');
+                  }
+                }
+                // Handled in UI? NO, this is apply.
+                // This cmd doesn't make sense for apply.
+              } else if (cmd === 'drawTable') {
+                setIsDrawTableMode(!isDrawTableMode);
+                showNotification(isDrawTableMode ? 'Draw Table exited' : 'Draw Table Mode: Drag to create table', 'info');
               } else {
+
                 console.log('⚠️ FALLING TO DEFAULT HANDLER for command:', cmd);
                 try {
                   focusActiveEditor();
@@ -3024,8 +4214,10 @@ Keyboard Shortcuts:
               }
               setTimeout(updateFormatState, 60);
               setTimeout(updateDocumentStats, 160);
-            }}
+            }
+            }
             currentFormat={currentFormat}
+            bookmarks={bookmarks}
           />
         </div>
       )}
@@ -3035,11 +4227,26 @@ Keyboard Shortcuts:
         <div className="editor-wrapper">
           <div
             className="pages-container"
-            style={{ transform: `scale(${zoomLevel / 100})` }}
+            style={{
+              transform: `scale(${zoomLevel / 100})`,
+              cursor: activeShapeTool ? 'crosshair' : (isDrawTableMode ? 'crosshair' : 'default')
+            }}
+            onMouseDown={activeShapeTool ? handleShapeMouseDown : handleDrawMouseDown}
+            onMouseMove={activeShapeTool ? handleShapeMouseMove : null}
+            onMouseUp={activeShapeTool ? handleShapeMouseUp : null}
           >
             <div ref={editorContainerRef} className="multi-page-editor">
               {/* Pages will be dynamically created here by MSWordPagination */}
             </div>
+
+            <div ref={shapeGhostRef} style={{
+              position: 'absolute',
+              border: '1px dashed #2563eb',
+              backgroundColor: 'rgba(37, 99, 235, 0.1)',
+              display: 'none',
+              pointerEvents: 'none',
+              zIndex: 1000
+            }} />
           </div>
         </div>
       </div>
@@ -3073,42 +4280,44 @@ Keyboard Shortcuts:
       </div>
 
       {/* Share Modal */}
-      {showShareModal && (
-        <div className="modal-overlay" onClick={() => setShowShareModal(false)}>
-          <div className="share-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Share Document</h3>
-              <button onClick={() => setShowShareModal(false)}>×</button>
-            </div>
-            <div className="modal-content">
-              <div className="share-option">
-                <label>Document Link:</label>
-                <div className="link-container">
-                  <input type="text" value={window.location.href} readOnly />
-                  <button onClick={() => {
-                    navigator.clipboard.writeText(window.location.href);
-                    showNotification('Link copied to clipboard', 'success');
-                  }}>Copy</button>
+      {
+        showShareModal && (
+          <div className="modal-overlay" onClick={() => setShowShareModal(false)}>
+            <div className="share-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Share Document</h3>
+                <button onClick={() => setShowShareModal(false)}>×</button>
+              </div>
+              <div className="modal-content">
+                <div className="share-option">
+                  <label>Document Link:</label>
+                  <div className="link-container">
+                    <input type="text" value={window.location.href} readOnly />
+                    <button onClick={() => {
+                      navigator.clipboard.writeText(window.location.href);
+                      showNotification('Link copied to clipboard', 'success');
+                    }}>Copy</button>
+                  </div>
                 </div>
-              </div>
-              <div className="share-option">
-                <label>Share via Email:</label>
-                <input type="email" placeholder="Enter email address" />
-                <button onClick={() => showNotification('Email sent', 'success')}>Send</button>
-              </div>
-              <div className="share-option">
-                <label>Permission Level:</label>
-                <select>
-                  <option>Can View</option>
-                  <option>Can Edit</option>
-                  <option>Can Comment</option>
-                </select>
+                <div className="share-option">
+                  <label>Share via Email:</label>
+                  <input type="email" placeholder="Enter email address" />
+                  <button onClick={() => showNotification('Email sent', 'success')}>Send</button>
+                </div>
+                <div className="share-option">
+                  <label>Permission Level:</label>
+                  <select>
+                    <option>Can View</option>
+                    <option>Can Edit</option>
+                    <option>Can Comment</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 
